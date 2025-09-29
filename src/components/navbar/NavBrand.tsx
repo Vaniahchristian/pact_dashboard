@@ -1,15 +1,20 @@
-
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ShieldCheck } from 'lucide-react';
+import Logo from '@/assets/logo.png'; 
 
 const NavBrand = () => {
   return (
-    <Link to="/dashboard" className="flex items-center gap-3">
-      <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-primary-600 to-primary-700 flex items-center justify-center shadow-sm ring-1 ring-primary-950/10">
-        <ShieldCheck className="h-5 w-5 text-white" strokeWidth={2.5} />
+    <Link
+      to="/dashboard"
+      className="flex items-center gap-3 group hover:opacity-90 transition-opacity duration-200"
+    >
+      {/* Custom Logo */}
+      <div className="h-10 w-10 flex items-center justify-center rounded-xl shadow-md ring-1 ring-primary-900/20 bg-white dark:bg-gray-900 group-hover:scale-105 transition-transform duration-200">
+        <img src={Logo} alt="PACT Logo" className="h-6 w-6 object-contain" />
       </div>
-      <div className="flex flex-col">
+
+      {/* Brand Text */}
+      <div className="flex flex-col leading-tight">
         <span className="font-display font-bold text-lg text-neutral-800 dark:text-neutral-100">
           PACT Platform
         </span>

@@ -1,42 +1,89 @@
-
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import PactLogo from "@/assets/logo.png"; 
 
 const Index = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Initialize empty local storage for mock data persistence if needed
-    if (!localStorage.getItem('mock_mmp_files')) {
-      localStorage.setItem('mock_mmp_files', JSON.stringify([]));
+    // Initialize empty local storage for mock data
+    if (!localStorage.getItem("mock_mmp_files")) {
+      localStorage.setItem("mock_mmp_files", JSON.stringify([]));
     }
-    
-    // Redirect to auth page immediately
-    navigate("/auth");
-  }, [navigate]);
+  }, []);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-gray-100 to-gray-200 dark:from-gray-900 dark:to-gray-800">
-      <div className="text-center p-8 bg-white dark:bg-gray-800 rounded-lg shadow-lg">
-        <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-blue-50 to-orange-50 dark:from-black dark:to-gray-900 px-4">
+      
+      {/* Card Container */}
+      <div className="relative w-full max-w-lg bg-white dark:bg-gray-900 rounded-3xl shadow-2xl p-10 flex flex-col items-center text-center">
+        
+        {/* Logo */}
+        <div className="flex justify-center mb-6">
+          <img
+            src={PactLogo}
+            alt="PACT Logo"
+            className="h-24 w-24 animate-bounce shadow-lg rounded-full bg-white p-2"
+          />
+        </div>
+
+        {/* Main Heading */}
+        <h1 className="text-4xl md:text-5xl font-extrabold mb-4 text-blue-600">
           PACT Workflow Platform
         </h1>
-        <p className="text-xl text-gray-600 dark:text-gray-300 mb-6">
-          Advanced MMP Management System
+
+        {/* Subheading */}
+        <p className="text-gray-700 dark:text-gray-300 text-base md:text-lg mb-8">
+          Streamlined MMP Management System for seamless field operations
         </p>
-        <div className="flex flex-col items-center justify-center">
-          <Button 
-            className="mb-4 px-6 py-2 font-medium"
-            onClick={() => navigate("/auth")}
+
+        {/* Feature Badges */}
+        <div className="flex flex-wrap justify-center gap-3 mb-8">
+          <button
+            className="px-4 py-2 bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200 
+                      rounded-full text-sm font-medium shadow-sm transition-all duration-300
+                      hover:bg-blue-200 dark:hover:bg-blue-700 hover:scale-105 focus:ring-2 focus:ring-blue-400"
           >
-            Continue to Login
-          </Button>
-          <div className="animate-pulse text-sm text-gray-500 dark:text-gray-400">
-            Redirecting to authentication page...
-          </div>
+            Project Management
+          </button>
+
+          <button
+            className="px-4 py-2 bg-orange-100 dark:bg-orange-800 text-orange-800 dark:text-orange-200 
+                      rounded-full text-sm font-medium shadow-sm transition-all duration-300
+                      hover:bg-orange-200 dark:hover:bg-orange-700 hover:scale-105 focus:ring-2 focus:ring-orange-400"
+          >
+            Field Operations
+          </button>
+
+          <button
+            className="px-4 py-2 bg-black/10 dark:bg-white/10 text-black dark:text-white 
+                      rounded-full text-sm font-medium shadow-sm transition-all duration-300
+                      hover:bg-black/20 dark:hover:bg-white/20 hover:scale-105 focus:ring-2 focus:ring-gray-400"
+          >
+            Advanced Reporting
+          </button>
         </div>
+
+
+
+        {/* Continue Button */}
+        <Button
+          className="mb-4 px-8 py-3 font-medium bg-blue-600 hover:bg-orange-500 text-white transition-all duration-300 rounded-lg shadow-lg"
+          onClick={() => navigate("/auth")}
+        >
+          Continue to Login
+        </Button>
+
+        {/* Optional modern background accents */}
+        <div className="absolute -top-20 -left-20 w-40 h-40 bg-blue-300/20 rounded-full blur-3xl animate-blob"></div>
+        <div className="absolute -bottom-20 -right-20 w-60 h-60 bg-orange-300/20 rounded-full blur-3xl animate-blob animation-delay-2000"></div>
       </div>
+
+      {/* Footer */}
+      <footer className="mt-6 text-gray-500 text-xs md:text-sm text-center">
+        &copy; {new Date().getFullYear()} PACT Consultancy. All rights reserved.
+      </footer>
     </div>
   );
 };
