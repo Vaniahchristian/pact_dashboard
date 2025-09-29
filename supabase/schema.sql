@@ -181,7 +181,9 @@ create table if not exists public.user_settings (
 
 alter table public.user_settings enable row level security;
 create policy "user_settings_select_own" on public.user_settings for select using (user_id = auth.uid());
-create policy "user_settings_modify_own" on public.user_settings for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy "user_settings_insert_own" on public.user_settings for insert with check (user_id = auth.uid());
+create policy "user_settings_update_own" on public.user_settings for update using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy "user_settings_delete_own" on public.user_settings for delete using (user_id = auth.uid());
 
 create table if not exists public.wallet_settings (
   id uuid primary key default gen_random_uuid(),
@@ -193,7 +195,9 @@ create table if not exists public.wallet_settings (
 
 alter table public.wallet_settings enable row level security;
 create policy "wallet_settings_select_own" on public.wallet_settings for select using (user_id = auth.uid());
-create policy "wallet_settings_modify_own" on public.wallet_settings for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy "wallet_settings_insert_own" on public.wallet_settings for insert with check (user_id = auth.uid());
+create policy "wallet_settings_update_own" on public.wallet_settings for update using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy "wallet_settings_delete_own" on public.wallet_settings for delete using (user_id = auth.uid());
 
 create table if not exists public.data_visibility_settings (
   id uuid primary key default gen_random_uuid(),
@@ -204,7 +208,9 @@ create table if not exists public.data_visibility_settings (
 
 alter table public.data_visibility_settings enable row level security;
 create policy "data_visibility_settings_select_own" on public.data_visibility_settings for select using (user_id = auth.uid());
-create policy "data_visibility_settings_modify_own" on public.data_visibility_settings for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy "data_visibility_settings_insert_own" on public.data_visibility_settings for insert with check (user_id = auth.uid());
+create policy "data_visibility_settings_update_own" on public.data_visibility_settings for update using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy "data_visibility_settings_delete_own" on public.data_visibility_settings for delete using (user_id = auth.uid());
 
 create table if not exists public.dashboard_settings (
   id uuid primary key default gen_random_uuid(),
@@ -216,7 +222,9 @@ create table if not exists public.dashboard_settings (
 
 alter table public.dashboard_settings enable row level security;
 create policy "dashboard_settings_select_own" on public.dashboard_settings for select using (user_id = auth.uid());
-create policy "dashboard_settings_modify_own" on public.dashboard_settings for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy "dashboard_settings_insert_own" on public.dashboard_settings for insert with check (user_id = auth.uid());
+create policy "dashboard_settings_update_own" on public.dashboard_settings for update using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy "dashboard_settings_delete_own" on public.dashboard_settings for delete using (user_id = auth.uid());
 
 -- Optional: simple updated_at trigger for profiles
 create or replace function public.set_updated_at()
