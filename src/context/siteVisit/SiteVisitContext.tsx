@@ -1,0 +1,511 @@
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { SiteVisit, User } from '@/types';
+import { useToast } from '@/hooks/use-toast';
+import { useUser } from '../user/UserContext';
+import { SiteVisitContextType } from './types';
+import { calculateOnTimeRate, calculateUserRating } from './utils';
+import { isUserNearSite, calculateUserWorkload } from '@/utils/collectorUtils';
+import { fetchSiteVisits, createSiteVisitInDb, updateSiteVisitInDb } from './supabase';
+
+const SiteVisitContext = createContext<SiteVisitContextType | undefined>(undefined);
+
+export const SiteVisitProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [appSiteVisits, setAppSiteVisits] = useState<SiteVisit[]>([]);
+  const { toast } = useToast();
+  const { currentUser, users, updateUser } = useUser();
+  
+  useEffect(() => {
+    const loadSiteVisits = async () => {
+      try {
+        const visits = await fetchSiteVisits();
+        setAppSiteVisits(visits);
+      } catch (error) {
+        console.error('Failed to load site visits:', error);
+        toast({
+          title: "Error loading site visits",
+          description: "Please try refreshing the page.",
+          variant: "destructive",
+        });
+      }
+    };
+    
+    loadSiteVisits();
+  }, [toast]);
+
+  const createSiteVisit = async (siteVisitData: Partial<SiteVisit>): Promise<string | undefined> => {
+    try {
+      if (!currentUser) {
+        toast({
+          title: "Authentication required",
+          description: "You must be logged in to create a site visit.",
+          variant: "destructive",
+        });
+        return undefined;
+      }
+
+      const now = new Date().toISOString();
+      const newVisit = await createSiteVisitInDb({
+        ...siteVisitData,
+        createdAt: now,
+      });
+
+      setAppSiteVisits(prev => [...prev, newVisit]);
+      
+      toast({
+        title: "Site visit created",
+        description: "The site visit has been created successfully.",
+      });
+
+      return newVisit.id;
+    } catch (error) {
+      console.error("Create site visit error:", error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred while creating the site visit.",
+        variant: "destructive",
+      });
+      return undefined;
+    }
+  };
+
+  const [notificationsAPI, setNotificationsAPI] = useState<any>(null);
+  
+  React.useEffect(() => {
+    try {
+      import('../notifications/NotificationContext').then(module => {
+        try {
+          setNotificationsAPI({
+            addNotification: (notification: any) => {
+              try {
+                const NotificationHelper = () => {
+                  const { addNotification } = module.useNotifications();
+                  React.useEffect(() => {
+                    addNotification(notification);
+                  }, []);
+                  return null;
+                };
+                
+                const div = document.createElement('div');
+                document.body.appendChild(div);
+                const { createRoot } = require('react-dom/client');
+                const root = createRoot(div);
+                root.render(<module.NotificationProvider><NotificationHelper /></module.NotificationProvider>);
+                
+                setTimeout(() => {
+                  try {
+                    root.unmount();
+                    document.body.removeChild(div);
+                  } catch (error) {
+                    console.error("Cleanup error:", error);
+                  }
+                }, 100);
+              } catch (error) {
+                console.error("Failed to add notification:", error);
+              }
+            }
+          });
+        } catch (error) {
+          console.error('Error using NotificationContext:', error);
+        }
+      }).catch(error => {
+        console.error('Error importing NotificationContext:', error);
+      });
+    } catch (error) {
+      console.error('Failed to set up notifications:', error);
+    }
+  }, []);
+
+  const addNotification = (notification: any) => {
+    if (notificationsAPI && notificationsAPI.addNotification) {
+      notificationsAPI.addNotification(notification);
+    } else {
+      console.log('Notification would be sent (but API not ready):', notification);
+    }
+  };
+
+  const verifySitePermit = async (siteVisitId: string): Promise<boolean> => {
+    try {
+      if (!currentUser) return false;
+
+      const siteVisit = appSiteVisits.find(v => v.id === siteVisitId);
+      if (!siteVisit) return false;
+
+      const updatedVisit = await updateSiteVisitInDb(siteVisitId, {
+        status: 'permitVerified',
+        permitDetails: {
+          ...siteVisit.permitDetails,
+          verifiedBy: currentUser.id,
+          verifiedAt: new Date().toISOString(),
+        },
+      });
+
+      setAppSiteVisits(prev => 
+        prev.map(visit => 
+          visit.id === siteVisitId ? updatedVisit : visit
+        )
+      );
+
+      const managers = users.filter(u => 
+        ['admin', 'ict', 'fom'].includes(u.role)
+      );
+
+      managers.forEach(manager => {
+        addNotification({
+          userId: manager.id,
+          title: "Permits Verified",
+          message: `Permits for site visit #${siteVisitId} have been verified and it's ready for assignment.`,
+          type: "info",
+          link: `/site-visits/${siteVisitId}`,
+          relatedEntityId: siteVisitId,
+          relatedEntityType: "siteVisit",
+        });
+      });
+
+      toast({
+        title: "Permits verified",
+        description: "Site visit permits have been verified.",
+      });
+
+      return true;
+    } catch (error) {
+      console.error("Permit verification error:", error);
+      toast({
+        title: "Verification error",
+        description: "An unexpected error occurred.",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
+  const assignSiteVisit = async (siteVisitId: string, userId: string): Promise<boolean> => {
+    try {
+      if (!currentUser) return false;
+      
+      const visit = appSiteVisits.find(v => v.id === siteVisitId);
+      const user = users.find(u => u.id === userId);
+      
+      if (!visit || !user) {
+        toast({
+          title: "Assignment error",
+          description: "Site visit or user not found.",
+          variant: "destructive",
+        });
+        return false;
+      }
+
+      const updatedVisit = await updateSiteVisitInDb(siteVisitId, {
+        status: 'assigned',
+        assignedTo: userId,
+        assignedBy: currentUser.id,
+        assignedAt: new Date().toISOString(),
+      });
+
+      setAppSiteVisits(prev => 
+        prev.map(v => v.id === siteVisitId ? updatedVisit : v)
+      );
+
+      toast({
+        title: "Site visit assigned",
+        description: `The site visit has been assigned to ${user.name}.`,
+      });
+      return true;
+    } catch (error) {
+      console.error("Site visit assignment error:", error);
+      toast({
+        title: "Assignment error",
+        description: "An unexpected error occurred.",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
+  const startSiteVisit = async (siteVisitId: string): Promise<boolean> => {
+    try {
+      if (!currentUser) return false;
+      
+      const siteVisit = appSiteVisits.find(v => v.id === siteVisitId);
+      
+      if (!siteVisit) {
+        toast({
+          title: "Error",
+          description: "Site visit not found.",
+          variant: "destructive",
+        });
+        return false;
+      }
+      
+      if (siteVisit.assignedTo !== currentUser.id) {
+        toast({
+          title: "Permission denied",
+          description: "You are not assigned to this site visit.",
+          variant: "destructive",
+        });
+        return false;
+      }
+
+      setAppSiteVisits(prev => 
+        prev.map(v => 
+          v.id === siteVisitId ? {
+            ...v,
+            status: 'inProgress',
+          } : v
+        )
+      );
+
+      const supervisors = users.filter(u => u.role === 'supervisor');
+      supervisors.forEach(supervisor => {
+        addNotification({
+          userId: supervisor.id,
+          title: "Site Visit Started",
+          message: `${currentUser.name} has started the site visit at ${siteVisit.siteName}.`,
+          type: "info",
+          link: `/site-visits/${siteVisitId}`,
+          relatedEntityId: siteVisitId,
+          relatedEntityType: "siteVisit",
+        });
+      });
+
+      toast({
+        title: "Site visit started",
+        description: "You have successfully started the site visit.",
+      });
+      return true;
+    } catch (error) {
+      console.error("Start site visit error:", error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred.",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
+  const completeSiteVisit = async (
+    siteVisitId: string, 
+    data: { notes?: string; attachments?: string[] }
+  ): Promise<boolean> => {
+    try {
+      if (!currentUser) return false;
+      
+      const siteVisit = appSiteVisits.find(v => v.id === siteVisitId);
+      
+      if (!siteVisit) {
+        toast({
+          title: "Error",
+          description: "Site visit not found.",
+          variant: "destructive",
+        });
+        return false;
+      }
+      
+      if (siteVisit.assignedTo !== currentUser.id) {
+        toast({
+          title: "Permission denied",
+          description: "You are not assigned to this site visit.",
+          variant: "destructive",
+        });
+        return false;
+      }
+
+      if (siteVisit.status !== 'inProgress') {
+        toast({
+          title: "Error",
+          description: "Site visit must be in progress to complete it.",
+          variant: "destructive",
+        });
+        return false;
+      }
+
+      const now = new Date().toISOString();
+
+      setAppSiteVisits(prev => 
+        prev.map(v => 
+          v.id === siteVisitId ? {
+            ...v,
+            status: 'completed',
+            completedAt: now,
+            notes: data.notes || v.notes,
+            attachments: data.attachments || v.attachments,
+          } : v
+        )
+      );
+
+      const newTransaction = {
+        id: `tx${Math.floor(Math.random() * 10000)}`,
+        userId: currentUser.id,
+        amount: siteVisit.fees.total,
+        currency: siteVisit.fees.currency,
+        type: 'credit',
+        status: 'completed',
+        description: `Payment for completing Site Visit: ${siteVisit.siteName}`,
+        siteVisitId,
+        createdAt: now,
+        method: 'Wallet',
+        reference: `PAY-${siteVisitId}-${Math.floor(Math.random() * 1000000)}`,
+      };
+
+      const assignedUserId = siteVisit.assignedTo;
+      const user = users.find(u => u.id === assignedUserId);
+      
+      if (user) {
+        const workload = calculateUserWorkload(assignedUserId, appSiteVisits) - 1;
+        
+        const updatedUser = {
+          ...user,
+          performance: {
+            ...user.performance,
+            totalCompletedTasks: user.performance.totalCompletedTasks + 1,
+            onTimeCompletion: calculateOnTimeRate(user.id, true, users),
+            currentWorkload: Math.max(0, workload),
+          },
+        };
+        updateUser(updatedUser);
+      }
+
+      const supervisors = users.filter(u => u.role === 'supervisor');
+      supervisors.forEach(supervisor => {
+        addNotification({
+          userId: supervisor.id,
+          title: "Site Visit Completed",
+          message: `${currentUser.name} has completed the site visit at ${siteVisit.siteName}. Please rate the visit.`,
+          type: "success",
+          link: `/site-visits/${siteVisitId}/rate`,
+          relatedEntityId: siteVisitId,
+          relatedEntityType: "siteVisit",
+        });
+      });
+
+      addNotification({
+        userId: currentUser.id,
+        title: "Payment Received",
+        message: `You have received ${siteVisit.fees.total} ${siteVisit.fees.currency} for completing the site visit at ${siteVisit.siteName}.`,
+        type: "success",
+        link: `/wallet`,
+        relatedEntityId: newTransaction.id,
+        relatedEntityType: "transaction",
+      });
+
+      toast({
+        title: "Site visit completed",
+        description: `You have successfully completed the site visit and received ${siteVisit.fees.total} ${siteVisit.fees.currency}.`,
+      });
+      return true;
+    } catch (error) {
+      console.error("Complete site visit error:", error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred.",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
+  const rateSiteVisit = async (
+    siteVisitId: string, 
+    data: { rating: number; notes?: string }
+  ): Promise<boolean> => {
+    try {
+      if (!currentUser) return false;
+
+      const siteVisit = appSiteVisits.find(v => v.id === siteVisitId);
+      
+      if (!siteVisit || !siteVisit.assignedTo || siteVisit.status !== 'completed') {
+        toast({
+          title: "Error",
+          description: "Cannot rate this site visit.",
+          variant: "destructive",
+        });
+        return false;
+      }
+
+      setAppSiteVisits(prev => 
+        prev.map(v => 
+          v.id === siteVisitId ? {
+            ...v,
+            rating: data.rating,
+            ratingNotes: data.notes,
+          } : v
+        )
+      );
+
+      const assignedUserId = siteVisit.assignedTo;
+      const user = users.find(u => u.id === assignedUserId);
+      
+      if (user) {
+        const updatedUser = {
+          ...user,
+          performance: {
+            ...user.performance,
+            rating: calculateUserRating(assignedUserId, appSiteVisits),
+          },
+        };
+        updateUser(updatedUser);
+      }
+
+      addNotification({
+        userId: assignedUserId,
+        title: "Site Visit Rated",
+        message: `Your site visit at ${siteVisit.siteName} has been rated ${data.rating}/5.`,
+        type: data.rating >= 4 ? "success" : "info",
+        link: `/site-visits/${siteVisitId}`,
+        relatedEntityId: siteVisitId,
+        relatedEntityType: "siteVisit",
+      });
+
+      toast({
+        title: "Site visit rated",
+        description: "You have successfully rated the site visit.",
+      });
+      return true;
+    } catch (error) {
+      console.error("Rate site visit error:", error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred.",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
+  const getNearbyDataCollectors = (siteVisitId: string): User[] => {
+    const siteVisit = appSiteVisits.find(v => v.id === siteVisitId);
+    if (!siteVisit) return [];
+    
+    return users.filter(user => 
+      (user.role === 'dataCollector' || user.role === 'datacollector') && 
+      user.status === 'active' && 
+      user.availability !== 'offline' && 
+      isUserNearSite(user, siteVisit, 15)
+    );
+  };
+
+  return (
+    <SiteVisitContext.Provider
+      value={{
+        siteVisits: appSiteVisits,
+        verifySitePermit,
+        assignSiteVisit,
+        startSiteVisit,
+        completeSiteVisit,
+        rateSiteVisit,
+        getNearbyDataCollectors,
+        createSiteVisit,
+      }}
+    >
+      {children}
+    </SiteVisitContext.Provider>
+  );
+};
+
+export const useSiteVisitContext = () => {
+  const context = useContext(SiteVisitContext);
+  if (context === undefined) {
+    throw new Error('useSiteVisitContext must be used within a SiteVisitProvider');
+  }
+  return context;
+};

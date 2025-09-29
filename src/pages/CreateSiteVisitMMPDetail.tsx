@@ -1,0 +1,251 @@
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { useAppContext } from '@/context/AppContext';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Check, ChevronLeft, Loader2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { SiteEntryCard } from '@/components/site-visit/SiteEntryCard';
+import { MMPInfoCard } from '@/components/site-visit/MMPInfoCard';
+import { Separator } from '@/components/ui/separator';
+import { useMMP } from '@/context/mmp/MMPContext';
+
+const CreateSiteVisitMMPDetail = () => {
+  const { mmpId } = useParams();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const { currentUser, calculateDistanceFee } = useAppContext();
+  const { getMmpById } = useMMP();
+  
+  const [loading, setLoading] = useState(true);
+  const [mmpData, setMmpData] = useState<any>(null);
+  const [selectedSites, setSelectedSites] = useState<string[]>([]);
+  const [priority, setPriority] = useState<'low' | 'medium' | 'high'>('medium');
+  const [dueDate, setDueDate] = useState<string>(
+    new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+  );
+  const [creating, setCreating] = useState(false);
+  
+  useEffect(() => {
+    if (mmpId) {
+      const mmp = getMmpById(mmpId);
+      if (mmp) {
+        setMmpData(mmp);
+        console.log("MMP data loaded:", mmp);
+      } else {
+        toast({
+          title: "MMP not found",
+          description: "The requested MMP could not be found.",
+          variant: "destructive",
+        });
+        navigate("/site-visits/create");
+      }
+      setLoading(false);
+    }
+  }, [mmpId, getMmpById, navigate, toast]);
+
+  if (!currentUser || !['admin', 'ict'].includes(currentUser.role)) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle className="text-destructive">Access Denied</CardTitle>
+            <CardDescription>
+              You don't have permission to access this page.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button
+              variant="outline"
+              onClick={() => navigate('/site-visits')}
+              className="w-full"
+            >
+              Return to Site Visits
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-[60vh]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-2">Loading MMP data...</span>
+      </div>
+    );
+  }
+
+  const handleSiteToggle = (siteId: string) => {
+    setSelectedSites(prev =>
+      prev.includes(siteId)
+        ? prev.filter(id => id !== siteId)
+        : [...prev, siteId]
+    );
+  };
+
+  const handleSelectAll = () => {
+    if (mmpData?.siteEntries?.length === selectedSites.length) {
+      setSelectedSites([]);
+    } else {
+      setSelectedSites(mmpData?.siteEntries?.map((site: any) => site.id) || []);
+    }
+  };
+
+  const handleCreateSiteVisits = async () => {
+    if (selectedSites.length === 0) {
+      toast({
+        title: "No sites selected",
+        description: "Please select at least one site to create visits.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setCreating(true);
+
+    setTimeout(() => {
+      toast({
+        title: "Site visits created",
+        description: `Successfully created ${selectedSites.length} site visits.`,
+      });
+      navigate("/site-visits");
+      setCreating(false);
+    }, 1500);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-4">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => navigate("/site-visits/create/mmp")}
+          className="mr-2"
+        >
+          <ChevronLeft className="h-4 w-4 mr-1" />
+          Back
+        </Button>
+        <div>
+          <h1 className="text-2xl font-bold">{mmpData?.name}</h1>
+          <p className="text-muted-foreground">
+            {mmpData?.mmpId || "MMP"} • {mmpData?.siteEntries?.length || 0} sites
+          </p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <div className="flex justify-between items-center">
+              <CardTitle>Site Selection</CardTitle>
+              <Button variant="outline" size="sm" onClick={handleSelectAll}>
+                {mmpData?.siteEntries?.length === selectedSites.length 
+                  ? "Deselect All" 
+                  : "Select All"}
+              </Button>
+            </div>
+            <CardDescription>
+              Choose which sites to include in the site visits
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {mmpData?.siteEntries?.length > 0 ? (
+              <div className="space-y-4">
+                {mmpData.siteEntries.map((site: any) => (
+                  <SiteEntryCard
+                    key={site.id}
+                    site={site}
+                    isSelected={selectedSites.includes(site.id)}
+                    onToggle={handleSiteToggle}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">No sites found in this MMP</p>
+              </div>
+            )}
+          </CardContent>
+          <CardFooter className="flex justify-between border-t pt-6">
+            <div className="text-sm text-muted-foreground">
+              {selectedSites.length} of {mmpData?.siteEntries?.length || 0} sites selected
+            </div>
+          </CardFooter>
+        </Card>
+
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Visit Details</CardTitle>
+              <CardDescription>Configure site visit parameters</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="priority">Priority</Label>
+                <RadioGroup 
+                  value={priority} 
+                  onValueChange={(value) => setPriority(value as 'low' | 'medium' | 'high')}
+                  className="flex space-x-2"
+                >
+                  <div className="flex items-center space-x-1">
+                    <RadioGroupItem value="low" id="low" />
+                    <Label htmlFor="low" className="text-green-600">Low</Label>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <RadioGroupItem value="medium" id="medium" />
+                    <Label htmlFor="medium" className="text-amber-600">Medium</Label>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <RadioGroupItem value="high" id="high" />
+                    <Label htmlFor="high" className="text-red-600">High</Label>
+                  </div>
+                </RadioGroup>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="dueDate">Due Date</Label>
+                <Input
+                  id="dueDate"
+                  type="date"
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                />
+              </div>
+
+              <Separator />
+
+              <div className="pt-2">
+                <Button 
+                  className="w-full" 
+                  disabled={selectedSites.length === 0 || creating}
+                  onClick={handleCreateSiteVisits}
+                >
+                  {creating ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    <>
+                      <Check className="mr-2 h-4 w-4" />
+                      Create {selectedSites.length} Site Visit{selectedSites.length !== 1 ? 's' : ''}
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <MMPInfoCard mmpData={mmpData} />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default CreateSiteVisitMMPDetail;

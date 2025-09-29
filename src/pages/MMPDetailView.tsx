@@ -1,0 +1,600 @@
+import React, { useState, useEffect } from "react";
+import { useParams, Link, useNavigate } from "react-router-dom";
+import { Card, CardContent } from "@/components/ui/card";
+import { FileSpreadsheet } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { 
+  Search, ArrowLeft, CheckCircle, XCircle, Download, 
+  FileSpreadsheet as FileSpreadsheetIcon, Upload, Calendar, Wrench, AlertTriangle,
+  Archive, Trash2, History, Shield, Eye, RefreshCw, FileCheck, Edit
+} from "lucide-react";
+import { format } from "date-fns";
+import { useAppContext } from "@/context/AppContext";
+import { useMMP } from "@/context/mmp/MMPContext";
+import { MMPFile } from "@/types";
+import { useToast } from "@/hooks/use-toast";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Textarea } from "@/components/ui/textarea";
+import AuditLogViewer from "@/components/AuditLogViewer";
+import ComplianceTracker from "@/components/ComplianceTracker";
+import { MMPStageIndicator } from "@/components/MMPStageIndicator";
+import MMPVersionHistory from "@/components/MMPVersionHistory";
+import { MMPInfoCard } from "@/components/site-visit/MMPInfoCard";
+import MMPSiteInformation from "@/components/MMPSiteInformation";
+import { MMPStatusBadge } from "@/components/mmp/MMPStatusBadge";
+
+// New components
+import MMPDetailHeader from "@/components/mmp/MMPDetailHeader";
+import MMPOverviewCard from "@/components/mmp/MMPOverviewCard";
+import MMPSiteEntriesTable from "@/components/mmp/MMPSiteEntriesTable";
+import MMPFileManagement from "@/components/mmp/MMPFileManagement";
+
+const MMPDetailView = () => {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const { currentUser, archiveMMP, deleteMMP } = useAppContext();
+  const { resetMMP, getMmpById } = useMMP();
+  const [showAuditTrail, setShowAuditTrail] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
+  const [selectedSite, setSelectedSite] = useState<any>(null);
+  const [siteDetailOpen, setSiteDetailOpen] = useState(false);
+  
+  const mmpFile = id ? getMmpById(id) : undefined;
+  
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!mmpFile && id) {
+        setNotFound(true);
+        toast({
+          title: "MMP File Not Found",
+          description: (
+            <div className="space-y-2">
+              <p>No MMP found with ID: {id}</p>
+              <p>Try accessing another MMP from the <Link to="/mmp" className="text-blue-500 underline">MMP List</Link></p>
+            </div>
+          ),
+          variant: "destructive",
+        });
+      }
+      setLoading(false);
+    }, 1000);
+    
+    return () => clearTimeout(timer);
+  }, [id, mmpFile, toast]);
+
+  const canEdit = currentUser && ['admin', 'fom', 'ict', 'financialAdmin'].includes(currentUser.role || '');
+  const canDelete = currentUser && ['admin', 'financialAdmin'].includes(currentUser.role || '');
+  const canArchive = currentUser && ['admin', 'financialAdmin', 'ict'].includes(currentUser.role || '');
+
+  const validateSiteEntries = (mmpFile: any) => {
+    if (!mmpFile) return [];
+    
+    if (mmpFile.siteEntries && Array.isArray(mmpFile.siteEntries)) {
+      return mmpFile.siteEntries;
+    }
+
+    // Generate mock entries if real entries don't exist
+    return Array(mmpFile.entries || 0).fill(null).map((_, index) => ({
+      id: `site-${index + 1}`,
+      siteCode: `SC${String(10000 + index).padStart(5, '0')}`,
+      siteName: `Site ${index + 1}`,
+      inMoDa: Math.random() > 0.3,
+      visitedBy: Math.random() > 0.5 ? 'TPM' : 'Joint Visit',
+      mainActivity: ['DM', 'AIM', 'PDM', 'OTHER'][Math.floor(Math.random() * 4)],
+      activityAtSite: ['TSFP', 'SF', 'eBSFP', 'PSN', 'THR'][Math.floor(Math.random() * 5)],
+      toolsToBeUsed: ['Tool A', 'Tool B', 'Tool C'].slice(0, Math.floor(Math.random() * 3) + 1),
+      visitDate: new Date(Date.now() + (Math.random() * 30 * 24 * 60 * 60 * 1000)).toISOString().split('T')[0],
+      distributionByCP: Math.random() > 0.3,
+      siteVisited: Math.random() > 0.4,
+      submittedToMoDa: Math.random() > 0.5,
+      questionsSubmitted: Math.floor(Math.random() * 20) + 1,
+      findings: Math.random() > 0.7 ? "Some findings noted during the visit" : "",
+      flaggedIssues: Math.random() > 0.8 ? "Critical issue that needs immediate attention" : "",
+      additionalComments: Math.random() > 0.6 ? "Additional observations about site conditions" : ""
+    }));
+  };
+
+  const siteEntries = mmpFile ? validateSiteEntries(mmpFile) : [];
+
+  const handleArchive = async () => {
+    if (id) {
+      try {
+        await archiveMMP(id, currentUser?.username || 'Unknown User');
+        toast({ 
+          title: "MMP File Archived",
+          description: "The MMP file has been archived successfully.",
+        });
+        navigate("/mmp");
+      } catch (error) {
+        console.error("Failed to archive MMP:", error);
+        toast({
+          title: "Archive Failed",
+          description: "There was a problem archiving the MMP file.",
+          variant: "destructive"
+        });
+      }
+    }
+  };
+  
+  const handleDelete = async () => {
+    if (id) {
+      try {
+        await deleteMMP(id);
+        toast({ 
+          title: "MMP File Deleted",
+          description: "The MMP file has been permanently deleted.",
+        });
+        navigate("/mmp");
+      } catch (error) {
+        console.error("Failed to delete MMP:", error);
+        toast({
+          title: "Deletion Failed",
+          description: "There was a problem deleting the MMP file.",
+          variant: "destructive"
+        });
+      }
+    }
+  };
+  
+  const handleDownload = () => {
+    toast({ 
+      description: "MMP file download started",
+    });
+  };
+
+  const handleReset = async () => {
+    if (id) {
+      const success = await resetMMP(id);
+      if (success) {
+        setRefreshKey(prev => prev + 1);
+        toast({
+          title: "Reset Successful",
+          description: "The MMP approval status has been reset successfully.",
+        });
+      } else {
+        toast({
+          title: "Reset Failed",
+          description: "Failed to reset MMP approval status",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  const handleProceedToVerification = () => {
+    if (mmpFile) {
+      navigate(`/mmp/verify/${mmpFile.id}`);
+    } else {
+      toast({
+        title: "Cannot Proceed",
+        description: "MMP file not found or access denied.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleEditMMP = () => {
+    if (mmpFile) {
+      navigate(`/mmp/${mmpFile.id}/edit`);
+    } else {
+      toast({
+        title: "Cannot Edit",
+        description: "MMP file not found or access denied.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleViewSiteDetail = (site: any) => {
+    setSelectedSite(site);
+    setSiteDetailOpen(true);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-96">
+        <div className="relative w-16 h-16 mx-auto">
+          <div className="absolute inset-0 rounded-full border-4 border-blue-200 animate-[spin_3s_linear_infinite]"></div>
+          <div className="absolute inset-[6px] rounded-full border-4 border-t-blue-500 animate-[spin_2s_linear_infinite]"></div>
+        </div>
+        <p className="mt-4 text-muted-foreground">Loading MMP file...</p>
+      </div>
+    );
+  }
+
+  if (!mmpFile || notFound) {
+    return (
+      <div className="flex flex-col items-center justify-center h-96">
+        <FileSpreadsheet className="h-16 w-16 text-gray-300 mb-4" />
+        <h2 className="text-xl font-semibold mb-2">MMP File Not Found</h2>
+        <p className="text-muted-foreground mb-4">The requested MMP file could not be found. ID: {id}</p>
+        <Button asChild>
+          <Link to="/mmp">Back to MMP List</Link>
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6 animate-fade-in" key={refreshKey}>
+      <MMPDetailHeader 
+        mmpFile={mmpFile}
+        canEdit={canEdit}
+        onProceedToVerification={handleProceedToVerification}
+        onEditMMP={handleEditMMP}
+        onDownload={handleDownload}
+        onShowAuditTrail={() => setShowAuditTrail(true)}
+      />
+
+      <MMPStatusBadge status={mmpFile.status} />
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
+          <MMPOverviewCard 
+            mmpFile={mmpFile} 
+            siteEntries={siteEntries}
+            onProceedToVerification={handleProceedToVerification}
+            onEditMMP={handleEditMMP}
+          />
+        </div>
+        
+        <div>
+          <MMPInfoCard 
+            mmpData={mmpFile} 
+            showActions={true}
+            onVerificationClick={handleProceedToVerification}
+            onEditClick={handleEditMMP}
+          />
+          
+          <div className="mt-6">
+            <MMPSiteInformation 
+              mmpFile={mmpFile} 
+              showVerificationButton={false} 
+            />
+          </div>
+        </div>
+      </div>
+
+      <Tabs defaultValue="list" className="w-full">
+        <TabsList className="grid grid-cols-2 md:grid-cols-6 mb-4 bg-muted/80">
+          <TabsTrigger value="list" className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 dark:data-[state=active]:bg-blue-900/20 dark:data-[state=active]:text-blue-300">
+            Site Entries ({siteEntries.length})
+          </TabsTrigger>
+          <TabsTrigger value="detail" className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 dark:data-[state=active]:bg-blue-900/20 dark:data-[state=active]:text-blue-300">
+            Detailed View
+          </TabsTrigger>
+          <TabsTrigger value="validation" className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 dark:data-[state=active]:bg-blue-900/20 dark:data-[state=active]:text-blue-300">
+            Validation Results
+          </TabsTrigger>
+          <TabsTrigger value="audit" className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 dark:data-[state=active]:bg-blue-900/20 dark:data-[state=active]:text-blue-300">
+            Audit Log
+          </TabsTrigger>
+          <TabsTrigger value="compliance" className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 dark:data-[state=active]:bg-blue-900/20 dark:data-[state=active]:text-blue-300">
+            Compliance
+          </TabsTrigger>
+          <TabsTrigger value="version-history" className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 dark:data-[state=active]:bg-blue-900/20 dark:data-[state=active]:text-blue-300">
+            Version History
+          </TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="list" className="pt-2">
+          <MMPSiteEntriesTable 
+            siteEntries={siteEntries}
+            onViewSiteDetail={handleViewSiteDetail}
+          />
+        </TabsContent>
+        
+        <TabsContent value="detail">
+          <Card>
+            <CardContent>
+              <div className="space-y-6">
+                {siteEntries.map((site) => (
+                  <Card key={site.id} className="overflow-hidden">
+                    <CardContent className="pt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Site Code</p>
+                        <p>{site.siteCode}</p>
+                      </div>
+                      
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Site Name</p>
+                        <p>{site.siteName}</p>
+                      </div>
+                      
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">In MoDa</p>
+                        <p>{site.inMoDa ? 'Yes' : 'No'}</p>
+                      </div>
+                      
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Visited By</p>
+                        <p>{site.visitedBy}</p>
+                      </div>
+                      
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Main Activity</p>
+                        <p>{site.mainActivity}</p>
+                      </div>
+                      
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Visit Date</p>
+                        <p>{site.visitDate}</p>
+                      </div>
+                      
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Distribution by CP</p>
+                        <p>{site.distributionByCP ? 'Yes' : 'No'}</p>
+                      </div>
+                      
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Submitted to MoDa</p>
+                        <p>{site.submittedToMoDa ? 'Yes' : 'No'}</p>
+                      </div>
+                      
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Questions Submitted</p>
+                        <p>{site.questionsSubmitted}</p>
+                      </div>
+                      
+                      {site.findings && (
+                        <div>
+                          <p className="text-sm font-medium text-muted-foreground">Findings</p>
+                          <p>{site.findings}</p>
+                        </div>
+                      )}
+                      
+                      {site.flaggedIssues && (
+                        <div>
+                          <p className="text-sm font-medium text-muted-foreground">Flagged Issues</p>
+                          <p>{site.flaggedIssues}</p>
+                        </div>
+                      )}
+                      
+                      {site.additionalComments && (
+                        <div>
+                          <p className="text-sm font-medium text-muted-foreground">Additional Comments</p>
+                          <p>{site.additionalComments}</p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="validation">
+          <Card>
+            <CardContent>
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <Card>
+                    <CardContent className="pt-6">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-green-600">
+                          {Math.floor(siteEntries.length * 0.85)}
+                        </div>
+                        <p className="text-muted-foreground text-sm">Valid Entries</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card>
+                    <CardContent className="pt-6">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-amber-600">
+                          {Math.floor(siteEntries.length * 0.1)}
+                        </div>
+                        <p className="text-muted-foreground text-sm">Warnings</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card>
+                    <CardContent className="pt-6">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-red-600">
+                          {Math.floor(siteEntries.length * 0.05)}
+                        </div>
+                        <p className="text-muted-foreground text-sm">Errors</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card>
+                    <CardContent className="pt-6">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold">
+                          {siteEntries.length}
+                        </div>
+                        <p className="text-muted-foreground text-sm">Total Entries</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+                
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Site</TableHead>
+                        <TableHead>Issue Type</TableHead>
+                        <TableHead>Description</TableHead>
+                        <TableHead>Severity</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      <TableRow>
+                        <TableCell>Site 3</TableCell>
+                        <TableCell>Missing Data</TableCell>
+                        <TableCell>Visit date not specified</TableCell>
+                        <TableCell>
+                          <Badge className="bg-amber-100 text-amber-800">Warning</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Button size="sm" variant="outline">Fix</Button>
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>Site 7</TableCell>
+                        <TableCell>Format Error</TableCell>
+                        <TableCell>Invalid site code format</TableCell>
+                        <TableCell>
+                          <Badge className="bg-red-100 text-red-800">Error</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Button size="sm" variant="outline">Fix</Button>
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>Site 12</TableCell>
+                        <TableCell>Duplicate</TableCell>
+                        <TableCell>Site appears twice in the MMP</TableCell>
+                        <TableCell>
+                          <Badge className="bg-red-100 text-red-800">Error</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Button size="sm" variant="outline">Fix</Button>
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+                
+                <div className="flex justify-between items-center">
+                  <div>
+                    <Button variant="outline" onClick={() => toast({ description: "This would attempt to auto-fix validation issues" })}>
+                      Auto-Fix Issues
+                    </Button>
+                  </div>
+                  <div className="space-x-2">
+                    <Button variant="outline" onClick={() => toast({ description: "Retrying upload process" })}>
+                      Re-Upload File
+                    </Button>
+                    <Button onClick={() => toast({ description: "This would re-run validation checks" })}>
+                      Re-Run Validation
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="audit">
+          <AuditLogViewer mmpId={id} />
+        </TabsContent>
+
+        <TabsContent value="compliance">
+          <ComplianceTracker mmpId={id} />
+        </TabsContent>
+
+        <TabsContent value="version-history">
+          <MMPVersionHistory mmpFile={mmpFile} mmpId={mmpFile.mmpId || `MMP-${mmpFile.id}`} />
+        </TabsContent>
+      </Tabs>
+      
+      {(canArchive || canDelete) && (
+        <MMPFileManagement
+          mmpFile={mmpFile}
+          canArchive={canArchive}
+          canDelete={canDelete}
+          onArchive={handleArchive}
+          onDelete={handleDelete}
+          onResetApproval={handleReset}
+        />
+      )}
+      
+      <Dialog open={showAuditTrail} onOpenChange={setShowAuditTrail}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Activity Log</DialogTitle>
+          </DialogHeader>
+          
+          <AuditLogViewer mmpId={id} />
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAuditTrail(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Site Detail Dialog */}
+      <Dialog open={siteDetailOpen} onOpenChange={setSiteDetailOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>{selectedSite?.siteName || 'Site Details'}</DialogTitle>
+          </DialogHeader>
+          
+          {selectedSite && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
+                  <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Site Code</h3>
+                  <p className="font-mono">{selectedSite.siteCode}</p>
+                </div>
+                <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
+                  <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Visit Date</h3>
+                  <p>{selectedSite.visitDate}</p>
+                </div>
+                <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
+                  <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Main Activity</h3>
+                  <p>{selectedSite.mainActivity}</p>
+                </div>
+
+                <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
+                  <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Visited By</h3>
+                  <p>{selectedSite.visitedBy}</p>
+                </div>
+                <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
+                  <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Site Visited</h3>
+                  <p>{selectedSite.siteVisited ? 'Yes' : 'No'}</p>
+                </div>
+                <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
+                  <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">In MoDa</h3>
+                  <p>{selectedSite.inMoDa ? 'Yes' : 'No'}</p>
+                </div>
+              </div>
+
+              {selectedSite.findings && (
+                <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
+                  <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Findings</h3>
+                  <p>{selectedSite.findings}</p>
+                </div>
+              )}
+
+              {selectedSite.flaggedIssues && (
+                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800 p-3 rounded-lg">
+                  <h3 className="text-sm font-medium text-amber-800 dark:text-amber-400">Flagged Issues</h3>
+                  <p className="text-amber-700 dark:text-amber-300">{selectedSite.flaggedIssues}</p>
+                </div>
+              )}
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSiteDetailOpen(false)}>Close</Button>
+            <Button onClick={() => {
+              setSiteDetailOpen(false);
+              toast({ description: "Site visit details would open in full view" });
+            }}>
+              View Full Details
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};
+
+export default MMPDetailView;

@@ -1,0 +1,82 @@
+
+export interface SiteVisit {
+  id: string;
+  name?: string;
+  siteName: string;
+  siteCode: string;
+  status: 'pending' | 'completed' | 'cancelled' | 'permitVerified' | 'assigned' | 'inProgress' | 'canceled';
+  locality: string;
+  state: string;
+  activity: string;
+  priority: 'low' | 'medium' | 'high';
+  dueDate: string;
+  assignedTo: string;
+  assignedBy?: string;
+  assignedAt?: string;
+  notes?: string;
+  attachments?: string[];
+  completedAt?: string;
+  rating?: number;
+  ratingNotes?: string;
+  fees: {
+    total: number;
+    currency: string;
+    distanceFee: number;
+    complexityFee: number;
+    urgencyFee: number;
+    baseAmount?: number;
+    baseFee?: number;
+    transportation?: number;
+  };
+  scheduledDate: string;
+  description?: string;
+  tasks?: string[]; // Added optional tasks property
+  permitDetails: {
+    federal: boolean;
+    state: boolean;
+    locality: boolean;
+    verifiedBy?: string;
+    verifiedAt?: string;
+  };
+  location: {
+    address: string;
+    latitude: number;
+    longitude: number;
+    region: string;
+  };
+  coordinates: {
+    latitude: number;
+    longitude: number;
+  };
+  mmpDetails: {
+    mmpId: string;
+    projectName: string;
+    uploadedBy: string;
+    uploadedAt: string;
+    region: string;
+    approvedBy?: string;
+    approvedAt?: string;
+  };
+  complexity: 'low' | 'medium' | 'high';
+  visitType: 'regular' | 'urgent' | 'follow-up';
+  mainActivity: string;
+  projectActivities: string[];
+  hub?: string;
+  team?: {
+    coordinator?: string;
+    supervisor?: string;
+    fieldOfficer?: string;
+  };
+  resources?: string[];
+  risks?: string;
+  estimatedDuration?: string;
+  visitHistory?: Array<{
+    date: string;
+    status: string;
+    by: string;
+  }>;
+  monitoringType?: string;
+  createdAt?: string;
+  projectName?: string; 
+  startTime?: string;
+}

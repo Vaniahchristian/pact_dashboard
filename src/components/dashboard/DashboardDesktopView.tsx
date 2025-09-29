@@ -1,0 +1,177 @@
+
+import React, { Suspense } from 'react';
+import { motion } from 'framer-motion';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { SectionHeader } from './SectionHeader';
+import { QuickActionButtons } from './QuickActionButtons';
+import { EnhancedMoDaCountdown } from './EnhancedMoDaCountdown';
+import { CalendarAndVisits } from './CalendarAndVisits';
+import { EnhancedActivityFeed } from './EnhancedActivityFeed';
+import { TeamCommunication } from './TeamCommunication';
+import { EnhancedRiskManagement } from './EnhancedRiskManagement';
+import { AchievementTracker } from './AchievementTracker';
+import { Skeleton } from '@/components/ui/skeleton';
+import { ChevronDown, ChevronUp, Activity, MapPin, BarChart, Target } from 'lucide-react';
+import { containerVariants, itemVariants } from './DashboardOptimization';
+import LiveTeamMapWidget from './LiveTeamMapWidget';
+import { useAppContext } from '@/context/AppContext';
+
+const LazyLoadingCard = ({ children }: { children: React.ReactNode }) => (
+  <Suspense fallback={<Skeleton className="h-[300px] w-full" />}>
+    {children}
+  </Suspense>
+);
+
+export const DashboardDesktopView = () => {
+  const [collapsedSections, setCollapsedSections] = React.useState<Record<string, boolean>>({});
+  const { currentUser } = useAppContext();
+  
+  const toggleSection = (section: string) => {
+    setCollapsedSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
+  };
+  
+  const SectionCollapsible = ({ 
+    id, 
+    icon, 
+    title, 
+    description, 
+    children 
+  }: { 
+    id: string;
+    icon: React.ReactNode;
+    title: string;
+    description?: string;
+    children: React.ReactNode;
+  }) => {
+    const isCollapsed = collapsedSections[id] || false;
+    
+    return (
+      <div className="mb-6">
+        <div className="flex items-center justify-between">
+          <SectionHeader 
+            title={title} 
+            description={description} 
+            icon={icon} 
+          />
+          <Button 
+            variant="ghost" 
+            size="sm"
+            className="h-8 w-8 p-0"
+            onClick={() => toggleSection(id)}
+          >
+            {isCollapsed ? (
+              <ChevronDown className="h-4 w-4" />
+            ) : (
+              <ChevronUp className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
+        
+        {!isCollapsed && children}
+      </div>
+    );
+  };
+
+  return (
+    <motion.div 
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+      className="space-y-6"
+    >
+      {/* Operational Overview Zone */}
+      <div className="flex flex-col-reverse md:flex-row items-start justify-between gap-4">
+        <motion.div variants={itemVariants} className="w-full md:w-3/4">
+          <QuickActionButtons />
+        </motion.div>
+        
+        <motion.div variants={itemVariants} className="w-full md:w-1/4 flex justify-end items-center">
+          <Badge variant="outline" className="flex items-center gap-1 px-3 py-1 text-sm border-primary">
+            <span className="h-2 w-2 rounded-full bg-green-400"></span>
+            {currentUser?.role || 'Team Member'}
+          </Badge>
+        </motion.div>
+      </div>
+      
+      {/* Main Content Grid */}
+      <div className="grid grid-cols-12 gap-6">
+        {/* Left Column */}
+        <div className="col-span-12 lg:col-span-8 space-y-6">
+          <SectionCollapsible 
+            id="monitoring" 
+            icon={<BarChart className="h-5 w-5 text-primary" />}
+            title="Monitoring & Analytics"
+            description="Real-time monitoring of field operations and risk management"
+          >
+            <div className="grid grid-cols-1 gap-6">
+              <motion.div variants={itemVariants}>
+                <LazyLoadingCard>
+                  <EnhancedRiskManagement />
+                </LazyLoadingCard>
+              </motion.div>
+              
+              <motion.div variants={itemVariants}>
+                <LazyLoadingCard>
+                  <div className="bg-gradient-to-r from-blue-50 to-transparent p-2 rounded-t-md flex items-center gap-2">
+                    <MapPin className="h-5 w-5 text-blue-500" />
+                    <h3 className="font-medium">Field Team Map</h3>
+                  </div>
+                  <LiveTeamMapWidget />
+                </LazyLoadingCard>
+              </motion.div>
+            </div>
+          </SectionCollapsible>
+          
+          <SectionCollapsible 
+            id="planning" 
+            icon={<Activity className="h-5 w-5 text-primary" />}
+            title="Planning & Activities"
+            description="Schedule management and team activities"
+          >
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <motion.div variants={itemVariants}>
+                <LazyLoadingCard>
+                  <CalendarAndVisits />
+                </LazyLoadingCard>
+              </motion.div>
+              
+              <motion.div variants={itemVariants}>
+                <LazyLoadingCard>
+                  <EnhancedActivityFeed />
+                </LazyLoadingCard>
+              </motion.div>
+            </div>
+          </SectionCollapsible>
+          
+          <SectionCollapsible 
+            id="achievements" 
+            icon={<Target className="h-5 w-5 text-primary" />}
+            title="Progress & Achievements"
+            description="Track performance metrics and goals"
+          >
+            <motion.div variants={itemVariants}>
+              <LazyLoadingCard>
+                <AchievementTracker />
+              </LazyLoadingCard>
+            </motion.div>
+          </SectionCollapsible>
+        </div>
+        
+        {/* Right Column */}
+        <motion.div variants={itemVariants} className="col-span-12 lg:col-span-4 space-y-6">
+          <LazyLoadingCard>
+            <EnhancedMoDaCountdown />
+          </LazyLoadingCard>
+          
+          <LazyLoadingCard>
+            <TeamCommunication />
+          </LazyLoadingCard>
+        </motion.div>
+      </div>
+    </motion.div>
+  );
+};
