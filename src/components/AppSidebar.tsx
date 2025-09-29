@@ -98,29 +98,29 @@ const getMenuItems = (roles: AppRole[] = [], defaultRole: string = 'dataCollecto
       url: "/field-team",
       icon: Activity,
     },
-    {
-      title: "Archive",
-      url: "/archive",
-      icon: Archive,
-    },
+    // {
+    //   title: "Archive",
+    //   url: "/archive",
+    //   icon: Archive,
+    // },
   ];
 
   const financialData = [
-    {
-      title: "Finance",
-      url: "/finance",
-      icon: DollarSign,
-    },
+    // {
+    //   title: "Finance",
+    //   url: "/finance",
+    //   icon: DollarSign,
+    // },
     {
       title: "Data Visibility",
       url: "/data-visibility",
       icon: Link2,
     },
-    {
-      title: "Wallet",
-      url: "/wallet",
-      icon: Wallet,
-    },
+    // {
+    //   title: "Wallet",
+    //   url: "/wallet",
+    //   icon: Wallet,
+    // },
   ];
 
   const management = [
@@ -129,11 +129,11 @@ const getMenuItems = (roles: AppRole[] = [], defaultRole: string = 'dataCollecto
       url: "/users",
       icon: Users,
     },
-    {
-      title: "Reports",
-      url: "/reports",
-      icon: Calendar,
-    },
+    // {
+    //   title: "Reports",
+    //   url: "/reports",
+    //   icon: Calendar,
+    // },
     {
       title: "Settings",
       url: "/settings",
@@ -208,9 +208,9 @@ const AppSidebar = () => {
       <SidebarHeader className="flex items-center p-4">
         <div className="flex items-center gap-2">
           <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center">
-            <span className="text-white font-bold text-sm">TPM</span>
+            <span className="text-white font-bold text-sm">PACT</span>
           </div>
-          <span className="font-bold text-lg">TPM Workflow</span>
+          <span className="font-bold text-lg">PACT Consultancy</span>
         </div>
         <SidebarTrigger className="ml-auto"/>
       </SidebarHeader>
@@ -238,7 +238,7 @@ const AppSidebar = () => {
       </SidebarContent>
       <SidebarFooter className="p-4 space-y-4">
         <div className="text-xs text-gray-500 mb-2">
-          TPM Workflow v1.0
+          PACT Consultancy v1.0
         </div>
         {currentUser && (
           <div className="flex items-center justify-between">

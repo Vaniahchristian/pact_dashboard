@@ -187,9 +187,7 @@ const Login = () => {
                   <LucideShieldCheck className="h-8 w-8 text-white" />
                 </div>
               </div>
-              <CardTitle className="text-2xl font-bold text-gray-800 dark:text-gray-100">
-                TPM Workflow
-              </CardTitle>
+              <CardTitle className="text-2xl font-bold text-gray-800 dark:text-gray-100">PACT Consultancy</CardTitle>
               <CardDescription className="text-gray-700 dark:text-gray-300 flex items-center justify-center">
                 Sign in to your account
                 <Button

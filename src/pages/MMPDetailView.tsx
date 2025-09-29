@@ -87,7 +87,7 @@ const MMPDetailView = () => {
       siteCode: `SC${String(10000 + index).padStart(5, '0')}`,
       siteName: `Site ${index + 1}`,
       inMoDa: Math.random() > 0.3,
-      visitedBy: Math.random() > 0.5 ? 'TPM' : 'Joint Visit',
+      visitedBy: Math.random() > 0.5 ? 'PACT' : 'Joint Visit',
       mainActivity: ['DM', 'AIM', 'PDM', 'OTHER'][Math.floor(Math.random() * 4)],
       activityAtSite: ['TSFP', 'SF', 'eBSFP', 'PSN', 'THR'][Math.floor(Math.random() * 5)],
       toolsToBeUsed: ['Tool A', 'Tool B', 'Tool C'].slice(0, Math.floor(Math.random() * 3) + 1),

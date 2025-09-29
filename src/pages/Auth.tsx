@@ -25,6 +25,7 @@ import AuthForm from "@/components/auth/AuthForm";
 import { useAppContext } from "@/context/AppContext";
 import { Badge } from "@/components/ui/badge";
 import PactLogo from "@/assets/logo.png"; // replace with your PACT logo
+import { Button } from "@/components/ui/button";
 
 const features = [
   { name: "Project Management", color: "bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200" },
@@ -39,7 +40,6 @@ const modules = [
   { title: "Project & Activity Planning", icon: FileText, description: "Define projects, schedule activities, and monitor progress", color: "bg-blue-500/10" },
   { title: "MMP Management", icon: FileText, description: "Automated data capture and multi-tier approvals", color: "bg-orange-500/10" },
   { title: "Field Operations", icon: MapPin, description: "GPS-based site visits and task assignments", color: "bg-black/10" },
-  { title: "Team Management", icon: Users, description: "Manage team members, roles, and permissions", color: "bg-blue-500/10" },
   { title: "Communication", icon: MessageSquare, description: "Real-time messaging and notifications", color: "bg-orange-500/10" },
   { title: "Analytics & Reports", icon: BarChart, description: "Interactive dashboards and data insights", color: "bg-black/10" },
 ];
@@ -64,9 +64,27 @@ const LoginSystemInfo = () => (
 );
 
 const Auth = () => {
-  const navigate = useNavigate();
-  const { currentUser } = useAppContext();
+  let currentUser = null;
+  let navigate = useNavigate();
+  let emailVerificationPending = false;
+  let verificationEmail: string | undefined = undefined;
+  let resendVerificationEmail: (email?: string) => Promise<boolean> = async () => false;
+  let clearEmailVerificationNotice: () => void = () => {};
+
   const [showSystemInfo, setShowSystemInfo] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
+
+  // Safely access the AppContext - we're now sure Auth is wrapped inside AppProvider
+  try {
+    const appContext = useAppContext();
+    currentUser = appContext.currentUser;
+    emailVerificationPending = appContext.emailVerificationPending;
+    verificationEmail = appContext.verificationEmail;
+    resendVerificationEmail = appContext.resendVerificationEmail;
+    clearEmailVerificationNotice = appContext.clearEmailVerificationNotice;
+  } catch (error) {
+    console.error("Error accessing AppContext:", error);
+  }
 
   useEffect(() => {
     if (currentUser) navigate("/dashboard");
@@ -157,6 +175,41 @@ const Auth = () => {
           </CardContent>
         </div>
       </Card>
+
+      {/* Email not verified modal */}
+      <Dialog open={emailVerificationPending} onOpenChange={(open) => { if (!open) clearEmailVerificationNotice(); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Email verification required</DialogTitle>
+            <DialogDescription>
+              {verificationEmail ? (
+                <>We found an account for <strong>{verificationEmail}</strong>, but the email is not verified yet. Check your inbox and spam folder for a verification email.</>
+              ) : (
+                <>Your email is not verified yet. Check your inbox and spam folder for a verification email.</>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="text-sm text-muted-foreground">
+            You can request another verification link if needed.
+          </div>
+          <DialogFooter>
+            <Button variant="secondary" onClick={() => clearEmailVerificationNotice()}>Close</Button>
+            <Button
+              onClick={async () => {
+                try {
+                  setResendLoading(true);
+                  await resendVerificationEmail(verificationEmail);
+                } finally {
+                  setResendLoading(false);
+                }
+              }}
+              disabled={resendLoading}
+            >
+              {resendLoading ? 'Sending...' : 'Resend verification link'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

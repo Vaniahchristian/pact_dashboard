@@ -5,44 +5,8 @@ import { Notification } from '@/types';
 // Remove direct dependency on useUser
 // import { useUser } from '../user/UserContext';
 
-const mockNotifications: Notification[] = [
-  {
-    id: 'not1',
-    userId: 'usr6',
-    title: 'New Site Visit Assigned',
-    message: 'You have been assigned a new site visit at Port Harcourt Clinic.',
-    type: 'info',
-    isRead: false,
-    createdAt: new Date(Date.now() - 86400000 * 0.5).toISOString(),
-    link: '/site-visits/sv4',
-    relatedEntityId: 'sv4',
-    relatedEntityType: 'siteVisit',
-  },
-  {
-    id: 'not2',
-    userId: 'usr5',
-    title: 'Site Visit Started',
-    message: 'You have started the site visit at Kaduna School Project.',
-    type: 'success',
-    isRead: true,
-    createdAt: new Date(Date.now() - 86400000 * 0.3).toISOString(),
-    link: '/site-visits/sv5',
-    relatedEntityId: 'sv5',
-    relatedEntityType: 'siteVisit',
-  },
-  {
-    id: 'not3',
-    userId: 'usr3',
-    title: 'MMP Pending Approval',
-    message: 'May 2025 MMP is pending your approval.',
-    type: 'warning',
-    isRead: false,
-    createdAt: new Date(Date.now() - 86400000 * 2).toISOString(),
-    link: '/mmp/mmp2',
-    relatedEntityId: 'mmp2',
-    relatedEntityType: 'mmpFile',
-  },
-];
+// Start with empty notifications array instead of mock data
+const initialNotifications: Notification[] = [];
 
 interface NotificationContextType {
   notifications: Notification[];
@@ -55,51 +19,48 @@ interface NotificationContextType {
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
 export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [appNotifications, setAppNotifications] = useState<Notification[]>(mockNotifications);
-  // Safely try to get the current user ID
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  
-  // Try to get the current user ID from the UserContext when it becomes available
-  React.useEffect(() => {
+  const [appNotifications, setAppNotifications] = useState<Notification[]>(initialNotifications);
+  // Get current user ID from localStorage or auth state
+  const [currentUserId, setCurrentUserId] = useState<string | null>(() => {
     try {
-      // Import the UserContext dynamically to avoid circular dependencies
-      import('../user/UserContext').then(module => {
-        try {
-          const { useUser } = module;
-          // This is a workaround to get the current user ID
-          // We're not calling the hook directly here, but rather setting up
-          // a component to do it for us
-          const UserIdGetter = () => {
-            const { currentUser } = useUser();
-            React.useEffect(() => {
-              if (currentUser) {
-                setCurrentUserId(currentUser.id);
-              }
-            }, [currentUser]);
-            return null;
-          };
-          
-          // Render the component
-          const div = document.createElement('div');
-          document.body.appendChild(div);
-          const { createRoot } = require('react-dom/client');
-          const root = createRoot(div);
-          root.render(<UserIdGetter />);
-          
-          // Clean up
-          return () => {
-            root.unmount();
-            document.body.removeChild(div);
-          };
-        } catch (error) {
-          console.error('Error using UserContext:', error);
-        }
-      }).catch(error => {
-        console.error('Error importing UserContext:', error);
-      });
+      const storedUser = localStorage.getItem('PACTCurrentUser');
+      if (storedUser) {
+        const user = JSON.parse(storedUser);
+        return user.id || null;
+      }
     } catch (error) {
-      console.error('Failed to get current user ID:', error);
+      console.error('Error getting user from localStorage:', error);
     }
+    return null;
+  });
+  
+  // Listen for user changes via localStorage events
+  React.useEffect(() => {
+    const handleStorageChange = () => {
+      try {
+        const storedUser = localStorage.getItem('PACTCurrentUser');
+        if (storedUser) {
+          const user = JSON.parse(storedUser);
+          setCurrentUserId(user.id || null);
+        } else {
+          setCurrentUserId(null);
+        }
+      } catch (error) {
+        console.error('Error parsing user from localStorage:', error);
+        setCurrentUserId(null);
+      }
+    };
+
+    // Listen for storage changes
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Check periodically for changes (in case same-tab updates don't trigger storage event)
+    const interval = setInterval(handleStorageChange, 1000);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(interval);
+    };
   }, []);
 
   // Enhanced duplicate detection that checks content and creation time
