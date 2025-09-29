@@ -98,29 +98,29 @@ const getMenuItems = (roles: AppRole[] = [], defaultRole: string = 'dataCollecto
       url: "/field-team",
       icon: Activity,
     },
-    {
-      title: "Archive",
-      url: "/archive",
-      icon: Archive,
-    },
+    // {
+    //   title: "Archive",
+    //   url: "/archive",
+    //   icon: Archive,
+    // },
   ];
 
   const financialData = [
-    {
-      title: "Finance",
-      url: "/finance",
-      icon: DollarSign,
-    },
+    // {
+    //   title: "Finance",
+    //   url: "/finance",
+    //   icon: DollarSign,
+    // },
     {
       title: "Data Visibility",
       url: "/data-visibility",
       icon: Link2,
     },
-    {
-      title: "Wallet",
-      url: "/wallet",
-      icon: Wallet,
-    },
+    // {
+    //   title: "Wallet",
+    //   url: "/wallet",
+    //   icon: Wallet,
+    // },
   ];
 
   const management = [
@@ -129,11 +129,11 @@ const getMenuItems = (roles: AppRole[] = [], defaultRole: string = 'dataCollecto
       url: "/users",
       icon: Users,
     },
-    {
-      title: "Reports",
-      url: "/reports",
-      icon: Calendar,
-    },
+    // {
+    //   title: "Reports",
+    //   url: "/reports",
+    //   icon: Calendar,
+    // },
     {
       title: "Settings",
       url: "/settings",
