@@ -208,7 +208,7 @@ const AppSidebar = () => {
       <SidebarHeader className="flex items-center p-4">
         <div className="flex items-center gap-2">
           <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center">
-            <span className="text-white font-bold text-sm">TPM</span>
+            <span className="text-white font-bold text-sm">PACT</span>
           </div>
           <span className="font-bold text-lg">PACT Consultancy</span>
         </div>

@@ -23,7 +23,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   // Get current user ID from localStorage or auth state
   const [currentUserId, setCurrentUserId] = useState<string | null>(() => {
     try {
-      const storedUser = localStorage.getItem('tpmCurrentUser');
+      const storedUser = localStorage.getItem('PACTCurrentUser');
       if (storedUser) {
         const user = JSON.parse(storedUser);
         return user.id || null;
@@ -38,7 +38,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   React.useEffect(() => {
     const handleStorageChange = () => {
       try {
-        const storedUser = localStorage.getItem('tpmCurrentUser');
+        const storedUser = localStorage.getItem('PACTCurrentUser');
         if (storedUser) {
           const user = JSON.parse(storedUser);
           setCurrentUserId(user.id || null);

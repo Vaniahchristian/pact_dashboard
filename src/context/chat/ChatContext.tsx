@@ -59,7 +59,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     try {
-      const storedUser = localStorage.getItem('tpmCurrentUser');
+      const storedUser = localStorage.getItem('PACTCurrentUser');
       if (storedUser) {
         const parsedUser = JSON.parse(storedUser);
         if (parsedUser.id) {

@@ -96,7 +96,7 @@ export function MMPApprovalWorkflow({ mmpFile, onApprove, onReject, onVerify }: 
       siteCode: `SC${10000 + index}`,
       siteName: `Site ${index + 1}`,
       inMoDa: Math.random() > 0.3,
-      visitedBy: Math.random() > 0.5 ? 'TPM' : 'Joint Visit',
+      visitedBy: Math.random() > 0.5 ? 'PACT' : 'Joint Visit',
       mainActivity: ['DM', 'AIM', 'PDM', 'OTHER'][Math.floor(Math.random() * 4)],
       visitDate: format(new Date(Date.now() + (Math.random() * 30 * 24 * 60 * 60 * 1000)), 'yyyy-MM-dd'),
       status: ['planned', 'completed', 'cancelled', 'postponed'][Math.floor(Math.random() * 4)]

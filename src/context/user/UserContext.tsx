@@ -33,7 +33,7 @@ const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
-    const storedUser = localStorage.getItem('tpmCurrentUser');
+    const storedUser = localStorage.getItem('PACTCurrentUser');
     if (storedUser) {
       try {
         const parsedUser = JSON.parse(storedUser) as User;
@@ -236,7 +236,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
             lastActive: new Date().toISOString()
           };
           
-          localStorage.setItem('tpmCurrentUser', JSON.stringify(updated));
+          localStorage.setItem('PACTCurrentUser', JSON.stringify(updated));
           
           return updated;
         });
@@ -372,7 +372,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
         
         setCurrentUser(supabaseUser);
-        localStorage.setItem('tpmCurrentUser', JSON.stringify(supabaseUser));
+        localStorage.setItem('PACTCurrentUser', JSON.stringify(supabaseUser));
         
         localStorage.setItem(`user-${supabaseUser.id}`, JSON.stringify(supabaseUser));
         
@@ -406,7 +406,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await supabase.auth.signOut();
       setCurrentUser(null);
-      localStorage.removeItem('tpmCurrentUser');
+      localStorage.removeItem('PACTCurrentUser');
       
       toast({
         title: "Logout successful",
@@ -600,7 +600,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setCurrentUser(updatedCurrentUser);
       
       localStorage.setItem(`user-${currentUser.id}`, JSON.stringify(updatedCurrentUser));
-      localStorage.setItem('tpmCurrentUser', JSON.stringify(updatedCurrentUser));
+      localStorage.setItem('PACTCurrentUser', JSON.stringify(updatedCurrentUser));
 
       return true;
     } catch (error) {
@@ -643,7 +643,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setCurrentUser(updatedCurrentUser);
       
       localStorage.setItem(`user-${currentUser.id}`, JSON.stringify(updatedCurrentUser));
-      localStorage.setItem('tpmCurrentUser', JSON.stringify(updatedCurrentUser));
+      localStorage.setItem('PACTCurrentUser', JSON.stringify(updatedCurrentUser));
 
       return true;
     } catch (error) {
@@ -690,7 +690,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setCurrentUser(updatedCurrentUser);
       
       localStorage.setItem(`user-${currentUser.id}`, JSON.stringify(updatedCurrentUser));
-      localStorage.setItem('tpmCurrentUser', JSON.stringify(updatedCurrentUser));
+      localStorage.setItem('PACTCurrentUser', JSON.stringify(updatedCurrentUser));
 
       if (isSharing) {
         toast({
@@ -749,7 +749,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (currentUser && updatedUser.id === currentUser.id) {
         setCurrentUser(updatedUser);
-        localStorage.setItem('tpmCurrentUser', JSON.stringify(updatedUser));
+        localStorage.setItem('PACTCurrentUser', JSON.stringify(updatedUser));
       }
       
       toast({
