@@ -9,22 +9,19 @@ import {
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  LucideShieldCheck,
   Shield,
   Server,
-  Users,
   MapPin,
   MessageSquare,
   BarChart,
   FileText,
-  Lock,
   Info,
-  CheckCircle,
 } from "lucide-react";
 import AuthForm from "@/components/auth/AuthForm";
 import { useAppContext } from "@/context/AppContext";
 import { Badge } from "@/components/ui/badge";
-import PactLogo from "@/assets/logo.png"; // replace with your PACT logo
+import PactLogo from "@/assets/logo.png";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
 const features = [
