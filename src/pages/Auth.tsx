@@ -42,10 +42,10 @@ const modules = [
 ];
 
 const LoginSystemInfo = () => (
-  <div className="mt-4 bg-white/30 dark:bg-gray-900/30 p-4 rounded-lg shadow-sm animate-fade-in">
+  <div className="mt-4 p-4 rounded-lg border border-gray-200 dark:border-gray-700 animate-fade-in">
     <div className="flex items-center space-x-3 mb-3">
       <Shield className="h-5 w-5 text-blue-600 dark:text-orange-400" />
-      <h4 className="text-sm font-semibold">Secure Access</h4>
+      <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-100">Secure Access</h4>
     </div>
     <div className="space-y-2 text-xs text-gray-600 dark:text-gray-300">
       <div className="flex items-center space-x-2">
@@ -88,10 +88,10 @@ const Auth = () => {
   }, [currentUser, navigate]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50/10 via-orange-50/20 to-black/5 p-4">
-      <Card className="w-full max-w-6xl backdrop-blur-lg bg-white/30 dark:bg-gray-900/30 border border-white/20 shadow-xl overflow-hidden flex flex-col md:flex-row rounded-2xl relative">
+    <div className="min-h-screen flex items-center justify-center bg-white dark:bg-gray-900 p-4">
+      <div className="w-full max-w-6xl flex flex-col md:flex-row gap-12 md:gap-16">
         {/* Left Hero Column */}
-        <div className="hidden md:flex md:w-1/2 flex-col p-8 bg-gradient-to-br from-blue-50/40 via-orange-50/20 to-black/5 space-y-6 rounded-l-2xl overflow-hidden">
+        <div className="hidden md:flex md:w-1/2 flex-col space-y-8">
           <div className="flex flex-col items-center">
             <img src={PactLogo} alt="PACT Logo" className="h-20 w-20 object-contain mb-4" />
             <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 text-center">
@@ -103,13 +103,13 @@ const Auth = () => {
           </div>
 
           <div>
-            <h3 className="font-semibold text-gray-800 dark:text-gray-100 flex items-center text-lg mb-2">
+            <h3 className="font-semibold text-gray-800 dark:text-gray-100 flex items-center text-lg mb-4">
               <Shield className="h-5 w-5 mr-2 text-blue-600 dark:text-orange-400" />
               Core Features
             </h3>
             <div className="grid grid-cols-2 gap-2">
               {features.map((feature) => (
-                <Badge key={feature.name} className={`justify-center py-2 text-sm ${feature.color} shadow-sm transition-transform hover:scale-105`}>
+                <Badge key={feature.name} className={`justify-center py-2 text-sm ${feature.color} transition-transform hover:scale-105`}>
                   {feature.name}
                 </Badge>
               ))}
@@ -117,15 +117,15 @@ const Auth = () => {
           </div>
 
           <div>
-            <h3 className="font-semibold text-gray-800 dark:text-gray-100 flex items-center text-lg mb-2">
+            <h3 className="font-semibold text-gray-800 dark:text-gray-100 flex items-center text-lg mb-4">
               <Server className="h-5 w-5 mr-2 text-blue-600 dark:text-orange-400" />
               System Modules
             </h3>
             <div className="grid grid-cols-1 gap-3">
               {modules.map((module) => (
-                <div key={module.title} className={`${module.color} rounded-lg p-3 transition-all duration-300 hover:shadow-md hover:scale-[1.02]`}>
+                <div key={module.title} className="rounded-lg p-3 border border-gray-200 dark:border-gray-700 transition-all duration-300 hover:border-blue-400 dark:hover:border-orange-400">
                   <div className="flex items-start">
-                    <div className="p-2 rounded-full bg-white/80 dark:bg-gray-900/80 mr-3">
+                    <div className="p-2 rounded-full bg-gray-100 dark:bg-gray-800 mr-3">
                       <module.icon className="h-5 w-5 text-blue-600 dark:text-orange-400" />
                     </div>
                     <div>
@@ -140,10 +140,10 @@ const Auth = () => {
         </div>
 
         {/* Right Auth Column */}
-        <div className="md:w-1/2 w-full p-6 md:p-10 flex flex-col items-center text-center justify-center">
-          <CardHeader className="space-y-2 text-center mb-4">
-            <CardTitle className="text-2xl font-bold">Welcome Back</CardTitle>
-            <CardDescription className="flex items-center justify-center text-sm text-gray-600 dark:text-gray-300">
+        <div className="md:w-1/2 w-full flex flex-col items-center text-center justify-center">
+          <div className="space-y-2 text-center mb-6">
+            <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100">Welcome Back</h1>
+            <div className="flex items-center justify-center text-sm text-gray-600 dark:text-gray-300">
               Sign in to your account
               <button
                 onClick={() => setShowSystemInfo(!showSystemInfo)}
@@ -151,12 +151,12 @@ const Auth = () => {
               >
                 <Info className="h-4 w-4 text-muted-foreground" />
               </button>
-            </CardDescription>
-          </CardHeader>
+            </div>
+          </div>
 
           {showSystemInfo && <LoginSystemInfo />}
 
-          <CardContent className="w-full mt-4">
+          <div className="w-full mt-4">
             <Tabs defaultValue="login" className="space-y-4 w-full">
               <TabsList className="grid w-full grid-cols-2 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
                 <TabsTrigger value="login" className="hover:bg-blue-100 dark:hover:bg-orange-500/20">Login</TabsTrigger>
@@ -169,9 +169,9 @@ const Auth = () => {
                 <AuthForm mode="signup" />
               </TabsContent>
             </Tabs>
-          </CardContent>
+          </div>
         </div>
-      </Card>
+      </div>
 
       {/* Email not verified modal */}
       <Dialog open={emailVerificationPending} onOpenChange={(open) => { if (!open) clearEmailVerificationNotice(); }}>
