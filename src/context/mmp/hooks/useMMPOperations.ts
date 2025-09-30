@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { MMPFile } from '@/types';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { uploadMMPFile, ensureMMPStorageBucket } from '@/utils/mmpFileUpload';
+import { uploadMMPFile } from '@/utils/mmpFileUpload';
 
 export const useMMPOperations = (mmpFiles: MMPFile[], setMMPFiles: React.Dispatch<React.SetStateAction<MMPFile[]>>) => {
   const [currentMMP, setCurrentMMP] = useState<MMPFile | null>(null);
@@ -27,30 +27,8 @@ export const useMMPOperations = (mmpFiles: MMPFile[], setMMPFiles: React.Dispatc
     try {
       console.log('Adding new MMP file:', mmp);
       setMMPFiles((prev: MMPFile[]) => [...(prev || []), mmp]);
-      
-      // Update database via Supabase (if connected)
-      try {
-        supabase
-          .from('mmp_files')
-          .insert([mmp])
-          .then(({ error }) => {
-            if (error) {
-              console.error('Supabase insert error:', error);
-              toast.error('Database update failed, using local storage');
-              // Fall back to local storage if database insert fails
-              const existingFiles = JSON.parse(localStorage.getItem('mock_mmp_files') || '[]');
-              localStorage.setItem('mock_mmp_files', JSON.stringify([...existingFiles, mmp]));
-            } else {
-              toast.success('MMP file added successfully');
-            }
-          });
-      } catch (dbError) {
-        console.error('Database operation failed:', dbError);
-        toast.error('Database operation failed, using local storage');
-        // Fall back to local storage
-        const existingFiles = JSON.parse(localStorage.getItem('mock_mmp_files') || '[]');
-        localStorage.setItem('mock_mmp_files', JSON.stringify([...existingFiles, mmp]));
-      }
+      // Do not insert here; upload flow handles DB insert
+      toast.success('MMP file added');
     } catch (error) {
       console.error('Error adding MMP file:', error);
       toast.error('Failed to add MMP file');
@@ -62,33 +40,53 @@ export const useMMPOperations = (mmpFiles: MMPFile[], setMMPFiles: React.Dispatc
       setMMPFiles((prev: MMPFile[]) =>
         (prev || []).map((m) => (m.id === mmp.id ? mmp : m))
       );
-      
-      // Update database via Supabase (if connected)
-      try {
-        supabase
-          .from('mmp_files')
-          .update(mmp)
-          .eq('id', mmp.id)
-          .then(({ error }) => {
-            if (error) {
-              console.error('Supabase update error:', error);
-              toast.error('Database update failed, using local storage');
-              // Fall back to local storage if database update fails
-              const existingFiles = JSON.parse(localStorage.getItem('mock_mmp_files') || '[]');
-              const updatedFiles = existingFiles.map((m: MMPFile) => m.id === mmp.id ? mmp : m);
-              localStorage.setItem('mock_mmp_files', JSON.stringify(updatedFiles));
-            } else {
-              toast.success('MMP file updated successfully');
-            }
-          });
-      } catch (dbError) {
-        console.error('Database operation failed:', dbError);
-        toast.error('Database operation failed, using local storage');
-        // Fall back to local storage
-        const existingFiles = JSON.parse(localStorage.getItem('mock_mmp_files') || '[]');
-        const updatedFiles = existingFiles.map((m: MMPFile) => m.id === mmp.id ? mmp : m);
-        localStorage.setItem('mock_mmp_files', JSON.stringify(updatedFiles));
-      }
+
+      // Update database via Supabase with snake_case mapping
+      const mapToDB = (m: Partial<MMPFile>) => {
+        const map: Record<string, string> = {
+          uploadedAt: 'uploaded_at',
+          uploadedBy: 'uploaded_by',
+          processedEntries: 'processed_entries',
+          mmpId: 'mmp_id',
+          filePath: 'file_path',
+          originalFilename: 'original_filename',
+          fileUrl: 'file_url',
+          approvalWorkflow: 'approval_workflow',
+          siteEntries: 'site_entries',
+          projectName: 'project_name',
+          cpVerification: 'cp_verification',
+          rejectionReason: 'rejection_reason',
+          approvedBy: 'approved_by',
+          approvedAt: 'approved_at',
+          archivedBy: 'archived_by',
+          archivedAt: 'archived_at',
+          deletedBy: 'deleted_by',
+          deletedAt: 'deleted_at',
+          expiryDate: 'expiry_date',
+          modificationHistory: 'modification_history',
+          modifiedAt: 'modified_at',
+        };
+        const out: any = { updated_at: new Date().toISOString() };
+        Object.entries(m).forEach(([k, v]) => {
+          const dbk = (map as any)[k] || k;
+          out[dbk] = v as any;
+        });
+        return out;
+      };
+
+      const dbPayload = mapToDB(mmp);
+      supabase
+        .from('mmp_files')
+        .update(dbPayload)
+        .eq('id', mmp.id)
+        .then(({ error }) => {
+          if (error) {
+            console.error('Supabase update error:', error);
+            toast.error('Database update failed');
+          } else {
+            toast.success('MMP file updated');
+          }
+        });
     } catch (error) {
       console.error('Error updating MMP file:', error);
       toast.error('Failed to update MMP file');
@@ -98,33 +96,20 @@ export const useMMPOperations = (mmpFiles: MMPFile[], setMMPFiles: React.Dispatc
   const deleteMMPFile = (id: string) => {
     try {
       setMMPFiles((prev: MMPFile[]) => (prev || []).filter((mmp) => mmp.id !== id));
-      
-      // Update database via Supabase (if connected)
-      try {
-        supabase
-          .from('mmp_files')
-          .delete()
-          .eq('id', id)
-          .then(({ error }) => {
-            if (error) {
-              console.error('Supabase delete error:', error);
-              toast.error('Database delete failed, using local storage');
-              // Fall back to local storage if database delete fails
-              const existingFiles = JSON.parse(localStorage.getItem('mock_mmp_files') || '[]');
-              const updatedFiles = existingFiles.filter((m: MMPFile) => m.id !== id);
-              localStorage.setItem('mock_mmp_files', JSON.stringify(updatedFiles));
-            } else {
-              toast.success('MMP file deleted successfully');
-            }
-          });
-      } catch (dbError) {
-        console.error('Database operation failed:', dbError);
-        toast.error('Database operation failed, using local storage');
-        // Fall back to local storage
-        const existingFiles = JSON.parse(localStorage.getItem('mock_mmp_files') || '[]');
-        const updatedFiles = existingFiles.filter((m: MMPFile) => m.id !== id);
-        localStorage.setItem('mock_mmp_files', JSON.stringify(updatedFiles));
-      }
+
+      // Physical delete in Supabase
+      supabase
+        .from('mmp_files')
+        .delete()
+        .eq('id', id)
+        .then(({ error }) => {
+          if (error) {
+            console.error('Supabase delete error:', error);
+            toast.error('Database delete failed');
+          } else {
+            toast.success('MMP file deleted');
+          }
+        });
     } catch (error) {
       console.error('Error deleting MMP file:', error);
       toast.error('Failed to delete MMP file');

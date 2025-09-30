@@ -2,7 +2,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { MMPFile } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
-import { mmpFiles as mockMMPFiles } from '@/data/mockMMPFiles';
 import { MMPContextType } from './types';
 import { useMMPOperations } from './hooks/useMMPOperations';
 import { useMMPStatusOperations } from './hooks/useMMPStatusOperations';
@@ -68,7 +67,7 @@ const MMPContext = createContext<MMPContextType>({
   archiveMMP: () => {},
   approveMMP: () => {},
   rejectMMP: () => {},
-  uploadMMP: async () => false,
+  uploadMMP: async () => ({ success: false }),
   updateMMP: () => {},
   updateMMPVersion: async () => false,
   deleteMMP: () => {},
@@ -99,39 +98,22 @@ export const useMMPProvider = () => {
       try {
         setLoading(true);
         
-        let data = [];
-        if (supabase) {
-          const { data: mmpData, error } = await supabase
-            .from('mmp_files')
-            .select('*')
-            .order('created_at', { ascending: false });
-            
-          if (error) {
-            console.error('Error fetching MMP files from Supabase:', error);
-            throw error;
-          }
-          
-          if (mmpData && mmpData.length > 0) {
-            // Transform snake_case database columns to camelCase interface
-            data = mmpData.map(transformDBToMMPFile);
-            console.log('MMP files loaded from Supabase:', data);
-          } else {
-            console.log('No MMP files found in Supabase, using mock data');
-            const storedMockData = JSON.parse(localStorage.getItem('mock_mmp_files') || '[]');
-            data = storedMockData.length > 0 ? storedMockData : mockMMPFiles;
-          }
-        } else {
-          console.log('Supabase not connected, using mock data');
-          const storedMockData = JSON.parse(localStorage.getItem('mock_mmp_files') || '[]');
-          data = storedMockData.length > 0 ? storedMockData : mockMMPFiles;
+        const { data: mmpData, error } = await supabase
+          .from('mmp_files')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          console.error('Error fetching MMP files from Supabase:', error);
+          throw error;
         }
-        
-        setMMPFiles(data);
+
+        const mapped = (mmpData || []).map(transformDBToMMPFile);
+        setMMPFiles(mapped);
       } catch (err) {
         console.error('Error loading MMP files:', err);
         setError('Failed to load MMP files');
-        const storedMockData = JSON.parse(localStorage.getItem('mock_mmp_files') || '[]');
-        setMMPFiles(storedMockData.length > 0 ? storedMockData : mockMMPFiles);
+        setMMPFiles([]);
       } finally {
         setLoading(false);
       }
@@ -149,37 +131,85 @@ export const useMMPProvider = () => {
         return mmp;
       })
     );
+
+    // Persist to Supabase (map camelCase to snake_case)
+    const toDBPartial = (p: Partial<MMPFile>) => {
+      const map: Record<string, string> = {
+        uploadedAt: 'uploaded_at',
+        uploadedBy: 'uploaded_by',
+        processedEntries: 'processed_entries',
+        mmpId: 'mmp_id',
+        filePath: 'file_path',
+        originalFilename: 'original_filename',
+        fileUrl: 'file_url',
+        approvalWorkflow: 'approval_workflow',
+        siteEntries: 'site_entries',
+        projectName: 'project_name',
+        cpVerification: 'cp_verification',
+        rejectionReason: 'rejection_reason',
+        approvedBy: 'approved_by',
+        approvedAt: 'approved_at',
+        archivedBy: 'archived_by',
+        archivedAt: 'archived_at',
+        deletedBy: 'deleted_by',
+        deletedAt: 'deleted_at',
+        expiryDate: 'expiry_date',
+        modificationHistory: 'modification_history',
+        modifiedAt: 'modified_at',
+      };
+      const out: any = { updated_at: new Date().toISOString() };
+      Object.entries(p).forEach(([k, v]) => {
+        const dbk = (map as any)[k] || k;
+        out[dbk] = v;
+      });
+      return out;
+    };
+
+    try {
+      const dbUpdate = toDBPartial(updatedMMP);
+      supabase.from('mmp_files').update(dbUpdate).eq('id', id).then(({ error }) => {
+        if (error) console.error('Supabase updateMMP error:', error);
+      });
+    } catch (e) {
+      console.error('Failed to persist MMP update:', e);
+    }
   };
 
   const deleteMMP = (id: string) => {
+    // Soft delete in DB and local state
+    const deletedAt = new Date().toISOString();
     setMMPFiles((prev: MMPFile[]) =>
-      prev.map((mmp) => {
-        if (mmp.id === id) {
-          return {
-            ...mmp,
-            status: 'deleted',
-            deletedAt: new Date().toISOString(),
-            deletedBy: 'Current User'
-          };
-        }
-        return mmp;
-      })
+      prev.map((mmp) => (mmp.id === id ? { ...mmp, status: 'deleted', deletedAt } : mmp))
     );
+
+    try {
+      supabase
+        .from('mmp_files')
+        .update({ status: 'deleted', deleted_at: deletedAt })
+        .eq('id', id)
+        .then(({ error }) => {
+          if (error) console.error('Supabase delete (soft) error:', error);
+        });
+    } catch (e) {
+      console.error('Failed to persist deleteMMP:', e);
+    }
   };
 
   const restoreMMP = (id: string) => {
     setMMPFiles((prev: MMPFile[]) =>
-      prev.map((mmp) => {
-        if (mmp.id === id && mmp.status === 'deleted') {
-          const { deletedAt, deletedBy, ...restoredMmp } = mmp;
-          return {
-            ...restoredMmp,
-            status: 'pending'
-          };
-        }
-        return mmp;
-      })
+      prev.map((mmp) => (mmp.id === id && mmp.status === 'deleted' ? { ...mmp, status: 'pending', deletedAt: undefined, deletedBy: undefined } : mmp))
     );
+    try {
+      supabase
+        .from('mmp_files')
+        .update({ status: 'pending', deleted_at: null, deleted_by: null })
+        .eq('id', id)
+        .then(({ error }) => {
+          if (error) console.error('Supabase restoreMMP error:', error);
+        });
+    } catch (e) {
+      console.error('Failed to persist restoreMMP:', e);
+    }
   };
 
   const resetMMP = async (id?: string): Promise<boolean> => {

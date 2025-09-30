@@ -38,7 +38,7 @@ const MMPDetailView = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { currentUser, archiveMMP, deleteMMP } = useAppContext();
+  const { currentUser, archiveMMP, deleteMMP, approveMMP } = useAppContext();
   const { resetMMP, getMmpById } = useMMP();
   const [showAuditTrail, setShowAuditTrail] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -73,6 +73,7 @@ const MMPDetailView = () => {
   const canEdit = currentUser && ['admin', 'fom', 'ict', 'financialAdmin'].includes(currentUser.role || '');
   const canDelete = currentUser && ['admin', 'financialAdmin'].includes(currentUser.role || '');
   const canArchive = currentUser && ['admin', 'financialAdmin', 'ict'].includes(currentUser.role || '');
+  const canApprove = currentUser && ['admin', 'fom', 'financialAdmin'].includes(currentUser.role || '') && mmpFile?.status === 'pending';
 
   const validateSiteEntries = (mmpFile: any) => {
     if (!mmpFile) return [];
@@ -164,6 +165,26 @@ const MMPDetailView = () => {
           title: "Reset Failed",
           description: "Failed to reset MMP approval status",
           variant: "destructive",
+        });
+      }
+    }
+  };
+
+  const handleApprove = async () => {
+    if (id && currentUser) {
+      try {
+        await approveMMP(id, currentUser.username || 'Unknown User');
+        setRefreshKey(prev => prev + 1);
+        toast({
+          title: "MMP Approved",
+          description: "The MMP file has been approved successfully.",
+        });
+      } catch (error) {
+        console.error("Failed to approve MMP:", error);
+        toast({
+          title: "Approval Failed",
+          description: "There was a problem approving the MMP file.",
+          variant: "destructive"
         });
       }
     }
@@ -504,14 +525,16 @@ const MMPDetailView = () => {
         </TabsContent>
       </Tabs>
       
-      {(canArchive || canDelete) && (
+      {(canArchive || canDelete || canApprove) && (
         <MMPFileManagement
           mmpFile={mmpFile}
           canArchive={canArchive}
           canDelete={canDelete}
+          canApprove={canApprove}
           onArchive={handleArchive}
           onDelete={handleDelete}
           onResetApproval={handleReset}
+          onApprove={handleApprove}
         />
       )}
       

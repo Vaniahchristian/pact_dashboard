@@ -125,6 +125,7 @@ create table if not exists public.mmp_files (
   id uuid primary key default gen_random_uuid(),
   name text,
   uploaded_at timestamptz,
+  uploaded_by text,
   status text,
   entries integer,
   processed_entries integer,
@@ -132,15 +133,56 @@ create table if not exists public.mmp_files (
   version jsonb,
   site_entries jsonb,
   workflow jsonb,
+  approval_workflow jsonb,
   project_id uuid,
   file_path text,
   original_filename text,
   file_url text,
-  created_at timestamptz default now()
+  description text,
+  project_name text,
+  type text,
+  region text,
+  month integer,
+  year integer,
+  location jsonb,
+  team jsonb,
+  permits jsonb,
+  site_visit jsonb,
+  financial jsonb,
+  performance jsonb,
+  cp_verification jsonb,
+  rejection_reason text,
+  approved_by text,
+  approved_at timestamptz,
+  archived_by text,
+  archived_at timestamptz,
+  deleted_by text,
+  deleted_at timestamptz,
+  expiry_date date,
+  modification_history jsonb,
+  modified_at timestamptz,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
 );
 
 alter table public.mmp_files enable row level security;
 create policy "mmp_files_all_auth" on public.mmp_files for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+
+-- Optional: updated_at trigger for mmp_files
+create or replace function public.set_mmp_files_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+drop trigger if exists set_mmp_files_updated_at on public.mmp_files;
+create trigger set_mmp_files_updated_at
+before update on public.mmp_files
+for each row execute function public.set_mmp_files_updated_at();
 
 -- SITE VISITS
 create table if not exists public.site_visits (

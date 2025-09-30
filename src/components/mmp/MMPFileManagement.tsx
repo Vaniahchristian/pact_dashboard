@@ -2,7 +2,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, Archive, Trash2 } from 'lucide-react';
+import { RefreshCw, Archive, Trash2, Check } from 'lucide-react';
 import { 
   AlertDialog, 
   AlertDialogAction, 
@@ -20,9 +20,11 @@ interface MMPFileManagementProps {
   mmpFile: MMPFile;
   canArchive: boolean;
   canDelete: boolean;
+  canApprove: boolean;
   onArchive: () => void;
   onDelete: () => void;
   onResetApproval: () => void;
+  onApprove: () => void;
 }
 
 const MMPFileManagement = ({ 
@@ -31,7 +33,9 @@ const MMPFileManagement = ({
   canDelete, 
   onArchive, 
   onDelete, 
-  onResetApproval 
+  onResetApproval, 
+  canApprove,
+  onApprove
 }: MMPFileManagementProps) => {
   const isApproved = mmpFile.status === 'approved';
   const isRejected = mmpFile.status === 'rejected';
@@ -46,6 +50,29 @@ const MMPFileManagement = ({
       </CardHeader>
       <CardContent>
         <div className="flex flex-col sm:flex-row gap-4">
+          {canApprove && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" className="border-green-200 hover:bg-green-50 hover:text-green-700">
+                  <Check className="h-4 w-4 mr-2" />
+                  Approve MMP
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Approve MMP File?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will mark the MMP file as approved. This action can be reset later.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={onApprove}>Approve</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+
           {(isApproved || isRejected) && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
