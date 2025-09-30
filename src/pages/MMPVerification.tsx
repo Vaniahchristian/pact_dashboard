@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useMMP } from '@/context/mmp/MMPContext';
+import { useAppContext } from '@/context/AppContext';
 import { useToast } from '@/hooks/use-toast';
 import FieldTeamMapPermissions from '@/components/map/FieldTeamMapPermissions';
 import MMPSiteInformation from '@/components/MMPSiteInformation';
@@ -19,6 +20,7 @@ const MMPVerification: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { getMmpById, updateMMP, mmpFiles } = useMMP();
+  const { currentUser } = useAppContext();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [mmpFile, setMmpFile] = useState<MMPFile | null>(null);
@@ -69,19 +71,22 @@ const MMPVerification: React.FC = () => {
 
   const handleFinalizeVerification = () => {
     if (!mmpFile || !id) return;
-    
-    const updatedMMP = {
-      ...mmpFile,
+    const now = new Date().toISOString();
+    const verifier = currentUser?.username || currentUser?.fullName || currentUser?.name || currentUser?.email || currentUser?.id || 'System';
+
+    const payload: Partial<MMPFile> = {
       status: 'verified' as MMPStatus,
+      verifiedBy: verifier,
+      verifiedAt: now,
       workflow: {
-        ...mmpFile.workflow,
+        ...(mmpFile.workflow || {}),
         currentStage: 'verified' as MMPStage,
-        lastUpdated: new Date().toISOString()
+        lastUpdated: now
       }
     };
-    
-    updateMMP(id, updatedMMP);
-    setMmpFile(updatedMMP);
+
+    updateMMP(id, payload);
+    setMmpFile(prev => prev ? { ...prev, ...payload } as MMPFile : prev);
     
     toast({
       title: "MMP Verification Complete",

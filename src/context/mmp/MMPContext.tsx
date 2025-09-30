@@ -22,6 +22,8 @@ const transformDBToMMPFile = (dbRecord: any): MMPFile => {
     rejectionReason: dbRecord.rejection_reason,
     approvedBy: dbRecord.approved_by,
     approvedAt: dbRecord.approved_at,
+    verifiedBy: dbRecord.verified_by,
+    verifiedAt: dbRecord.verified_at,
     archivedAt: dbRecord.archived_at,
     archivedBy: dbRecord.archived_by,
     deletedAt: dbRecord.deleted_at,
@@ -149,6 +151,8 @@ export const useMMPProvider = () => {
         rejectionReason: 'rejection_reason',
         approvedBy: 'approved_by',
         approvedAt: 'approved_at',
+        verifiedBy: 'verified_by',
+        verifiedAt: 'verified_at',
         archivedBy: 'archived_by',
         archivedAt: 'archived_at',
         deletedBy: 'deleted_by',
@@ -225,7 +229,9 @@ export const useMMPProvider = () => {
                 approvalWorkflow: null,
                 rejectionReason: null,
                 approvedAt: null,
-                approvedBy: null
+                approvedBy: null,
+                verifiedAt: null,
+                verifiedBy: null
               };
             }
             return mmp;
@@ -242,6 +248,8 @@ export const useMMPProvider = () => {
               rejection_reason: null,
               approved_by: null,
               approved_at: null,
+              verified_by: null,
+              verified_at: null,
             })
             .eq('id', id);
         } catch (dbErr) {

@@ -37,6 +37,8 @@ export interface MMPBase {
   rejectionReason?: string;
   approvedBy?: string;
   approvedAt?: string;
+  verifiedBy?: string;
+  verifiedAt?: string;
   archivedAt?: string;
   archivedBy?: string;
   deletedAt?: string;
