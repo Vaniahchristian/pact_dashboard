@@ -241,15 +241,48 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
             assigned_to: activity.assignedTo,
             project_id: updatedProject.id,
           };
-          
+
+          // If it's a newly created activity, insert and get its real UUID
           if (activity.id.startsWith('new-')) {
-            await supabase.from('project_activities').insert(dbActivity);
+            const { data: insertedActivity, error: insertActivityError } = await supabase
+              .from('project_activities')
+              .insert(dbActivity)
+              .select()
+              .single();
+
+            if (insertActivityError) {
+              throw new Error(insertActivityError.message);
+            }
+
+            const newActivityId = insertedActivity?.id;
+
+            // Insert sub-activities if provided
+            if (activity.subActivities && activity.subActivities.length > 0 && newActivityId) {
+              for (const subActivity of activity.subActivities) {
+                const dbSubActivity = {
+                  name: subActivity.name,
+                  description: subActivity.description,
+                  status: subActivity.status,
+                  is_active: subActivity.isActive,
+                  due_date: subActivity.dueDate,
+                  assigned_to: subActivity.assignedTo,
+                  activity_id: newActivityId,
+                };
+                await supabase.from('sub_activities').insert(dbSubActivity);
+              }
+            }
           } else {
-            await supabase
+            // Existing activity: update record
+            const { error: updateActivityError } = await supabase
               .from('project_activities')
               .update(dbActivity)
               .eq('id', activity.id);
-              
+
+            if (updateActivityError) {
+              throw new Error(updateActivityError.message);
+            }
+
+            // Upsert sub-activities for existing activity
             if (activity.subActivities && activity.subActivities.length > 0) {
               for (const subActivity of activity.subActivities) {
                 const dbSubActivity = {
@@ -265,10 +298,13 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
                 if (subActivity.id.startsWith('new-')) {
                   await supabase.from('sub_activities').insert(dbSubActivity);
                 } else {
-                  await supabase
+                  const { error: updateSubError } = await supabase
                     .from('sub_activities')
                     .update(dbSubActivity)
                     .eq('id', subActivity.id);
+                  if (updateSubError) {
+                    throw new Error(updateSubError.message);
+                  }
                 }
               }
             }

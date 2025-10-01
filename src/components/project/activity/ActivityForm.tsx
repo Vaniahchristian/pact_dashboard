@@ -92,7 +92,7 @@ const ActivityForm: React.FC<ActivityFormProps> = ({
     if (newSubActivity.name.trim() === '') return;
     
     const newSub: SubActivity = {
-      id: `sub-${Date.now()}`,
+      id: `new-sub-${Date.now()}`,
       name: newSubActivity.name,
       status: newSubActivity.status,
       isActive: newSubActivity.isActive,
@@ -112,7 +112,7 @@ const ActivityForm: React.FC<ActivityFormProps> = ({
 
   const handleFormSubmit = (values: FormValues) => {
     const activity: ProjectActivity = {
-      id: initialData?.id || `act-${Date.now()}`,
+      id: initialData?.id || `new-${Date.now()}`,
       name: values.name,
       description: values.description,
       startDate: values.startDate.toISOString().split('T')[0],
