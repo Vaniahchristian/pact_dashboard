@@ -11,7 +11,7 @@ interface ProjectContextProps {
   error: string | null;
   currentProject: Project | null;
   setCurrentProject: (project: Project | null) => void;
-  addProject: (project: Project) => Promise<void>;
+  addProject: (project: Project) => Promise<Project | null>;
   updateProject: (project: Project) => Promise<void>;
   deleteProject: (id: string) => Promise<void>;
   getProjectById: (id: string) => Project | undefined;
@@ -24,7 +24,7 @@ const ProjectContext = createContext<ProjectContextProps>({
   error: null,
   currentProject: null,
   setCurrentProject: () => {},
-  addProject: async () => {},
+  addProject: async () => null,
   updateProject: async () => {},
   deleteProject: async () => {},
   getProjectById: () => undefined,
@@ -155,7 +155,7 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
     fetchProjects();
   }, []);
 
-  const addProject = async (project: Project) => {
+  const addProject = async (project: Project): Promise<Project | null> => {
     try {
       setLoading(true);
       setError(null);
@@ -168,11 +168,20 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const dbProject = mapProjectToDbProject(project);
       const { data, error } = await supabase
         .from('projects')
-        .insert(dbProject);
+        .insert(dbProject)
+        .select()
+        .single();
         
       if (error) {
         throw new Error(error.message);
       }
+      
+      if (!data) {
+        throw new Error('No data returned from insert');
+      }
+      
+      // Map the returned data to a Project object
+      const createdProject = mapDbProjectToProject(data);
       
       await fetchProjects();
       
@@ -181,6 +190,8 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
         description: "Project created successfully!",
         variant: "success",
       });
+      
+      return createdProject;
     } catch (err) {
       console.error("Error adding project:", err);
       setError(err instanceof Error ? err.message : 'Failed to add project');
@@ -189,6 +200,7 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
         description: err instanceof Error ? err.message : "Failed to create project",
         variant: "destructive",
       });
+      return null;
     } finally {
       setLoading(false);
     }
@@ -204,7 +216,10 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
         throw new Error(validationResult.errors?.join('\n'));
       }
 
-      const dbProject = mapProjectToDbProject(updatedProject);
+      const dbProject = {
+        ...mapProjectToDbProject(updatedProject),
+        updated_at: new Date().toISOString()
+      };
       const { error } = await supabase
         .from('projects')
         .update(dbProject)

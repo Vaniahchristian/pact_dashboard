@@ -107,6 +107,12 @@ create table if not exists public.projects (
 alter table public.projects enable row level security;
 create policy "projects_all_auth" on public.projects for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
 
+-- Trigger for projects updated_at
+drop trigger if exists set_projects_updated_at on public.projects;
+create trigger set_projects_updated_at
+before update on public.projects
+for each row execute function public.set_updated_at();
+
 -- PROJECT ACTIVITIES
 create table if not exists public.project_activities (
   id uuid primary key default gen_random_uuid(),

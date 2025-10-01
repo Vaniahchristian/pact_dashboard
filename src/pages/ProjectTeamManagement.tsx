@@ -10,27 +10,46 @@ import { ProjectTeamMember, Project } from '@/types/project';
 import { useToast } from '@/hooks/toast';
 
 const ProjectTeamManagement = () => {
-  const { projectId } = useParams<{ projectId: string }>();
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { getProjectById, updateProject, fetchProjects, loading } = useProjectContext();
+  const { getProjectById, updateProject, fetchProjects, loading, projects } = useProjectContext();
   const { toast } = useToast();
-  const [project, setProject] = useState<Project | undefined>(projectId ? getProjectById(projectId) : undefined);
+  const [project, setProject] = useState<Project | undefined>(undefined);
+  const [isLoadingProject, setIsLoadingProject] = useState(true);
   
+  // Fetch on mount if needed
   useEffect(() => {
-    if (projectId) {
-      const projectData = getProjectById(projectId);
-      setProject(projectData);
-      
-      if (!projectData) {
-        fetchProjects().then(() => {
-          setProject(getProjectById(projectId));
-        });
-      }
+    if (projects.length === 0 && !loading) {
+      fetchProjects();
     }
-  }, [projectId, getProjectById, fetchProjects]);
+  }, []);
+
+  // Resolve project when deps change
+  useEffect(() => {
+    if (!id) {
+      setProject(undefined);
+      setIsLoadingProject(false);
+      return;
+    }
+    const foundProject = getProjectById(id);
+    setProject(foundProject);
+    if (projects.length > 0 || !loading) {
+      setIsLoadingProject(false);
+    }
+  }, [id, projects, loading]);
   
-  if (loading && !project) {
-    return <div>Loading...</div>;
+  if (isLoadingProject || (loading && !project)) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center space-y-4">
+          <div className="relative w-16 h-16 mx-auto">
+            <div className="absolute inset-0 rounded-full border-4 border-primary/20 animate-[spin_3s_linear_infinite]"></div>
+            <div className="absolute inset-[6px] rounded-full border-4 border-t-primary animate-[spin_2s_linear_infinite]"></div>
+          </div>
+          <p className="text-muted-foreground animate-pulse">Loading project...</p>
+        </div>
+      </div>
+    );
   }
   
   if (!project && !loading) {
@@ -75,7 +94,7 @@ const ProjectTeamManagement = () => {
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => navigate(`/projects/${projectId}`)}
+          onClick={() => navigate(`/projects/${id}`)}
           className="hover:bg-muted"
         >
           <ChevronLeft className="h-4 w-4" />

@@ -13,36 +13,41 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 const EditProject = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { getProjectById, updateProject, fetchProjects, loading } = useProjectContext();
-  const [project, setProject] = useState<Project | undefined>(id ? getProjectById(id) : undefined);
+  const { getProjectById, updateProject, fetchProjects, loading, projects } = useProjectContext();
+  const [project, setProject] = useState<Project | undefined>(undefined);
   const { toast } = useToast();
 
+  // Effect to fetch projects if not loaded
   useEffect(() => {
-    if (id) {
-      const projectData = getProjectById(id);
-      setProject(projectData);
-      
-      if (!projectData) {
-        fetchProjects().then(() => {
-          const refreshedProject = getProjectById(id);
-          setProject(refreshedProject);
-          
-          if (!refreshedProject) {
-            toast({
-              title: "Project Not Found",
-              description: "The project could not be found. You will be redirected to the projects page.",
-              variant: "destructive",
-            });
-            
-            // Delay navigation slightly to give the user time to read the toast
-            setTimeout(() => {
-              navigate('/projects');
-            }, 2000);
-          }
-        });
-      }
+    if (projects.length === 0 && !loading) {
+      fetchProjects();
     }
-  }, [id, getProjectById, fetchProjects, toast, navigate]);
+  }, []);
+
+  // Effect to find the project when projects or id changes
+  useEffect(() => {
+    if (!id) {
+      setProject(undefined);
+      return;
+    }
+    
+    const foundProject = getProjectById(id);
+    setProject(foundProject);
+    
+    // Show toast and redirect if project not found after loading is complete
+    if (!foundProject && !loading && projects.length > 0) {
+      toast({
+        title: "Project Not Found",
+        description: "The project could not be found. You will be redirected to the projects page.",
+        variant: "destructive",
+      });
+      
+      // Delay navigation slightly to give the user time to read the toast
+      setTimeout(() => {
+        navigate('/projects');
+      }, 2000);
+    }
+  }, [id, projects, loading]);
 
   const handleSubmit = async (updatedProject: Project) => {
     try {

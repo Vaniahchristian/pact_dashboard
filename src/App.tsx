@@ -60,6 +60,15 @@ const MmpViewRedirect = () => {
   return <Navigate to={`/mmp/${mmpId}/view`} replace />;
 };
 
+// Redirect /projects/:id/team/add -> /projects/:id/team
+const TeamAddRedirect = () => {
+  const location = useLocation();
+  const segments = location.pathname.split('/');
+  const projectsIndex = segments.indexOf('projects');
+  const id = projectsIndex >= 0 ? segments[projectsIndex + 1] : '';
+  return <Navigate to={`/projects/${id}/team`} replace />;
+};
+
 // Auth guard component to check if user is logged in
 const AuthGuard = ({ children }) => {
   const location = useLocation();
@@ -127,6 +136,7 @@ const AppRoutes = () => {
       
       {/* Redirects */}
       <Route path="/mmp/view/:id" element={<MmpViewRedirect />} />
+      <Route path="/projects/:id/team/add" element={<TeamAddRedirect />} />
       
       {/* Catch-all route */}
       <Route path="*" element={<NotFound />} />

@@ -10,30 +10,52 @@ import { useToast } from '@/hooks/toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const CreateProjectActivity = () => {
-  const { projectId } = useParams<{ projectId: string }>();
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { getProjectById, updateProject, fetchProjects, projects, loading } = useProjectContext();
   const { toast } = useToast();
   const [project, setProject] = useState<Project | undefined>(undefined);
+  const [isLoadingProject, setIsLoadingProject] = useState(true);
   
+  // Effect to fetch projects if not loaded
   useEffect(() => {
-    if (projectId) {
-      const foundProject = getProjectById(projectId);
-      setProject(foundProject);
-      
-      if (!foundProject) {
-        fetchProjects().then(() => {
-          setProject(getProjectById(projectId));
-        });
-      }
+    if (projects.length === 0 && !loading) {
+      fetchProjects();
     }
-  }, [projectId, getProjectById, fetchProjects]);
+  }, []);
   
-  if (loading && !project) {
-    return <div>Loading...</div>;
+  // Effect to find the project when projects or projectId changes
+  useEffect(() => {
+    if (!id) {
+      setProject(undefined);
+      setIsLoadingProject(false);
+      return;
+    }
+    
+    const foundProject = getProjectById(id);
+    setProject(foundProject);
+    
+    // Only set loading to false if we have projects loaded or loading is done
+    if (projects.length > 0 || !loading) {
+      setIsLoadingProject(false);
+    }
+  }, [id, projects, loading]);
+  
+  if (isLoadingProject || (loading && !project)) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center space-y-4">
+          <div className="relative w-16 h-16 mx-auto">
+            <div className="absolute inset-0 rounded-full border-4 border-primary/20 animate-[spin_3s_linear_infinite]"></div>
+            <div className="absolute inset-[6px] rounded-full border-4 border-t-primary animate-[spin_2s_linear_infinite]"></div>
+          </div>
+          <p className="text-muted-foreground animate-pulse">Loading project...</p>
+        </div>
+      </div>
+    );
   }
   
-  if (!project && !loading) {
+  if (!project && !isLoadingProject) {
     return (
       <Alert>
         <AlertTitle>Project Not Found</AlertTitle>
@@ -64,7 +86,7 @@ const CreateProjectActivity = () => {
       description: "The activity has been added to the project successfully.",
       variant: "success",
     });
-    navigate(`/projects/${projectId}`);
+    navigate(`/projects/${id}`);
   };
 
   return (
@@ -73,7 +95,7 @@ const CreateProjectActivity = () => {
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => navigate(`/projects/${projectId}`)}
+          onClick={() => navigate(`/projects/${id}`)}
           className="hover:bg-muted"
         >
           <ChevronLeft className="h-4 w-4" />
@@ -87,7 +109,7 @@ const CreateProjectActivity = () => {
       </div>
 
       <ActivityForm 
-        projectId={projectId} 
+        projectId={id} 
         onSubmit={handleSubmit} 
       />
     </div>

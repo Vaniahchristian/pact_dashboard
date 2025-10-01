@@ -13,31 +13,36 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 const ProjectDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { getProjectById, loading, error, fetchProjects } = useProjectContext();
-  const [project, setProject] = useState<Project | undefined>(id ? getProjectById(id) : undefined);
+  const { getProjectById, loading, error, fetchProjects, projects } = useProjectContext();
+  const [project, setProject] = useState<Project | undefined>(undefined);
   const { toast } = useToast();
 
+  // Effect to fetch projects if not loaded
   useEffect(() => {
-    if (id) {
-      const projectData = getProjectById(id);
-      setProject(projectData);
-      
-      if (!projectData && !loading) {
-        fetchProjects().then(() => {
-          const refreshedProject = getProjectById(id);
-          setProject(refreshedProject);
-          
-          if (!refreshedProject) {
-            toast({
-              title: "Project Not Found",
-              description: "The requested project could not be found.",
-              variant: "destructive",
-            });
-          }
-        });
-      }
+    if (projects.length === 0 && !loading) {
+      fetchProjects();
     }
-  }, [id, getProjectById, loading, toast, fetchProjects]);
+  }, []);
+
+  // Effect to find the project when projects or id changes
+  useEffect(() => {
+    if (!id) {
+      setProject(undefined);
+      return;
+    }
+    
+    const foundProject = getProjectById(id);
+    setProject(foundProject);
+    
+    // Show toast if project not found after loading is complete
+    if (!foundProject && !loading && projects.length > 0) {
+      toast({
+        title: "Project Not Found",
+        description: "The requested project could not be found.",
+        variant: "destructive",
+      });
+    }
+  }, [id, projects, loading]);
 
   const handleEdit = () => {
     navigate(`/projects/${id}/edit`);

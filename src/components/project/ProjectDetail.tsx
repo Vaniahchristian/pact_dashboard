@@ -343,7 +343,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
         <TabsContent value="team" className="space-y-6 mt-6">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-medium">Team Members</h2>
-            <Button size="sm" onClick={() => navigate(`/projects/${project.id}/team/add`)}>
+            <Button size="sm" onClick={() => navigate(`/projects/${project.id}/team`)}>
               <Plus className="h-4 w-4 mr-2" /> Add Members
             </Button>
           </div>
@@ -363,7 +363,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({
               <p className="text-muted-foreground mt-1 max-w-md mx-auto">
                 Assign team members to this project
               </p>
-              <Button className="mt-4" onClick={() => navigate(`/projects/${project.id}/team/add`)}>
+              <Button className="mt-4" onClick={() => navigate(`/projects/${project.id}/team`)}>
                 <Plus className="h-4 w-4 mr-2" /> Add Team Members
               </Button>
             </div>

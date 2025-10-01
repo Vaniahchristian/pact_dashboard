@@ -7,21 +7,19 @@ import { Button } from '@/components/ui/button';
 import ProjectForm from '@/components/project/ProjectForm';
 import { useProjectContext } from '@/context/project/ProjectContext';
 import { Project } from '@/types/project';
-import { useToast } from '@/hooks/toast';
 
 const CreateProject = () => {
   const navigate = useNavigate();
   const { addProject } = useProjectContext();
-  const { toast } = useToast();
 
-  const handleSubmit = (project: Project) => {
-    addProject(project);
-    toast({
-      title: "Project Created",
-      description: `${project.name} has been created successfully.`,
-      variant: "success",
-    });
-    navigate(`/projects/${project.id}`);
+  const handleSubmit = async (project: Project) => {
+    const createdProject = await addProject(project);
+    if (createdProject) {
+      navigate(`/projects/${createdProject.id}`);
+    } else {
+      // If creation failed, stay on the form page
+      // Error toast is already shown by addProject
+    }
   };
 
   return (
