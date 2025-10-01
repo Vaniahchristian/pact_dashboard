@@ -779,54 +779,54 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!currentUser) return false;
 
       const now = new Date().toISOString();
-      
-      const { error } = await supabase
+      const mergedLocation = {
+        ...(currentUser.location || {}),
+        latitude,
+        longitude,
+        lastUpdated: now,
+        isSharing: true,
+      } as NonNullable<User['location']>;
+
+      const { data, error } = await supabase
         .from('profiles')
         .update({
-          location: {
-            latitude,
-            longitude,
-            lastUpdated: now
-          }
+          location: mergedLocation,
+          location_sharing: true,
         })
-        .eq('id', currentUser.id);
-      
-      if (error) {
-        console.error("Update location error:", error);
+        .eq('id', currentUser.id)
+        .select('id');
+
+      if (error || !data || data.length === 0) {
+        console.error('Update location error:', error || 'No row updated (RLS?)');
+        return false;
       }
-      
-      const updatedUsers = appUsers.map(u => 
-        u.id === currentUser.id ? {
-          ...u,
-          location: {
-            ...u.location,
-            latitude,
-            longitude,
-            lastUpdated: now,
-          },
-        } : u
+
+      const updatedUsers = appUsers.map(u =>
+        u.id === currentUser.id
+          ? {
+              ...u,
+              location: {
+                ...(u.location || {}),
+                ...mergedLocation,
+              },
+            }
+          : u
       );
-      
       setAppUsers(updatedUsers);
 
       const updatedCurrentUser = {
         ...currentUser,
         location: {
-          ...currentUser.location,
-          latitude,
-          longitude,
-          lastUpdated: now,
+          ...(currentUser.location || {}),
+          ...mergedLocation,
         },
       };
-      
       setCurrentUser(updatedCurrentUser);
-      
       localStorage.setItem(`user-${currentUser.id}`, JSON.stringify(updatedCurrentUser));
       localStorage.setItem('PACTCurrentUser', JSON.stringify(updatedCurrentUser));
-
       return true;
     } catch (error) {
-      console.error("Update location error:", error);
+      console.error('Update location error:', error);
       return false;
     }
   };
@@ -841,35 +841,35 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
           availability: status,
         })
         .eq('id', currentUser.id);
-      
+
       if (error) {
-        console.error("Update availability error:", error);
+        console.error('Update availability error:', error);
       }
-      
-      const updatedUsers = appUsers.map(u => 
-        u.id === currentUser.id ? {
-          ...u,
-          availability: status,
-          lastActive: status !== 'offline' ? new Date().toISOString() : u.lastActive,
-        } : u
+
+      const updatedUsers = appUsers.map(u =>
+        u.id === currentUser.id
+          ? {
+              ...u,
+              availability: status,
+              lastActive:
+                status !== 'offline' ? new Date().toISOString() : u.lastActive,
+            }
+          : u
       );
-      
       setAppUsers(updatedUsers);
 
       const updatedCurrentUser = {
         ...currentUser,
         availability: status,
-        lastActive: status !== 'offline' ? new Date().toISOString() : currentUser.lastActive,
+        lastActive:
+          status !== 'offline' ? new Date().toISOString() : currentUser.lastActive,
       };
-      
       setCurrentUser(updatedCurrentUser);
-      
       localStorage.setItem(`user-${currentUser.id}`, JSON.stringify(updatedCurrentUser));
       localStorage.setItem('PACTCurrentUser', JSON.stringify(updatedCurrentUser));
-
       return true;
     } catch (error) {
-      console.error("Update availability error:", error);
+      console.error('Update availability error:', error);
       return false;
     }
   };

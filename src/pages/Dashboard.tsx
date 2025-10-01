@@ -11,6 +11,7 @@ import FloatingMessenger from '@/components/communication/FloatingMessenger';
 import { useAppContext } from '@/context/AppContext';
 import { Badge } from '@/components/ui/badge';
 import PactLogo from '@/assets/logo.png'; // PNG logo
+import LocationPermissionPrompt from '@/components/location/LocationPermissionPrompt';
 
 const Dashboard = () => {
   const { SiteVisitRemindersDialog, showDueReminders } = useSiteVisitRemindersUI();
@@ -87,6 +88,7 @@ const Dashboard = () => {
 
         {/* Floating components */}
         {SiteVisitRemindersDialog}
+        <LocationPermissionPrompt />
         <FloatingMessenger />
       </div>
     </TooltipProvider>
