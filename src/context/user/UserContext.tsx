@@ -39,9 +39,9 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const parsedUser = JSON.parse(storedUser) as User;
         return {
           ...parsedUser,
-          wallet: {
-            ...parsedUser.wallet,
-            balance: 5000,
+          wallet: parsedUser.wallet || {
+            balance: 0,
+            currency: 'USD'
           },
           availability: parsedUser.availability || 'online',
           lastActive: parsedUser.lastActive || new Date().toISOString()
@@ -55,7 +55,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   const loadUsersFromStorage = () => {
-    const storedUsersMap: Record<string, User> = {};
+    const storedUsersMap: Record<string, Partial<User>> = {};
     
     const initialUsers: User[] = [];
     
@@ -83,8 +83,22 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
     
     Object.values(storedUsersMap).forEach(storedUser => {
-      if (!mergedUsers.some(u => u.id === storedUser.id)) {
-        mergedUsers.push(storedUser);
+      if (storedUser.id && !mergedUsers.some(u => u.id === storedUser.id)) {
+        // Ensure required fields are present before adding to mergedUsers
+        const completeUser: User = {
+          id: storedUser.id,
+          name: storedUser.name || 'Unknown',
+          email: storedUser.email || '',
+          role: storedUser.role || 'dataCollector',
+          lastActive: storedUser.lastActive || new Date().toISOString(),
+          availability: storedUser.availability || 'offline',
+          wallet: storedUser.wallet || {
+            balance: 0,
+            currency: 'USD'
+          },
+          ...storedUser,
+        };
+        mergedUsers.push(completeUser);
       }
     });
     
@@ -188,9 +202,12 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
             roles: allUserRoles[profile.id] || [],
             stateId: profile.state_id || existingUser.stateId,
             hubId: profile.hub_id || existingUser.hubId,
+            localityId: profile.locality_id || existingUser.localityId,
             avatar: profile.avatar_url || existingUser.avatar,
             username: profile.username || existingUser.username,
             fullName: profile.full_name || existingUser.fullName,
+            phone: profile.phone || existingUser.phone,
+            employeeId: profile.employee_id || existingUser.employeeId,
             lastActive: existingUser.lastActive || new Date().toISOString(),
             isApproved: profile.status === 'approved' || false,
             availability: existingUser.availability || 'offline',
@@ -323,14 +340,17 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         roles: userRolesList.length > 0 ? userRolesList : undefined,
         stateId: (userProfile as any).state_id,
         hubId: (userProfile as any).hub_id,
+        localityId: (userProfile as any).locality_id,
         avatar: (userProfile as any).avatar_url,
         username: (userProfile as any).username,
         fullName: (userProfile as any).full_name,
+        phone: (userProfile as any).phone,
+        employeeId: (userProfile as any).employee_id,
         lastActive: new Date().toISOString(),
         isApproved: true,
         availability: 'online',
         wallet: {
-          balance: 5000,
+          balance: 0,
           currency: 'USD',
         },
         performance: {
@@ -481,14 +501,17 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
           roles: userRolesList.length > 0 ? userRolesList : undefined,
           stateId: userProfile.state_id,
           hubId: userProfile.hub_id,
+          localityId: userProfile.locality_id,
           avatar: userProfile.avatar_url,
           username: userProfile.username,
           fullName: userProfile.full_name,
+          phone: userProfile.phone,
+          employeeId: userProfile.employee_id,
           lastActive: new Date().toISOString(),
           isApproved,
           availability: 'online',
           wallet: {
-            balance: 5000,
+            balance: 0,
             currency: 'USD',
           },
           performance: {
@@ -570,6 +593,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
             hubId: userData.hubId,
             stateId: userData.stateId,
             localityId: userData.localityId,
+            avatar: userData.avatar,
           }
         }
       });

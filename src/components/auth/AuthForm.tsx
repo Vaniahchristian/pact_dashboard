@@ -134,9 +134,40 @@ const AuthForm = ({ mode }: AuthFormProps) => {
     setIsLoading(true);
 
     try {
-      let uploadedAvatarUrl = "";
-
       if (mode === 'signup') {
+        // Upload avatar first if provided
+        let uploadedAvatarUrl = "";
+        if (avatarFile) {
+          try {
+            const fileExt = avatarFile.name.split('.').pop();
+            const fileName = `avatar-${Date.now()}.${fileExt}`;
+            const filePath = fileName;
+
+            const { data, error } = await supabase.storage
+              .from('avatars')
+              .upload(filePath, avatarFile, {
+                cacheControl: '3600',
+                upsert: false
+              });
+
+            if (!error && data) {
+              const { data: publicUrlData } = supabase.storage
+                .from('avatars')
+                .getPublicUrl(filePath);
+              uploadedAvatarUrl = publicUrlData.publicUrl;
+            } else if (error) {
+              console.error('Avatar upload error:', error);
+              toast({
+                title: 'Avatar upload failed',
+                description: 'Continuing with registration without avatar.',
+                variant: 'default',
+              });
+            }
+          } catch (err: any) {
+            console.error('Avatar upload error:', err);
+          }
+        }
+
         const userData = {
           email,
           password,
@@ -146,68 +177,13 @@ const AuthForm = ({ mode }: AuthFormProps) => {
           role,
           hubId: showHubSelection ? selectedHub : undefined,
           stateId: showHubSelection ? selectedState : undefined,
-          localityId: showHubSelection && selectedLocality ? selectedLocality : undefined
+          localityId: showHubSelection && selectedLocality ? selectedLocality : undefined,
+          avatar: uploadedAvatarUrl || undefined,
         };
 
         const success = await registerUser(userData);
 
         if (success) {
-          // After successful signup, attempt avatar upload only if we have a session
-          const { data: sessionData } = await supabase.auth.getSession();
-          const session = sessionData?.session;
-
-          if (session && avatarFile) {
-            try {
-              const fileExt = avatarFile.name.split('.').pop();
-              const fileName = `${session.user.id}-${Date.now()}.${fileExt}`;
-              const filePath = fileName;
-
-              const { data, error } = await supabase.storage
-                .from('avatars')
-                .upload(filePath, avatarFile);
-
-              if (!error && data) {
-                const { data: publicUrlData } = supabase.storage
-                  .from('avatars')
-                  .getPublicUrl(filePath);
-                uploadedAvatarUrl = publicUrlData.publicUrl;
-                setAvatarUrl(uploadedAvatarUrl);
-
-                // Save avatar URL to profile
-                const { error: updateError } = await supabase
-                  .from('profiles')
-                  .update({ avatar_url: uploadedAvatarUrl })
-                  .eq('id', session.user.id);
-
-                if (updateError) {
-                  // Non-blocking: show info toast, continue
-                  toast({
-                    title: 'Avatar saved, but profile update failed',
-                    description: 'You can set your avatar later in Settings.',
-                  });
-                }
-              } else if (error) {
-                toast({
-                  title: 'Avatar upload failed',
-                  description: error.message,
-                  variant: 'destructive',
-                });
-              }
-            } catch (err: any) {
-              toast({
-                title: 'Avatar upload failed',
-                description: err?.message || 'Unexpected error during avatar upload',
-                variant: 'destructive',
-              });
-            }
-          } else if (avatarFile) {
-            // No session (email confirm likely enabled) — inform user to set avatar later
-            toast({
-              title: 'Check your email',
-              description: 'Verify your email, then set your avatar from Settings after first login.',
-            });
-          }
-
           toast({
             title: "Registration successful",
             description: "Your account is pending approval by an administrator.",
