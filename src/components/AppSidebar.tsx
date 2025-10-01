@@ -154,7 +154,7 @@ const AppSidebar = () => {
                       asChild
                       isActive={pathname === item.url}
                       tooltip={item.title}
-                      className={`h-10 px-3 rounded-lg text-sm font-medium transition-all duration-200 
+                      className={`h-7 px-3 rounded-lg text-sm font-medium transition-all duration-200 
                         ${
                           pathname === item.url
                             ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 font-semibold"
