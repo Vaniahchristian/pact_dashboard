@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { calculateDistance } from '@/utils/collectorUtils';
+import { calculateDistance, calculateUserWorkload } from '@/utils/collectorUtils';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 
 interface SmartCollectorSelectorProps {
@@ -31,9 +31,17 @@ const SmartCollectorSelector: React.FC<SmartCollectorSelectorProps> = ({
   isOpen,
   allSiteVisits = []
 }) => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
   const [sortedUsers, setSortedUsers] = useState<EnhancedUser[]>([]);
+
+  const hasValidCoords = (coords?: { latitude?: number; longitude?: number }) => {
+    if (!coords) return false;
+    const { latitude, longitude } = coords;
+    return (
+      typeof latitude === 'number' && typeof longitude === 'number' &&
+      Number.isFinite(latitude) && Number.isFinite(longitude) &&
+      !(latitude === 0 && longitude === 0)
+    );
+  };
 
   useEffect(() => {
     const dataCollectorsOnly = users.filter(user => 
@@ -41,9 +49,7 @@ const SmartCollectorSelector: React.FC<SmartCollectorSelectorProps> = ({
       user.status === 'active'
     );
     
-    setFilteredUsers(dataCollectorsOnly);
-    
-    if (siteVisit.coordinates) {
+    if (hasValidCoords(siteVisit.coordinates)) {
       const enhancedUsers = dataCollectorsOnly.map(user => {
         const distance = user.location?.latitude && user.location?.longitude
           ? calculateDistance(
@@ -60,8 +66,8 @@ const SmartCollectorSelector: React.FC<SmartCollectorSelectorProps> = ({
           (user.stateId && siteVisit.state && 
            user.stateId.toLowerCase() === siteVisit.state.toLowerCase());
         
-        const assignedVisits = allSiteVisits.filter(visit => visit.assignedTo === user.id) || [];
-        const overloaded = assignedVisits.length >= 20;
+        const workload = calculateUserWorkload(user.id, allSiteVisits);
+        const overloaded = workload >= 20;
         
         return {
           ...user,
@@ -106,7 +112,7 @@ const SmartCollectorSelector: React.FC<SmartCollectorSelectorProps> = ({
   
   function renderContent() {
     return (
-      <div className="p-4 max-h-80 overflow-y-auto">
+      <div className="p-4">
         <h2 className="text-xl font-semibold mb-4">Smart Collector Assignment</h2>
         <p className="text-sm text-gray-500 mb-6">
           The system has automatically prioritized collectors based on proximity, workload, and availability.
@@ -139,7 +145,7 @@ const SmartCollectorSelector: React.FC<SmartCollectorSelectorProps> = ({
                         </div>
                         
                         <div className="flex gap-2 mt-1 flex-wrap">
-                          {user.distance && user.distance < 100000 && (
+                          {user.distance !== undefined && user.distance < 100000 && (
                             <Badge variant="outline" className="text-xs">
                               {user.distance.toFixed(1)}km away
                             </Badge>
