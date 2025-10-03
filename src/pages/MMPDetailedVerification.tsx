@@ -29,31 +29,6 @@ const MMPDetailedVerification: React.FC = () => {
       
       if (mmp) {
         setMmpFile(mmp);
-        
-        // Calculate verification progress
-        const processedEntries = mmp.processedEntries || 0;
-        const totalEntries = mmp.entries || 0;
-        let calculatedProgress = totalEntries > 0 
-          ? Math.round((processedEntries / totalEntries) * 100)
-          : 0;
-          
-        // If there are permits, calculate based on permits verification
-        if (mmp.permits) {
-          // Check if permits is an object with documents property
-          const permitsData = mmp.permits as MMPPermitsData;
-          if (permitsData.documents && Array.isArray(permitsData.documents) && permitsData.documents.length > 0) {
-            const verifiedPermits = permitsData.documents.filter((p: MMPDocument | any) => {
-              // Check if document has status property
-              return p.status === 'verified';
-            }).length;
-            
-            const permitProgress = Math.round((verifiedPermits / permitsData.documents.length) * 100);
-            // Average the two methods of calculating progress
-            calculatedProgress = Math.round((calculatedProgress + permitProgress) / 2);
-          }
-        }
-          
-        setVerificationProgress(calculatedProgress);
       } else {
         toast({
           title: "MMP Not Found",
@@ -65,6 +40,24 @@ const MMPDetailedVerification: React.FC = () => {
       setLoading(false);
     }
   }, [id, getMmpById, navigate, toast]);
+
+  // Recalculate progress whenever mmpFile changes (processedEntries or permits updates)
+  useEffect(() => {
+    if (!mmpFile) return;
+    const processedEntries = mmpFile.processedEntries || 0;
+    const totalEntries = mmpFile.entries || 0;
+    let calculatedProgress = totalEntries > 0 
+      ? Math.round((processedEntries / totalEntries) * 100)
+      : 0;
+
+    const permitsData = mmpFile.permits as MMPPermitsData | undefined;
+    if (permitsData && Array.isArray(permitsData.documents) && permitsData.documents.length > 0) {
+      const verifiedPermits = permitsData.documents.filter((p: any) => p?.status === 'verified').length;
+      const permitProgress = Math.round((verifiedPermits / permitsData.documents.length) * 100);
+      calculatedProgress = Math.round((calculatedProgress + permitProgress) / 2);
+    }
+    setVerificationProgress(calculatedProgress);
+  }, [mmpFile]);
   
   const handleGoBack = () => {
     if (id) {
@@ -85,8 +78,14 @@ const MMPDetailedVerification: React.FC = () => {
         ...updatedMMP.cpVerification,
         ...data,
         verifiedAt: new Date().toISOString(),
-        verificationStatus: 'complete'
+        verificationStatus: data?.verificationStatus || updatedMMP.cpVerification?.verificationStatus || 'in-progress'
       };
+      // Derive processedEntries from number of sites that have a verification decision
+      const totalSites = (updatedMMP.siteEntries?.length || updatedMMP.entries || 0) as number;
+      const processed = data?.siteVerification ? Object.keys(data.siteVerification).length : 0;
+      const newProcessed = Math.min(totalSites, processed);
+      // Never decrease processedEntries if it was already higher
+      updatedMMP.processedEntries = Math.max(updatedMMP.processedEntries || 0, newProcessed);
     }
     
     updateMMP(id, updatedMMP);

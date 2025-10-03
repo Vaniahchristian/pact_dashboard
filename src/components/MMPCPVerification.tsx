@@ -6,6 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 import { MMPCooperatingPartnerVerification as MMPCooperatingPartnerVerificationType } from '@/types/mmp/verification';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import SiteCooperatingPartnerVerificationCard from './verification/SiteCooperatingPartnerVerificationCard';
+import { useAppContext } from '@/context/AppContext';
 
 interface MMPCooperatingPartnerVerificationProps {
   mmpFile: any;
@@ -19,6 +20,19 @@ const MMPCooperatingPartnerVerification: React.FC<MMPCooperatingPartnerVerificat
   }>>({});
   const [verificationProgress, setVerificationProgress] = useState<number>(0);
   const { toast } = useToast();
+  const { currentUser } = useAppContext();
+
+  // Seed local status from persisted cpVerification
+  useEffect(() => {
+    const sv = mmpFile?.cpVerification?.siteVerification as Record<string, { verified: boolean; notes?: string; verifiedAt?: string; verifiedBy?: string }> | undefined;
+    if (sv && typeof sv === 'object') {
+      const initial: Record<string, { status: 'verified' | 'rejected' | null; notes?: string }> = Object.entries(sv).reduce((acc, [siteId, rec]) => {
+        acc[siteId] = { status: rec.verified ? 'verified' : 'rejected', notes: rec.notes };
+        return acc;
+      }, {} as Record<string, { status: 'verified' | 'rejected' | null; notes?: string }>);
+      setVerificationStatus(initial);
+    }
+  }, [mmpFile?.cpVerification]);
 
   useEffect(() => {
     if (mmpFile?.siteEntries && mmpFile.siteEntries.length > 0) {
@@ -52,10 +66,39 @@ const MMPCooperatingPartnerVerification: React.FC<MMPCooperatingPartnerVerificat
   }, [verificationStatus, mmpFile, onVerificationComplete]);
 
   const handleVerifySite = (siteId: string, status: 'verified' | 'rejected', notes?: string) => {
-    setVerificationStatus(prev => ({
-      ...prev,
-      [siteId]: { status, notes }
-    }));
+    setVerificationStatus(prev => {
+      const next = {
+        ...prev,
+        [siteId]: { status, notes }
+      } as typeof prev;
+
+      // Calculate progress and build CP verification payload
+      const totalSites: number = (mmpFile?.siteEntries?.length || mmpFile?.entries || 0) as number;
+      const processed = Object.values(next).filter(s => s.status === 'verified' || s.status === 'rejected').length;
+      const completionPercentage = totalSites > 0 ? Math.round((processed / totalSites) * 100) : 0;
+      const isComplete = totalSites > 0 && processed === totalSites;
+
+      const cpData: MMPCooperatingPartnerVerificationType = {
+        verificationStatus: isComplete ? 'complete' : 'in-progress',
+        verifiedAt: new Date().toISOString(),
+        verifiedBy: currentUser?.username || currentUser?.fullName || currentUser?.email || 'System',
+        completionPercentage,
+        siteVerification: Object.entries(next).reduce((acc, [sId, st]) => ({
+          ...acc,
+          [sId]: {
+            verified: st.status === 'verified',
+            verifiedAt: new Date().toISOString(),
+            verifiedBy: currentUser?.username || currentUser?.fullName || currentUser?.email || 'System',
+            notes: st.notes,
+          }
+        }), {})
+      };
+
+      // Notify parent immediately so it can persist to DB and update processedEntries
+      onVerificationComplete?.(cpData);
+
+      return next;
+    });
 
     toast({
       title: `Site ${status === 'verified' ? 'Verified' : 'Rejected'}`,
