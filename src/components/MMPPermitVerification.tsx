@@ -3,11 +3,13 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { MMPStatePermitDocument } from '@/types/mmp/permits';
+import { MMPPermitsData, MMPStatePermitDocument } from '@/types/mmp/permits';
 import { MMPPermitFileUpload } from './MMPPermitFileUpload';
 import { PermitVerificationCard } from './permits/PermitVerificationCard';
 import { Progress } from '@/components/ui/progress';
 import { Upload, FileCheck } from 'lucide-react';
+import { useMMP } from '@/context/mmp/MMPContext';
+import { useAppContext } from '@/context/AppContext';
 
 interface MMPPermitVerificationProps {
   mmpFile: any;
@@ -20,22 +22,53 @@ const MMPPermitVerification: React.FC<MMPPermitVerificationProps> = ({
 }) => {
   const [permits, setPermits] = useState<MMPStatePermitDocument[]>([]);
   const { toast } = useToast();
+  const { updateMMP } = useMMP();
+  const { currentUser } = useAppContext();
 
   useEffect(() => {
     // Initialize permits from mmpFile when component mounts or mmpFile changes
     if (mmpFile && mmpFile.permits) {
-      setPermits(Array.isArray(mmpFile.permits) ? mmpFile.permits : []);
-      console.log("MMPPermitVerification - Initial permits:", mmpFile.permits);
+      // Support both legacy array and new object shape
+      if (Array.isArray(mmpFile.permits)) {
+        setPermits(mmpFile.permits as MMPStatePermitDocument[]);
+      } else if (
+        typeof mmpFile.permits === 'object' &&
+        'documents' in mmpFile.permits &&
+        Array.isArray(mmpFile.permits.documents)
+      ) {
+        setPermits(mmpFile.permits.documents as MMPStatePermitDocument[]);
+      } else {
+        setPermits([]);
+      }
+      console.log('MMPPermitVerification - Initial permits:', mmpFile.permits);
+    } else {
+      setPermits([]);
     }
   }, [mmpFile]);
+
+  const persistPermits = (docs: MMPStatePermitDocument[]) => {
+    const now = new Date().toISOString();
+    const permitsData: MMPPermitsData = {
+      federal: docs.some(d => d.permitType === 'federal'),
+      state: docs.some(d => d.permitType === 'state'),
+      lastVerified: docs.some(d => d.status) ? now : undefined,
+      verifiedBy: currentUser?.username || currentUser?.fullName || currentUser?.email || undefined,
+      // Cast to MMPDocument[] for compatibility; downstream code handles extended fields safely
+      documents: docs as unknown as any,
+    };
+
+    if (onVerificationComplete) {
+      onVerificationComplete(permitsData);
+    } else if (mmpFile?.id) {
+      // Directly persist if no callback provided
+      updateMMP(mmpFile.id, { permits: permitsData } as any);
+    }
+  };
 
   const handleUploadSuccess = (newPermit: MMPStatePermitDocument) => {
     const updatedPermits = [...permits, newPermit];
     setPermits(updatedPermits);
-    
-    if (onVerificationComplete) {
-      onVerificationComplete(updatedPermits);
-    }
+    persistPermits(updatedPermits);
     
     toast({
       title: "Permit Uploaded",
@@ -51,17 +84,14 @@ const MMPPermitVerification: React.FC<MMPPermitVerificationProps> = ({
           status,
           verificationNotes: notes,
           verifiedAt: new Date().toISOString(),
-          verifiedBy: "Current User" // In a real app, this would be the authenticated user
+          verifiedBy: currentUser?.username || currentUser?.fullName || currentUser?.email || 'System'
         };
       }
       return permit;
     });
 
     setPermits(updatedPermits);
-    
-    if (onVerificationComplete) {
-      onVerificationComplete(updatedPermits);
-    }
+    persistPermits(updatedPermits);
   };
 
   const calculateProgress = () => {
@@ -91,7 +121,11 @@ const MMPPermitVerification: React.FC<MMPPermitVerificationProps> = ({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <MMPPermitFileUpload onUploadSuccess={handleUploadSuccess} />
+          <MMPPermitFileUpload 
+            onUploadSuccess={handleUploadSuccess}
+            bucket="mmp-files"
+            pathPrefix={`permits/${mmpFile?.id || mmpFile?.mmpId || 'unknown'}`}
+          />
         </CardContent>
       </Card>
 

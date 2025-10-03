@@ -10,12 +10,14 @@ interface FileUploadProps {
   onUploadSuccess?: (fileUrl: string, fileName: string) => void;
   bucket?: string;
   onFileSelected?: (file: File) => void;
+  pathPrefix?: string;
 }
 
 export const FileUpload: React.FC<FileUploadProps> = ({
   onUploadSuccess,
   bucket = 'uploads',
-  onFileSelected
+  onFileSelected,
+  pathPrefix
 }) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -49,7 +51,8 @@ export const FileUpload: React.FC<FileUploadProps> = ({
       // Generate a unique filename for each upload
       const fileExt = selectedFile.name.split('.').pop();
       const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
-      const filePath = `${fileName}`;
+      const sanitizedPrefix = pathPrefix ? pathPrefix.replace(/^\/+|\/+$/g, '').replace(/^\/+|\/+$/g, '') : '';
+      const filePath = sanitizedPrefix ? `${sanitizedPrefix}/${fileName}` : fileName;
 
       // Upload to Supabase Storage
       const { data, error } = await supabase.storage

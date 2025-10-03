@@ -17,6 +17,8 @@ import { cn } from "@/lib/utils";
 
 interface MMPPermitFileUploadProps {
   onUploadSuccess: (document: MMPStatePermitDocument) => void;
+  bucket?: string;
+  pathPrefix?: string;
 }
 
 const permitTypes = [
@@ -34,7 +36,7 @@ const permitTypes = [
   },
 ];
 
-export const MMPPermitFileUpload: React.FC<MMPPermitFileUploadProps> = ({ onUploadSuccess }) => {
+export const MMPPermitFileUpload: React.FC<MMPPermitFileUploadProps> = ({ onUploadSuccess, bucket = 'mmp-files', pathPrefix }) => {
   const [uploading, setUploading] = useState(false);
   const [issueDate, setIssueDate] = useState<Date>();
   const [expiryDate, setExpiryDate] = useState<Date>();
@@ -166,7 +168,8 @@ export const MMPPermitFileUpload: React.FC<MMPPermitFileUploadProps> = ({ onUplo
         </div>
 
         <FileUpload
-          bucket="permit-files"
+          bucket={bucket}
+          pathPrefix={pathPrefix}
           onUploadSuccess={(fileUrl: string, fileName: string) => handleUploadSuccess(fileUrl, fileName)}
         />
       </div>
