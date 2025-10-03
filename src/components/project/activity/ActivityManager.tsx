@@ -282,7 +282,7 @@ export const ActivityManager = ({
             {/* Edit Sub-Activity Dialog */}
             {activity.subActivities.map((subActivity) => (
               <Dialog
-                key={subActivity.id}
+                key={`${activity.id}-${subActivity.id}`}
                 open={openSubActivityDialogs[`${activity.id}-${subActivity.id}`]}
                 onOpenChange={(isOpen) =>
                   setOpenSubActivityDialogs({
@@ -291,7 +291,7 @@ export const ActivityManager = ({
                   })
                 }
               >
-                <DialogContent>
+                <DialogContent className="w-[95vw] sm:max-w-2xl max-h-[85vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle>Edit Sub-Activity</DialogTitle>
                   </DialogHeader>
@@ -317,7 +317,7 @@ export const ActivityManager = ({
         open={openActivityDialogs.new}
         onOpenChange={(isOpen) => setOpenActivityDialogs({ ...openActivityDialogs, new: isOpen })}
       >
-        <DialogContent>
+        <DialogContent className="w-[95vw] sm:max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add Activity</DialogTitle>
           </DialogHeader>
@@ -332,34 +332,41 @@ export const ActivityManager = ({
       {/* Add Sub-Activity Dialog */}
       {activities.map((activity) => (
         <React.Fragment key={activity.id}>
-          <Dialog
-            open={openActivityDialogs[activity.id]}
-            onOpenChange={(isOpen) =>
-              setOpenActivityDialogs({ ...openActivityDialogs, [activity.id]: isOpen })
-            }
-          >
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Edit Activity</DialogTitle>
-              </DialogHeader>
-              <ActivityForm
-                initialData={activity}
-                onSubmit={(data) => handleEditActivity(activity.id, data)}
-                onCancel={() =>
-                  setOpenActivityDialogs({ ...openActivityDialogs, [activity.id]: false })
-                }
-                projectType={projectType}
-              />
-            </DialogContent>
-          </Dialog>
-
+          {activity.subActivities.map((subActivity) => (
+            <Dialog
+              key={`${activity.id}-${subActivity.id}`}
+              open={openSubActivityDialogs[`${activity.id}-${subActivity.id}`]}
+              onOpenChange={(isOpen) =>
+                setOpenSubActivityDialogs({
+                  ...openSubActivityDialogs,
+                  [`${activity.id}-${subActivity.id}`]: isOpen,
+                })
+              }
+            >
+              <DialogContent className="w-[95vw] sm:max-w-2xl max-h-[85vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Edit Sub-Activity</DialogTitle>
+                </DialogHeader>
+                <SubActivityForm
+                  initialData={subActivity}
+                  onSubmit={(data) => handleEditSubActivity(activity.id, subActivity.id, data)}
+                  onCancel={() =>
+                    setOpenSubActivityDialogs({
+                      ...openSubActivityDialogs,
+                      [`${activity.id}-${subActivity.id}`]: false,
+                    })
+                  }
+                />
+              </DialogContent>
+            </Dialog>
+          ))}
           <Dialog
             open={openSubActivityDialogs[activity.id]}
             onOpenChange={(isOpen) =>
               setOpenSubActivityDialogs({ ...openSubActivityDialogs, [activity.id]: isOpen })
             }
           >
-            <DialogContent>
+            <DialogContent className="w-[95vw] sm:max-w-2xl max-h-[85vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Add Sub-Activity</DialogTitle>
               </DialogHeader>

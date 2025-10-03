@@ -255,7 +255,7 @@ const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
   };
 
   return (
-    <Card className={standalone ? "" : "mt-6"}>
+    <Card className={`${standalone ? "" : "mt-6"} w-full max-w-full max-h-80 overflow-y-auto`}>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <FileText className="h-5 w-5" />
@@ -268,7 +268,7 @@ const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
       <CardContent>
         <div className="space-y-4">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="relative flex-grow">
+            <div className="relative flex-grow min-w-0">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 type="search"
@@ -341,7 +341,7 @@ const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
           </div>
 
           <div className="border rounded-md">
-            <ScrollArea className="h-[400px]">
+            <ScrollArea className="h-[24vh] sm:h-[28vh] lg:h-[32vh] overflow-y-auto">
               {currentView === 'timeline' && (
                 <div className="relative p-4">
                   <div className="absolute left-4 top-0 bottom-0 w-px bg-border" />
@@ -380,7 +380,7 @@ const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
                                   </HoverCardContent>
                                 </HoverCard>
                               </div>
-                              <p className="text-sm">{log.description}</p>
+                              <p className="text-sm break-words">{log.description}</p>
                               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                 <User className="h-3 w-3" />
                                 <span>{log.user}</span>
@@ -429,7 +429,7 @@ const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
               )}
 
               {currentView === 'table' && (
-                <div className="w-full">
+                <div className="w-full overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
