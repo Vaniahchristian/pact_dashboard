@@ -68,7 +68,7 @@ const MMPDetailedVerification: React.FC = () => {
   
   const handleGoBack = () => {
     if (id) {
-      navigate(`/mmp/${id}/verify`);
+      navigate(`/mmp/verify/${id}`);
     } else {
       navigate('/mmp');
     }

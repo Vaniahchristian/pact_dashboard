@@ -17,6 +17,7 @@ import MMPUpload from './pages/MMPUpload';
 import MMPDetail from './pages/MMPDetail';
 import MMPDetailView from './pages/MMPDetailView';
 import MMPVerification from './pages/MMPVerification';
+import MMPDetailedVerification from './pages/MMPDetailedVerification';
 import EditMMP from './pages/EditMMP';
 import NotFound from './pages/NotFound';
 import Calls from './pages/Calls';
@@ -106,6 +107,7 @@ const AppRoutes = () => {
         <Route path="/mmp/:id/edit" element={<EditMMP />} />
         <Route path="/mmp/edit/:id" element={<EditMMP />} />
         <Route path="/mmp/verify/:id" element={<MMPVerification />} />
+        <Route path="/mmp/:id/detailed-verification" element={<MMPDetailedVerification />} />
         <Route path="/calls" element={<Calls />} />
         <Route path="/field-team" element={<FieldTeam />} />
         <Route path="/finance" element={<Finance />} />
