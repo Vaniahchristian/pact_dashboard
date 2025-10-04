@@ -5,15 +5,18 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CreateRoleRequest, RESOURCES, ACTIONS, ResourceType, ActionType } from '@/types/roles';
 
 interface CreateRoleDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreateRole: (roleData: CreateRoleRequest) => Promise<void>;
+  onCreateRole: (roleData: CreateRoleRequest) => Promise<boolean>;
   isLoading: boolean;
 }
+
 
 export const CreateRoleDialog: React.FC<CreateRoleDialogProps> = ({
   open,
@@ -29,43 +32,62 @@ export const CreateRoleDialog: React.FC<CreateRoleDialogProps> = ({
   });
 
   const [selectedPermissions, setSelectedPermissions] = useState<Record<string, boolean>>({});
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    const permissions = Object.entries(selectedPermissions)
-      .filter(([_, selected]) => selected)
-      .map(([key, _]) => {
-        const [resource, action] = key.split(':');
-        return { resource: resource as ResourceType, action: action as ActionType };
-      });
-
-    await onCreateRole({
-      ...formData,
-      permissions
-    });
-
-    // Reset form
-    setFormData({ name: '', display_name: '', description: '', permissions: [] });
-    setSelectedPermissions({});
-    onOpenChange(false);
-  };
+  const [error, setError] = useState<string | null>(null);
 
   const handlePermissionChange = (resource: ResourceType, action: ActionType, checked: boolean) => {
     const key = `${resource}:${action}`;
     setSelectedPermissions(prev => ({
       ...prev,
-      [key]: checked
+      [key]: !!checked
     }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+
+    const trimmedName = formData.name.trim();
+    const trimmedDisplay = formData.display_name.trim();
+    if (!trimmedName || !trimmedDisplay) {
+      setError('Role name and display name are required.');
+      return;
+    }
+
+    const permissions = Object.entries(selectedPermissions)
+      .filter(([, selected]) => selected)
+      .map(([key]) => {
+        const [resource, action] = key.split(':');
+        return { resource: resource as ResourceType, action: action as ActionType };
+      });
+
+    const payload: CreateRoleRequest = {
+      name: trimmedName,
+      display_name: trimmedDisplay,
+      description: formData.description?.trim() || '',
+      permissions
+    };
+
+    try {
+      const ok = await onCreateRole(payload);
+      if (ok) {
+        onOpenChange(false);
+        setFormData({ name: '', display_name: '', description: '', permissions: [] });
+        setSelectedPermissions({});
+      } else {
+        setError('Failed to create role. You might lack permission or the role name already exists.');
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Unexpected error while creating role.');
+    }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create New Role</DialogTitle>
+          <DialogTitle>Create Role</DialogTitle>
           <DialogDescription>
-            Create a new role with specific permissions for your organization.
+            Define a new role and assign permissions.
           </DialogDescription>
         </DialogHeader>
 
@@ -138,6 +160,11 @@ export const CreateRoleDialog: React.FC<CreateRoleDialogProps> = ({
             </div>
           </div>
 
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
@@ -150,4 +177,4 @@ export const CreateRoleDialog: React.FC<CreateRoleDialogProps> = ({
       </DialogContent>
     </Dialog>
   );
-};
+}

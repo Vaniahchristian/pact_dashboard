@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/toast';
+import { useToast } from '@/components/ui/use-toast';
  import { 
   Role, 
   Permission, 

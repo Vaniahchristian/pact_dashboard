@@ -46,8 +46,9 @@ const RoleManagement = () => {
     );
   }
 
-  const handleCreateRole = async (roleData: CreateRoleRequest) => {
-    await createRole(roleData);
+  const handleCreateRole = async (roleData: CreateRoleRequest): Promise<boolean> => {
+    const result = await createRole(roleData);
+    return !!result;
   };
 
   const handleEditRole = (role: RoleWithPermissions) => {
