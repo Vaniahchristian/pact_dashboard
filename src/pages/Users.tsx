@@ -47,6 +47,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Card } from '@/components/ui/card';
 import PendingApprovalsList from '@/components/PendingApprovalsList';
+import { useRoleManagement } from '@/context/role-management/RoleManagementContext';
 
 const ALL_POSSIBLE_ROLES: AppRole[] = [
   'admin',
@@ -61,6 +62,7 @@ const ALL_POSSIBLE_ROLES: AppRole[] = [
 
 const Users = () => {
   const { currentUser, users, approveUser, rejectUser, refreshUsers, hasRole, addRole, removeRole } = useUser();
+  const { roles: allRoles, getUserRolesByUserId } = useRoleManagement();
   const { toast } = useToast();
   const [filteredUsers, setFilteredUsers] = useState<User[]>(users);
   const [searchQuery, setSearchQuery] = useState('');
@@ -80,6 +82,20 @@ const Users = () => {
 
   const pendingUsers = useMemo(() => users.filter(user => !user.isApproved), [users]);
   const approvedUsers = useMemo(() => users.filter(user => user.isApproved), [users]);
+
+  const getUserRoleLabels = (uid: string): string[] => {
+    // Combine system roles (text) and custom roles (via role_id -> roles table)
+    const urs = getUserRolesByUserId(uid);
+    const labels = urs.map(ur => {
+      if (ur.role) return ur.role as string;
+      if (ur.role_id) {
+        const r = allRoles.find(rr => rr.id === ur.role_id);
+        return r?.display_name || r?.name || 'custom';
+      }
+      return 'custom';
+    });
+    return Array.from(new Set(labels));
+  };
 
   const handleRefreshUsers = async () => {
     setIsRefreshing(true);
@@ -433,14 +449,15 @@ const Users = () => {
                             ? `${Math.round(minutesSinceActive / 60)}h ago`
                             : `${Math.round(minutesSinceActive / (60 * 24))}d ago`;
 
-                    const userRolesArray: AppRole[] = user.roles
-                      ? user.roles as AppRole[]
-                      : user.role
-                      ? [user.role as AppRole]
-                      : [];
+                    const roleLabels = getUserRoleLabels(user.id);
 
                     const isAdmin = currentUser && (currentUser.role === 'admin' ||
                       (currentUser.roles && Array.isArray(currentUser.roles) && currentUser.roles.includes('admin')));
+                    const canManageRolesUI = currentUser && (
+                      ['admin', 'ict'].includes(currentUser.role) ||
+                      (currentUser.roles && Array.isArray(currentUser.roles) &&
+                        (currentUser.roles.includes('admin') || currentUser.roles.includes('ict')))
+                    );
 
                     return (
                       <TableRow key={user.id}>
@@ -461,10 +478,10 @@ const Users = () => {
                         <TableCell>{user.email}</TableCell>
                         <TableCell>
                           <div className="flex flex-wrap gap-1">
-                            {userRolesArray.length > 0 ? (
-                              userRolesArray.map((role, index) => (
-                                <Badge key={index} variant={role === 'admin' ? 'default' : 'outline'}>
-                                  {role}
+                            {roleLabels.length > 0 ? (
+                              roleLabels.map((label, index) => (
+                                <Badge key={index} variant={label === 'admin' ? 'default' : 'outline'}>
+                                  {label}
                                 </Badge>
                               ))
                             ) : (
@@ -526,7 +543,7 @@ const Users = () => {
                               Manage
                             </Link>
                           </Button>
-                          {isAdmin && (
+                          {canManageRolesUI && (
                             <Button
                               variant="outline"
                               size="sm"
@@ -578,12 +595,7 @@ const Users = () => {
                 {approvedUsers.length > 0 ? (
                   approvedUsers.map((user) => {
                     if (currentUser && user.id === currentUser.id) return null;
-
-                    const userRolesArray: AppRole[] = user.roles
-                      ? user.roles as AppRole[]
-                      : user.role
-                      ? [user.role as AppRole]
-                      : [];
+                    const roleLabels = getUserRoleLabels(user.id);
 
                     const isAdmin = currentUser && (currentUser.role === 'admin' ||
                       (currentUser.roles && Array.isArray(currentUser.roles) && currentUser.roles.includes('admin')));
@@ -607,10 +619,10 @@ const Users = () => {
                         <TableCell>{user.email}</TableCell>
                         <TableCell>
                           <div className="flex flex-wrap gap-1">
-                            {userRolesArray.length > 0 ? (
-                              userRolesArray.map((role, index) => (
-                                <Badge key={index} variant={role === 'admin' ? 'default' : 'outline'}>
-                                  {role}
+                            {roleLabels.length > 0 ? (
+                              roleLabels.map((label, index) => (
+                                <Badge key={index} variant={label === 'admin' ? 'default' : 'outline'}>
+                                  {label}
                                 </Badge>
                               ))
                             ) : (

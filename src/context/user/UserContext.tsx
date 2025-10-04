@@ -172,11 +172,14 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (rolesError) {
           console.error("Error fetching user roles:", rolesError);
         } else if (userRoles) {
-          userRoles.forEach((role) => {
-            if (!allUserRoles[role.user_id]) {
-              allUserRoles[role.user_id] = [];
+          userRoles.forEach((r) => {
+            if (!allUserRoles[r.user_id]) {
+              allUserRoles[r.user_id] = [];
             }
-            allUserRoles[role.user_id].push(role.role as AppRole);
+            // Only include system (text) roles here; custom roles use role_id and are managed in Role Management
+            if (r.role) {
+              allUserRoles[r.user_id].push(r.role as AppRole);
+            }
           });
           console.log("User roles fetched:", Object.keys(allUserRoles).length);
         }
@@ -323,7 +326,11 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .select('role')
         .eq('user_id', authUser.id);
 
-      const userRolesList = userRoles ? userRoles.map(r => r.role as AppRole) : [];
+      const userRolesList = userRoles
+        ? userRoles
+            .map(r => r.role)
+            .filter((rr): rr is AppRole => !!rr)
+        : [];
 
       const userProfile = profileData || {
         id: authUser.id,
@@ -501,7 +508,11 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .select('role')
           .eq('user_id', authData.user.id);
           
-        const userRolesList = userRoles ? userRoles.map(r => r.role as AppRole) : [];
+        const userRolesList = userRoles
+          ? userRoles
+              .map(r => r.role)
+              .filter((rr): rr is AppRole => !!rr)
+          : [];
         
         const userProfile = profileData || {
           id: authData.user.id,

@@ -10,7 +10,8 @@ import {
   ClipboardList,
   LogOut,
   LayoutDashboard,
-  ChevronUp
+  ChevronUp,
+  Shield
 } from "lucide-react";
 import { useSiteVisitReminders } from "@/hooks/use-site-visit-reminders";
 import Logo from "../assets/logo.png";
@@ -54,6 +55,7 @@ const getMenuGroups = (roles: AppRole[] = [], defaultRole: string = 'dataCollect
   const isICT = roles.includes('ict' as AppRole) || defaultRole === 'ict';
   const isFOM = roles.includes('fom' as AppRole) || defaultRole === 'fom';
   const isFinancialAdmin = roles.includes('financialAdmin' as AppRole) || defaultRole === 'financialAdmin';
+  const canManageRoles = isAdmin || isICT; // Role management access
 
   const mainItems = [
     { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
@@ -73,8 +75,10 @@ const getMenuGroups = (roles: AppRole[] = [], defaultRole: string = 'dataCollect
     { title: "Data Visibility", url: "/data-visibility", icon: Link2 },
   ];
 
+  // Enhanced admin items with role management
   const adminItems = [
     { title: "User Management", url: "/users", icon: Users },
+    ...(canManageRoles ? [{ title: "Role Management", url: "/role-management", icon: Shield }] : []),
     { title: "Settings", url: "/settings", icon: Settings }
   ];
 

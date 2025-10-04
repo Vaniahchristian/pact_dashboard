@@ -46,6 +46,7 @@ import Wallet from './pages/Wallet';
 import AuditCompliance from './pages/AuditCompliance';
 import Archive from './pages/Archive';
 import Calendar from './pages/Calendar';
+import RoleManagement from './pages/RoleManagement';
 
 // Components
 import MainLayout from './components/MainLayout';
@@ -135,6 +136,7 @@ const AppRoutes = () => {
         <Route path="/audit-compliance" element={<AuditCompliance />} />
         <Route path="/archive" element={<Archive />} />
         <Route path="/calendar" element={<Calendar />} />
+        <Route path="/role-management" element={<RoleManagement />} />
       </Route>
 
       {/* Redirects */}

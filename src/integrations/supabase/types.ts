@@ -258,8 +258,11 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
+          is_read: boolean | null
+          link: string | null
           message: string
-          read: boolean | null
+          related_entity_id: string | null
+          related_entity_type: string | null
           title: string
           type: string
           user_id: string
@@ -267,8 +270,11 @@ export type Database = {
         Insert: {
           created_at?: string | null
           id?: string
+          is_read?: boolean | null
+          link?: string | null
           message: string
-          read?: boolean | null
+          related_entity_id?: string | null
+          related_entity_type?: string | null
           title: string
           type: string
           user_id: string
@@ -276,49 +282,92 @@ export type Database = {
         Update: {
           created_at?: string | null
           id?: string
+          is_read?: boolean | null
+          link?: string | null
           message?: string
-          read?: boolean | null
+          related_entity_id?: string | null
+          related_entity_type?: string | null
           title?: string
           type?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "notifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
           avatar_url: string | null
           created_at: string
+          email: string | null
+          employee_id: string | null
           full_name: string | null
           hub_id: string | null
           id: string
-          initial_role: string | null
+          locality_id: string | null
+          location: Json | null
+          location_sharing: boolean | null
+          phone: string | null
           role: string | null
+          state_id: string | null
+          status: string | null
           updated_at: string
           username: string | null
+          availability: string | null
         }
         Insert: {
           avatar_url?: string | null
           created_at?: string
+          email?: string | null
+          employee_id?: string | null
           full_name?: string | null
           hub_id?: string | null
           id: string
-          initial_role?: string | null
+          locality_id?: string | null
+          location?: Json | null
+          location_sharing?: boolean | null
+          phone?: string | null
           role?: string | null
+          state_id?: string | null
+          status?: string | null
           updated_at?: string
           username?: string | null
+          availability?: string | null
         }
         Update: {
           avatar_url?: string | null
           created_at?: string
+          email?: string | null
+          employee_id?: string | null
           full_name?: string | null
           hub_id?: string | null
           id?: string
-          initial_role?: string | null
+          locality_id?: string | null
+          location?: Json | null
+          location_sharing?: boolean | null
+          phone?: string | null
           role?: string | null
+          state_id?: string | null
+          status?: string | null
           updated_at?: string
           username?: string | null
+          availability?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       project_activities: {
         Row: {
@@ -720,24 +769,134 @@ export type Database = {
       }
       user_roles: {
         Row: {
+          assigned_at: string | null
+          assigned_by: string | null
           created_at: string | null
           id: string
-          role: Database["public"]["Enums"]["app_role"]
-          user_id: string
+          role: Database["public"]["Enums"]["app_role"] | string
+          role_id: string | null
+          user_id: string | null
         }
         Insert: {
+          assigned_at?: string | null
+          assigned_by?: string | null
           created_at?: string | null
           id?: string
-          role: Database["public"]["Enums"]["app_role"]
-          user_id: string
+          role: Database["public"]["Enums"]["app_role"] | string
+          role_id?: string | null
+          user_id?: string | null
         }
         Update: {
+          assigned_at?: string | null
+          assigned_by?: string | null
           created_at?: string | null
           id?: string
-          role?: Database["public"]["Enums"]["app_role"]
-          user_id?: string
+          role?: Database["public"]["Enums"]["app_role"] | string
+          role_id?: string | null
+          user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_roles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_roles_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "roles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_roles_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      roles: {
+        Row: {
+          id: string
+          name: string
+          display_name: string
+          description: string | null
+          is_system_role: boolean
+          is_active: boolean
+          created_at: string
+          updated_at: string
+          created_by: string | null
+        }
+        Insert: {
+          id?: string
+          name: string
+          display_name: string
+          description?: string | null
+          is_system_role?: boolean
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+          created_by?: string | null
+        }
+        Update: {
+          id?: string
+          name?: string
+          display_name?: string
+          description?: string | null
+          is_system_role?: boolean
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+          created_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "roles_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      permissions: {
+        Row: {
+          id: string
+          role_id: string
+          resource: string
+          action: string
+          conditions: Json | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          role_id: string
+          resource: string
+          action: string
+          conditions?: Json | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          role_id?: string
+          resource?: string
+          action?: string
+          conditions?: Json | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "permissions_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "roles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_settings: {
         Row: {

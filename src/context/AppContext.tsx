@@ -11,10 +11,12 @@ import { CommunicationProvider } from './communications/CommunicationContext';
 import { ViewModeProvider } from './ViewModeContext';
 import { ArchiveProvider } from './archive/ArchiveContext';
 import { SettingsProvider } from './settings/SettingsContext';
+import { RoleManagementProvider } from './role-management/RoleManagementContext';
 
 interface CompositeContextType {
   currentUser: ReturnType<typeof useUser>['currentUser'];
   users: ReturnType<typeof useUser>['users'];
+  refreshUsers: ReturnType<typeof useUser>['refreshUsers'];
   login: ReturnType<typeof useUser>['login'];
   logout: ReturnType<typeof useUser>['logout'];
   registerUser: ReturnType<typeof useUser>['registerUser'];
@@ -76,15 +78,16 @@ const CompositeContextProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const hasPermission = (action: string): boolean => {
     if (!userContext.currentUser) return false;
     
+    // Legacy permission system - keeping for backward compatibility
     const permissionsByRole: Record<string, string[]> = {
       admin: [
         'manage_users', 'approve_users', 'upload_mmp', 'approve_mmp', 'verify_permits',
         'assign_site_visits', 'view_all_site_visits', 'view_finances', 'manage_finances',
-        'view_analytics', 'manage_settings',
+        'view_analytics', 'manage_settings', 'manage_roles',
       ],
       ict: [
         'manage_users', 'upload_mmp', 'approve_mmp', 'verify_permits', 'assign_site_visits',
-        'view_all_site_visits', 'view_finances', 'manage_finances', 'view_analytics', 'manage_settings',
+        'view_all_site_visits', 'view_finances', 'manage_finances', 'view_analytics', 'manage_settings', 'manage_roles',
       ],
       fom: [
         'upload_mmp', 'approve_mmp', 'verify_permits', 'assign_site_visits',
@@ -165,13 +168,15 @@ export const AppProviders: React.FC<{ children: React.ReactNode }> = ({ children
                 <WalletProvider>
                   <SettingsProvider>
                     <ArchiveProvider>
-                      <CompositeContextProvider>
-                        <ChatProvider>
-                          <CommunicationProvider>
-                            {children}
-                          </CommunicationProvider>
-                        </ChatProvider>
-                      </CompositeContextProvider>
+                      <RoleManagementProvider>
+                        <CompositeContextProvider>
+                          <ChatProvider>
+                            <CommunicationProvider>
+                              {children}
+                            </CommunicationProvider>
+                          </ChatProvider>
+                        </CompositeContextProvider>
+                      </RoleManagementProvider>
                     </ArchiveProvider>
                   </SettingsProvider>
                 </WalletProvider>

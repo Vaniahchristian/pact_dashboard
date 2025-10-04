@@ -27,7 +27,9 @@ export const useRoles = (userId?: string) => {
       }
 
       if (data) {
-        const userRoles = data.map(item => item.role as AppRole);
+        const userRoles = data
+          .map(item => item.role)
+          .filter((r): r is AppRole => !!r);
         setRoles(userRoles);
       }
     } catch (error: any) {
