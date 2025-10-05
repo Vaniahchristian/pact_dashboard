@@ -5,14 +5,22 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { getStateName, getLocalityName } from "@/data/sudanStates";
+import { useUser } from "@/context/user/UserContext";
 
 interface SiteVisitInfoProps {
   siteVisit: SiteVisit;
 }
 
 export const SiteVisitInfo = ({ siteVisit }: SiteVisitInfoProps) => {
+  const { users } = useUser();
   const stateName = siteVisit.state ? getStateName(siteVisit.state) : 'Not specified';
   const localityName = siteVisit.state && siteVisit.locality ? getLocalityName(siteVisit.state, siteVisit.locality) : 'Not specified';
+
+  const resolveUserName = (id?: string) => {
+    if (!id) return undefined;
+    const u = (users || []).find(u => u.id === id);
+    return u?.name || (u as any)?.fullName || (u as any)?.username;
+  };
 
   // Helper function to determine badge variant based on status
   const getStatusVariant = (status: string) => {
@@ -60,6 +68,16 @@ export const SiteVisitInfo = ({ siteVisit }: SiteVisitInfoProps) => {
                   <span className="text-muted-foreground">Hub:</span>
                   <span className="font-semibold">{siteVisit.hub || 'Not specified'}</span>
                 </div>
+                {siteVisit.cpName && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">CP Name:</span>
+                    <span className="font-semibold">{siteVisit.cpName}</span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Visit Type:</span>
+                  <span className="font-semibold">{siteVisit.visitTypeRaw || siteVisit.visitType || 'Not specified'}</span>
+                </div>
               </div>
             </div>
 
@@ -98,12 +116,12 @@ export const SiteVisitInfo = ({ siteVisit }: SiteVisitInfoProps) => {
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between items-center">
                   <span className="text-muted-foreground">Assigned to:</span>
-                  <span className="font-semibold">{siteVisit.assignedTo || 'Not assigned'}</span>
+                  <span className="font-semibold">{resolveUserName(siteVisit.assignedTo) || 'Not assigned'}</span>
                 </div>
                 {siteVisit.assignedBy && (
                   <div className="flex justify-between items-center">
                     <span className="text-muted-foreground">Assigned by:</span>
-                    <span className="font-semibold">{siteVisit.assignedBy}</span>
+                    <span className="font-semibold">{resolveUserName(siteVisit.assignedBy) || 'Unknown'}</span>
                   </div>
                 )}
                 {siteVisit.scheduledDate && (

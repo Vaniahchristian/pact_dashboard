@@ -238,6 +238,12 @@ const DataVisibility: React.FC = () => {
     return (users || []).filter(u => isCollector(u) && hasValidCoords(u.location));
   }, [users]);
 
+  const resolveUserName = React.useCallback((id?: string) => {
+    if (!id) return '—';
+    const u = (users || []).find(u => u.id === id);
+    return u?.name || (u as any)?.fullName || (u as any)?.username || id;
+  }, [users]);
+
   const filteredSiteVisits = siteVisitsList.filter(visit => {
     const matchesSearch = visit.siteName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          visit.location.address.toLowerCase().includes(searchTerm.toLowerCase());
@@ -352,7 +358,7 @@ const DataVisibility: React.FC = () => {
       linkedMMP: mmps.find(m => m.id === visit.mmpDetails.mmpId)?.projectName || 'N/A',
       location: visit.location.address,
       status: visit.status,
-      assignedTo: visit.assignedTo,
+      assignedTo: resolveUserName(visit.assignedTo),
       scheduledDate: format(new Date(visit.scheduledDate), 'yyyy-MM-dd'),
       dueDate: format(new Date(visit.dueDate), 'yyyy-MM-dd')
     }));
@@ -590,25 +596,40 @@ const DataVisibility: React.FC = () => {
                 </div>
               </div>
 
-              <div className="rounded-lg border">
+              <div className="rounded-lg border overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Site Visit Title</TableHead>
+                      <TableHead>Hub</TableHead>
+                      <TableHead>State</TableHead>
+                      <TableHead>Locality</TableHead>
+                      <TableHead>CP Name</TableHead>
+                      <TableHead>Main Activity</TableHead>
+                      <TableHead>Activity</TableHead>
+                      <TableHead>Visit Type</TableHead>
+                      <TableHead>Visit Date</TableHead>
                       <TableHead>Linked MMP</TableHead>
-                      <TableHead>Location</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Assigned To</TableHead>
+                      <TableHead>Comments</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredSiteVisits.map((visit) => (
                       <TableRow key={visit.id}>
                         <TableCell className="font-medium">{visit.siteName}</TableCell>
+                        <TableCell>{visit.hub || 'N/A'}</TableCell>
+                        <TableCell>{visit.state || 'N/A'}</TableCell>
+                        <TableCell>{visit.locality || 'N/A'}</TableCell>
+                        <TableCell>{visit.cpName || 'N/A'}</TableCell>
+                        <TableCell>{visit.mainActivity || 'N/A'}</TableCell>
+                        <TableCell>{visit.activity || 'N/A'}</TableCell>
+                        <TableCell>{visit.visitTypeRaw || visit.visitType || 'N/A'}</TableCell>
+                        <TableCell>{visit.dueDate ? format(new Date(visit.dueDate), 'yyyy-MM-dd') : 'N/A'}</TableCell>
                         <TableCell>
                           {mmps.find(m => m.id === visit.mmpDetails.mmpId)?.projectName || 'N/A'}
                         </TableCell>
-                        <TableCell>{visit.location.address}</TableCell>
                         <TableCell>
                           <Badge variant={
                             visit.status === "completed" ? "default" : 
@@ -619,7 +640,10 @@ const DataVisibility: React.FC = () => {
                              visit.status === "completed" ? "Completed" : "Pending"}
                           </Badge>
                         </TableCell>
-                        <TableCell>{visit.assignedTo}</TableCell>
+                        <TableCell>{resolveUserName(visit.assignedTo)}</TableCell>
+                        <TableCell className="max-w-[260px] truncate" title={visit.notes || ''}>
+                          {visit.notes || '—'}
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

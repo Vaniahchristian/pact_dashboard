@@ -31,6 +31,10 @@ interface SiteVisit {
   mainActivity?: string;
   priority?: string;
   fees?: { total?: number };
+  hub?: string;
+  cpName?: string;
+  visitType?: string;
+  visitTypeRaw?: string;
 }
 
 interface SiteVisitsOverviewProps {
@@ -58,8 +62,8 @@ const SiteVisitsOverview: React.FC<SiteVisitsOverviewProps> = ({ currentUserId, 
       const mappedVisits: SiteVisit[] = (data || []).map((visit: any) => ({
         id: visit.id,
         siteName: visit.site_name,
-        locality: visit.location?.locality || '',
-        state: visit.location?.state || '',
+        locality: visit.locality || visit.location?.locality || '',
+        state: visit.state || visit.location?.state || '',
         dueDate: visit.due_date,
         status: visit.status,
         assignedTo: visit.assigned_to,
@@ -70,6 +74,10 @@ const SiteVisitsOverview: React.FC<SiteVisitsOverviewProps> = ({ currentUserId, 
         mainActivity: visit.visit_data?.mainActivity,
         priority: visit.visit_data?.priority || 'medium',
         fees: visit.visit_data?.fees || {},
+        hub: visit.visit_data?.hub || visit.hub || '',
+        cpName: visit.visit_data?.cpName || '',
+        visitType: visit.visit_data?.visitType || '',
+        visitTypeRaw: visit.visit_data?.visitTypeRaw || '',
       }));
 
       setSiteVisits(mappedVisits);
@@ -168,7 +176,15 @@ const SiteVisitsOverview: React.FC<SiteVisitsOverviewProps> = ({ currentUserId, 
                   <TableBody>
                     {pendingVisits.map((visit) => (
                       <TableRow key={visit.id}>
-                        <TableCell className="font-medium">{visit.siteName}</TableCell>
+                        <TableCell className="font-medium">
+                          <div className="font-medium">{visit.siteName}</div>
+                          <div className="text-xs text-muted-foreground">
+                            Hub: {visit.hub || 'N/A'} • Type: {visit.visitTypeRaw || visit.visitType || 'N/A'}
+                          </div>
+                          {visit.cpName && (
+                            <div className="text-xs text-muted-foreground">CP: {visit.cpName}</div>
+                          )}
+                        </TableCell>
                         <TableCell>{visit.locality}, {visit.state}</TableCell>
                         <TableCell>{format(new Date(visit.dueDate), 'MMM d, yyyy')}</TableCell>
                         <TableCell>
@@ -218,7 +234,15 @@ const SiteVisitsOverview: React.FC<SiteVisitsOverviewProps> = ({ currentUserId, 
                   <TableBody>
                     {assignedVisits.map((visit) => (
                       <TableRow key={visit.id}>
-                        <TableCell className="font-medium">{visit.siteName}</TableCell>
+                        <TableCell className="font-medium">
+                          <div className="font-medium">{visit.siteName}</div>
+                          <div className="text-xs text-muted-foreground">
+                            Hub: {visit.hub || 'N/A'} • Type: {visit.visitTypeRaw || visit.visitType || 'N/A'}
+                          </div>
+                          {visit.cpName && (
+                            <div className="text-xs text-muted-foreground">CP: {visit.cpName}</div>
+                          )}
+                        </TableCell>
                         <TableCell>{visit.locality}, {visit.state}</TableCell>
                         <TableCell>{format(new Date(visit.dueDate), 'MMM d, yyyy')}</TableCell>
                         <TableCell>
@@ -270,7 +294,15 @@ const SiteVisitsOverview: React.FC<SiteVisitsOverviewProps> = ({ currentUserId, 
                   <TableBody>
                     {completedVisits.map((visit) => (
                       <TableRow key={visit.id}>
-                        <TableCell className="font-medium">{visit.siteName}</TableCell>
+                        <TableCell className="font-medium">
+                          <div className="font-medium">{visit.siteName}</div>
+                          <div className="text-xs text-muted-foreground">
+                            Hub: {visit.hub || 'N/A'} • Type: {visit.visitTypeRaw || visit.visitType || 'N/A'}
+                          </div>
+                          {visit.cpName && (
+                            <div className="text-xs text-muted-foreground">CP: {visit.cpName}</div>
+                          )}
+                        </TableCell>
                         <TableCell>{visit.locality}, {visit.state}</TableCell>
                         <TableCell>{visit.completedAt ? format(new Date(visit.completedAt), 'MMM d, yyyy') : 'N/A'}</TableCell>
                         <TableCell>

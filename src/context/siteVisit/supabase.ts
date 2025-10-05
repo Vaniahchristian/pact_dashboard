@@ -33,6 +33,9 @@ export const fetchSiteVisits = async () => {
     fees: visit.fees || {},
     scheduledDate: visit.due_date,
     description: visit.notes,
+    // Additional fields persisted in visit_data
+    hub: visit.visit_data?.hub || visit.hub || "",
+    cpName: visit.visit_data?.cpName,
     permitDetails: visit.visit_data?.permitDetails || {
       federal: false,
       state: false,
@@ -60,6 +63,7 @@ export const fetchSiteVisits = async () => {
     },
     complexity: visit.visit_data?.complexity || "medium",
     visitType: visit.visit_data?.visitType || "regular",
+    visitTypeRaw: visit.visit_data?.visitTypeRaw,
     mainActivity: visit.main_activity || "",
     projectActivities: visit.visit_data?.projectActivities || [],
     createdAt: visit.created_at
@@ -88,8 +92,11 @@ export const createSiteVisitInDb = async (siteVisit: Partial<SiteVisit>) => {
       permitDetails: siteVisit.permitDetails,
       complexity: siteVisit.complexity,
       visitType: siteVisit.visitType,
+      visitTypeRaw: siteVisit.visitTypeRaw,
       projectActivities: siteVisit.projectActivities,
-      mmpDetails: siteVisit.mmpDetails
+      mmpDetails: siteVisit.mmpDetails,
+      hub: siteVisit.hub,
+      cpName: siteVisit.cpName
     }
   };
   
@@ -126,6 +133,8 @@ export const createSiteVisitInDb = async (siteVisit: Partial<SiteVisit>) => {
     fees: data.fees || {},
     scheduledDate: data.due_date,
     description: data.notes,
+    hub: data.visit_data?.hub || data.hub || "",
+    cpName: data.visit_data?.cpName,
     permitDetails: data.visit_data?.permitDetails || {
       federal: false,
       state: false,
@@ -153,6 +162,7 @@ export const createSiteVisitInDb = async (siteVisit: Partial<SiteVisit>) => {
     },
     complexity: data.visit_data?.complexity || "medium",
     visitType: data.visit_data?.visitType || "regular",
+    visitTypeRaw: data.visit_data?.visitTypeRaw,
     mainActivity: data.main_activity || "",
     projectActivities: data.visit_data?.projectActivities || [],
     createdAt: data.created_at
@@ -199,12 +209,24 @@ export const updateSiteVisitInDb = async (id: string, updates: Partial<SiteVisit
     visitDataUpdates.visitType = updates.visitType;
     hasVisitDataUpdates = true;
   }
+  if (updates.visitTypeRaw !== undefined) {
+    visitDataUpdates.visitTypeRaw = updates.visitTypeRaw;
+    hasVisitDataUpdates = true;
+  }
   if (updates.projectActivities !== undefined) {
     visitDataUpdates.projectActivities = updates.projectActivities;
     hasVisitDataUpdates = true;
   }
   if (updates.mmpDetails !== undefined) {
     visitDataUpdates.mmpDetails = updates.mmpDetails;
+    hasVisitDataUpdates = true;
+  }
+  if (updates.hub !== undefined) {
+    visitDataUpdates.hub = updates.hub;
+    hasVisitDataUpdates = true;
+  }
+  if (updates.cpName !== undefined) {
+    visitDataUpdates.cpName = updates.cpName;
     hasVisitDataUpdates = true;
   }
   

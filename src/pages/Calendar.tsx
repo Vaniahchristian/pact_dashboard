@@ -21,10 +21,12 @@ import {
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
+import { useUser } from "@/context/user/UserContext";
 
 const CalendarPage = () => {
   const { siteVisits } = useSiteVisitContext();
   const navigate = useNavigate();
+  const { users } = useUser();
 
   // State for the date / date range
   const [date, setDate] = useState<Date>(new Date());
@@ -57,6 +59,12 @@ const CalendarPage = () => {
     }
     return [];
   }, [siteVisits, date, dateRange, viewMode]);
+
+  const resolveUserName = (id?: string) => {
+    if (!id) return undefined;
+    const u = (users || []).find(u => u.id === id);
+    return u?.name || (u as any)?.fullName || (u as any)?.username;
+  };
 
   // Handler to navigate to site visit details
   const handleVisitClick = (visitId: string) => {
@@ -232,10 +240,7 @@ const CalendarPage = () => {
                             Assigned to:
                           </span>
                           <span className="font-medium">
-                            {
-                              /* This would ideally display the user's name */
-                              visit.assignedTo
-                            }
+                            {resolveUserName(visit.assignedTo) || 'Unknown'}
                           </span>
                         </div>
                       )}

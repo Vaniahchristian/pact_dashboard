@@ -192,6 +192,16 @@ const SiteVisits = () => {
                   <p className="text-sm text-muted-foreground">
                     {selectedVisit.locality}, {selectedVisit.state}
                   </p>
+                  {selectedVisit.hub && (
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      Hub: <span className="font-medium">{selectedVisit.hub}</span>
+                    </div>
+                  )}
+                  {(selectedVisit.visitTypeRaw || selectedVisit.visitType) && (
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      Visit Type: <span className="font-medium">{selectedVisit.visitTypeRaw || selectedVisit.visitType}</span>
+                    </div>
+                  )}
                 </div>
                 <Button 
                   variant="outline" 
@@ -288,6 +298,17 @@ const SiteVisits = () => {
                 </div>
                 <div className="mt-2 text-muted-foreground line-clamp-1">
                   {visit.activity || visit.mainActivity || 'No activity specified'}
+                </div>
+                <div className="grid grid-cols-2 gap-2 mt-2">
+                  <div className="text-xs text-muted-foreground">
+                    Hub: <span className="font-medium">{visit.hub || 'N/A'}</span>
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    Visit Type: <span className="font-medium">{visit.visitTypeRaw || visit.visitType || 'N/A'}</span>
+                  </div>
+                </div>
+                <div className="mt-1 text-xs text-muted-foreground line-clamp-1">
+                  CP: <span className="font-medium">{visit.cpName || 'N/A'}</span>
                 </div>
               </div>
 

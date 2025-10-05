@@ -59,9 +59,13 @@ export interface SiteVisit {
   };
   complexity: 'low' | 'medium' | 'high';
   visitType: 'regular' | 'urgent' | 'follow-up';
+  // Raw Visit Type from import (e.g., "PACT"), preserved in DB
+  visitTypeRaw?: string;
   mainActivity: string;
   projectActivities: string[];
   hub?: string;
+  // Cooperation Partner name from spreadsheet
+  cpName?: string;
   team?: {
     coordinator?: string;
     supervisor?: string;
