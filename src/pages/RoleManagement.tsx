@@ -10,6 +10,7 @@ import { CreateRoleDialog } from '@/components/role-management/CreateRoleDialog'
 import { EditRoleDialog } from '@/components/role-management/EditRoleDialog';
 import { UserRoleAssignment } from '@/components/role-management/UserRoleAssignment';
 import { RoleWithPermissions, CreateRoleRequest, UpdateRoleRequest, AssignRoleRequest, AppRole } from '@/types/roles';
+import { supabase } from '@/integrations/supabase/client';
 
 const RoleManagement = () => {
   const { currentUser, users, hasPermission, refreshUsers } = useAppContext();
@@ -21,7 +22,8 @@ const RoleManagement = () => {
     deleteRole,
     assignRoleToUser,
     removeRoleFromUser,
-    getUserRolesByUserId
+    getUserRolesByUserId,
+    fetchUserRoles
   } = useRoleManagement();
 
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -91,7 +93,41 @@ const RoleManagement = () => {
 
   // Keep Users page in sync when assignments change
   const handleAssignRoleToUser = async (data: AssignRoleRequest): Promise<void> => {
-    await assignRoleToUser(data);
+    if (!selectedRole) return;
+
+    // Enforce exclusivity: clear existing roles for the target user first
+    const { error: clearErr } = await supabase
+      .from('user_roles')
+      .delete()
+      .eq('user_id', data.user_id);
+    if (clearErr) {
+      console.error('Clear user roles failed:', clearErr);
+      return;
+    }
+
+    // Assign only the selected role (system or custom)
+    const ok = await assignRoleToUser(data);
+    if (!ok) {
+      return;
+    }
+
+    // Update profiles.role for system roles to reflect primary; set neutral for custom
+    if (selectedRole.is_system_role) {
+      const { error: profErr } = await supabase
+        .from('profiles')
+        .update({ role: selectedRole.name })
+        .eq('id', data.user_id);
+      if (profErr) console.warn('profiles.role update failed (RLS?):', profErr);
+    } else {
+      const { error: profErr } = await supabase
+        .from('profiles')
+        .update({ role: 'custom' })
+        .eq('id', data.user_id);
+      if (profErr) console.warn('profiles.role neutral update failed (RLS?):', profErr);
+    }
+
+    // Refresh lists so Assigned Users updates immediately
+    await fetchUserRoles();
     await refreshUsers();
   };
 

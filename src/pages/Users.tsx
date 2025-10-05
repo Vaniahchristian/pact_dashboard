@@ -98,6 +98,19 @@ const Users = () => {
     return Array.from(new Set(labels));
   };
 
+  // Determine the single, effective role label to display for a user
+  const getPrimaryRoleLabel = (user: User): string => {
+    const urs = getUserRolesByUserId(user.id);
+    const sys = urs.find(ur => !!ur.role);
+    if (sys?.role) return sys.role as string;
+    const custom = urs.find(ur => !!ur.role_id);
+    if (custom?.role_id) {
+      const r = allRoles.find(rr => rr.id === custom.role_id);
+      return r?.display_name || r?.name || 'custom';
+    }
+    return user.role;
+  };
+
   const handleRefreshUsers = async () => {
     setIsRefreshing(true);
     try {
@@ -213,38 +226,81 @@ const Users = () => {
       if (roleSelect.startsWith('sys:')) {
         const sysRole = roleSelect.slice(4) as AppRole;
         if (roleAction === 'add') {
-          success = await addRole(editingUser.id, sysRole);
-        } else {
-          success = await removeRole(editingUser.id, sysRole);
-        }
+          // Exclusive: clear all current roles first
+          const { error: clearErr } = await supabase
+            .from('user_roles')
+            .delete()
+            .eq('user_id', editingUser.id);
+          if (clearErr) throw clearErr;
 
-        if (success) {
+          // Assign the single selected system role
+          success = await addRole(editingUser.id, sysRole);
+
+          // Reflect primary in profiles.role for system roles
+          const { error: profErr } = await supabase
+            .from('profiles')
+            .update({ role: sysRole })
+            .eq('id', editingUser.id);
+          if (profErr) throw profErr;
+
+          // Keep local cache light: set only the selected system role
           const storedUser = localStorage.getItem(`user-${editingUser.id}`);
           if (storedUser) {
             try {
               const parsedUser = JSON.parse(storedUser);
-              let updatedRoles = parsedUser.roles || [];
-
-              if (roleAction === 'add' && !updatedRoles.includes(sysRole)) {
-                updatedRoles.push(sysRole);
-              } else if (roleAction === 'remove') {
-                updatedRoles = updatedRoles.filter((r: string) => r !== sysRole);
-              }
-
               localStorage.setItem(`user-${editingUser.id}`, JSON.stringify({
                 ...parsedUser,
-                roles: updatedRoles
+                role: sysRole,
+                roles: [sysRole],
               }));
             } catch (error) {
               console.error("Error updating stored user roles:", error);
             }
           }
+
+          await refreshUsers();
+        } else {
+          // Remove selected system role only
+          success = await removeRole(editingUser.id, sysRole);
         }
       } else if (roleSelect.startsWith('custom:')) {
         const roleId = roleSelect.slice(7);
         if (roleAction === 'add') {
+          // Exclusive: clear all current roles first
+          const { error: clearErr } = await supabase
+            .from('user_roles')
+            .delete()
+            .eq('user_id', editingUser.id);
+          if (clearErr) throw clearErr;
+
+          // Assign the single selected custom role
           success = await assignRoleToUser({ user_id: editingUser.id, role_id: roleId });
+
+          // Set profiles.role to a neutral marker (not a system role) to avoid miscount
+          const { error: profErr } = await supabase
+            .from('profiles')
+            .update({ role: 'custom' })
+            .eq('id', editingUser.id);
+          if (profErr) throw profErr;
+
+          // Update local cache to reflect single effective role
+          const storedUser = localStorage.getItem(`user-${editingUser.id}`);
+          if (storedUser) {
+            try {
+              const parsedUser = JSON.parse(storedUser);
+              localStorage.setItem(`user-${editingUser.id}`, JSON.stringify({
+                ...parsedUser,
+                role: 'custom',
+                roles: [],
+              }));
+            } catch (error) {
+              console.error("Error updating stored user roles:", error);
+            }
+          }
+
+          await refreshUsers();
         } else {
+          // Remove selected custom role only
           success = await removeRoleFromUser(editingUser.id, roleId);
         }
       }
@@ -491,7 +547,7 @@ const Users = () => {
                             ? `${Math.round(minutesSinceActive / 60)}h ago`
                             : `${Math.round(minutesSinceActive / (60 * 24))}d ago`;
 
-                    const roleLabels = getUserRoleLabels(user.id);
+                    const primaryRole = getPrimaryRoleLabel(user);
 
                     const isAdmin = currentUser && (currentUser.role === 'admin' ||
                       (currentUser.roles && Array.isArray(currentUser.roles) && currentUser.roles.includes('admin')));
@@ -520,15 +576,9 @@ const Users = () => {
                         <TableCell>{user.email}</TableCell>
                         <TableCell>
                           <div className="flex flex-wrap gap-1">
-                            {roleLabels.length > 0 ? (
-                              roleLabels.map((label, index) => (
-                                <Badge key={index} variant={label === 'admin' ? 'default' : 'outline'}>
-                                  {label}
-                                </Badge>
-                              ))
-                            ) : (
-                              <Badge variant="outline">{user.role}</Badge>
-                            )}
+                            <Badge variant={primaryRole === 'admin' ? 'default' : 'outline'}>
+                              {primaryRole}
+                            </Badge>
                           </div>
                         </TableCell>
                         <TableCell>

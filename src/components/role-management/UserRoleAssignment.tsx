@@ -112,7 +112,7 @@ export const UserRoleAssignment: React.FC<UserRoleAssignmentProps> = ({
               </Select>
               <Button 
                 onClick={handleAssignRole} 
-                disabled={!selectedUserId || isLoading}
+                disabled={!selectedUserId}
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Assign
@@ -122,7 +122,6 @@ export const UserRoleAssignment: React.FC<UserRoleAssignmentProps> = ({
 
           {/* Assigned Users */}
           <div className="space-y-4">
-            <h3 className="text-lg font-medium">Assigned Users ({assignedUsers.length})</h3>
             {assignedUsers.length === 0 ? (
               <p className="text-gray-500 text-center py-8">No users assigned to this role</p>
             ) : (
