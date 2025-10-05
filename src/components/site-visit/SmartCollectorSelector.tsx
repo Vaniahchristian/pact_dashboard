@@ -21,6 +21,8 @@ interface EnhancedUser extends User {
   distance?: number;
   overloaded?: boolean;
   isLocalityMatch?: boolean;
+  isStateMatch?: boolean;
+  isHubMatch?: boolean;
 }
 
 const SmartCollectorSelector: React.FC<SmartCollectorSelectorProps> = ({
@@ -43,57 +45,66 @@ const SmartCollectorSelector: React.FC<SmartCollectorSelectorProps> = ({
     );
   };
 
-  useEffect(() => {
-    const dataCollectorsOnly = users.filter(user => 
-      (user.role === 'dataCollector' || user.role === 'datacollector') &&
-      user.status === 'active'
-    );
-    
+  const getSiteCoords = () => {
     if (hasValidCoords(siteVisit.coordinates)) {
-      const enhancedUsers = dataCollectorsOnly.map(user => {
-        const distance = user.location?.latitude && user.location?.longitude
-          ? calculateDistance(
-              user.location.latitude,
-              user.location.longitude,
-              siteVisit.coordinates.latitude,
-              siteVisit.coordinates.longitude
-            )
-          : 999999;
-        
-        const isLocalityMatch = 
-          (user.location?.region && siteVisit.location.region && 
-           user.location.region.toLowerCase() === siteVisit.location.region.toLowerCase()) ||
-          (user.stateId && siteVisit.state && 
-           user.stateId.toLowerCase() === siteVisit.state.toLowerCase());
-        
-        const workload = calculateUserWorkload(user.id, allSiteVisits);
-        const overloaded = workload >= 20;
-        
-        return {
-          ...user,
-          distance,
-          overloaded,
-          isLocalityMatch
-        };
-      });
-
-      enhancedUsers.sort((a, b) => {
-        if (a.availability === 'online' && b.availability !== 'online') return -1;
-        if (a.availability !== 'online' && b.availability === 'online') return 1;
-        
-        if (a.isLocalityMatch && !b.isLocalityMatch) return -1;
-        if (!a.isLocalityMatch && b.isLocalityMatch) return 1;
-        
-        if (!a.overloaded && b.overloaded) return -1;
-        if (a.overloaded && !b.overloaded) return 1;
-        
-        return (a.distance || 0) - (b.distance || 0);
-      });
-
-      setSortedUsers(enhancedUsers);
-    } else {
-      setSortedUsers(dataCollectorsOnly);
+      return siteVisit.coordinates as { latitude: number; longitude: number };
     }
+    if (hasValidCoords(siteVisit.location)) {
+      return siteVisit.location as { latitude: number; longitude: number };
+    }
+    return null;
+  };
+
+  useEffect(() => {
+    // Show only data collectors (by role or roles[]). Do not filter by status.
+    const consideredUsers = users.filter(user => {
+      const roleVal = (user.role || '').toString();
+      const direct = roleVal === 'dataCollector' || roleVal.toLowerCase() === 'datacollector';
+      const inArray = Array.isArray(user.roles) && user.roles.some((r: any) => r === 'dataCollector' || (typeof r === 'string' && r.toLowerCase() === 'datacollector'));
+      return direct || inArray;
+    });
+
+    const siteCoords = getSiteCoords();
+    const normalize = (v?: string) => (v ?? '').toString().trim().toLowerCase();
+
+    const enhancedUsers = consideredUsers.map(user => {
+      const hasUserCoords = typeof user.location?.latitude === 'number' && typeof user.location?.longitude === 'number';
+
+      const distance = siteCoords && hasUserCoords
+        ? calculateDistance(
+            user.location!.latitude!,
+            user.location!.longitude!,
+            siteCoords.latitude,
+            siteCoords.longitude
+          )
+        : 999999;
+
+      const isHubMatch = !!(user.hubId && siteVisit.hub && normalize(user.hubId) === normalize(siteVisit.hub));
+      const isStateMatch = !!(user.stateId && siteVisit.state && normalize(user.stateId) === normalize(siteVisit.state));
+      const isLocalityMatch = !!(user.localityId && siteVisit.locality && normalize(user.localityId) === normalize(siteVisit.locality));
+
+      const workload = calculateUserWorkload(user.id, allSiteVisits);
+      const overloaded = workload >= 20;
+
+      return {
+        ...user,
+        distance,
+        overloaded,
+        isHubMatch,
+        isStateMatch,
+        isLocalityMatch
+      };
+    });
+
+    // Sort by: hub match -> state match -> locality match -> distance (coords)
+    enhancedUsers.sort((a, b) => {
+      if (a.isHubMatch !== b.isHubMatch) return a.isHubMatch ? -1 : 1;
+      if (a.isStateMatch !== b.isStateMatch) return a.isStateMatch ? -1 : 1;
+      if (a.isLocalityMatch !== b.isLocalityMatch) return a.isLocalityMatch ? -1 : 1;
+      return (a.distance || 0) - (b.distance || 0);
+    });
+
+    setSortedUsers(enhancedUsers);
   }, [users, siteVisit, allSiteVisits]);
 
   if (isOpen !== undefined) {
@@ -111,16 +122,24 @@ const SmartCollectorSelector: React.FC<SmartCollectorSelectorProps> = ({
   return renderContent();
   
   function renderContent() {
+    const fallbackCollectors = users.filter(user => {
+      const roleVal = (user.role || '').toString();
+      const direct = roleVal === 'dataCollector' || roleVal.toLowerCase() === 'datacollector';
+      const inArray = Array.isArray(user.roles) && user.roles.some((r: any) => r === 'dataCollector' || (typeof r === 'string' && r.toLowerCase() === 'datacollector'));
+      return direct || inArray;
+    }) as EnhancedUser[];
+    const displayUsers: EnhancedUser[] =
+      sortedUsers.length > 0 ? sortedUsers : fallbackCollectors;
     return (
       <div className="p-4">
         <h2 className="text-xl font-semibold mb-4">Smart Collector Assignment</h2>
         <p className="text-sm text-gray-500 mb-6">
-          The system has automatically prioritized collectors based on proximity, workload, and availability.
+          The system prioritizes by hub, then state, then locality, then distance.
         </p>
         
         <ScrollArea className="h-[400px] pr-4">
           <div className="space-y-3">
-            {sortedUsers.map(user => {
+            {displayUsers.map(user => {
               const availabilityColor = 
                 user.availability === 'online' ? 'bg-green-500' : 
                 user.availability === 'busy' ? 'bg-amber-500' : 'bg-gray-500';
@@ -151,6 +170,18 @@ const SmartCollectorSelector: React.FC<SmartCollectorSelectorProps> = ({
                             </Badge>
                           )}
                           
+                          {user.isHubMatch && (
+                            <Badge variant="secondary" className="text-xs">
+                              Hub match
+                            </Badge>
+                          )}
+
+                          {user.isStateMatch && (
+                            <Badge variant="secondary" className="text-xs">
+                              State match
+                            </Badge>
+                          )}
+
                           {user.isLocalityMatch && (
                             <Badge variant="secondary" className="text-xs">
                               Locality match
@@ -167,7 +198,6 @@ const SmartCollectorSelector: React.FC<SmartCollectorSelectorProps> = ({
                       
                       <Button 
                         onClick={() => onAssign(user.id)} 
-                        disabled={user.availability === 'offline'}
                       >
                         Assign
                       </Button>
@@ -177,7 +207,7 @@ const SmartCollectorSelector: React.FC<SmartCollectorSelectorProps> = ({
               );
             })}
             
-            {sortedUsers.length === 0 && (
+            {displayUsers.length === 0 && (
               <div className="text-center py-8">
                 <p className="text-muted-foreground">No available collectors found</p>
               </div>

@@ -20,7 +20,7 @@ const AssignCollectorButton: React.FC<AssignCollectorButtonProps> = ({ siteVisit
   const [countdown, setCountdown] = useState(0);
   const [showNotification, setShowNotification] = useState(false);
   const { assignSiteVisit, siteVisits } = useSiteVisitContext();
-  const { users } = useUser();
+  const { users, refreshUsers } = useUser();
   const { toast } = useToast();
   const { addNotification } = useNotifications();
 
@@ -43,6 +43,8 @@ const AssignCollectorButton: React.FC<AssignCollectorButtonProps> = ({ siteVisit
   }, [selectedUserId, countdown]);
 
   const handleOpenSelector = () => {
+    // Ensure we have the latest users before showing the selector
+    try { refreshUsers(); } catch {}
     setShowSelector(true);
     setSelectedUserId(null);
     setCountdown(0);
@@ -56,23 +58,30 @@ const AssignCollectorButton: React.FC<AssignCollectorButtonProps> = ({ siteVisit
     setShowNotification(false);
   };
 
-  const handleSelect = (userId: string) => {
+  const handleSelect = async (userId: string) => {
     setSelectedUserId(userId);
-    setCountdown(30); // 30 second countdown for acceptance
-    setShowNotification(true);
-    
-    // Send notification to the selected user
-    const collector = users.find(u => u.id === userId);
-    if (collector) {
+
+    // Persist immediately to DB
+    const success = await assignSiteVisit(siteVisit.id, userId);
+
+    if (success) {
+      // Notify the assignee about the assignment
       addNotification({
-        userId: userId,
-        title: "New Site Visit Assignment Request",
-        message: `You have been selected for a site visit at ${siteVisit.siteName}. Please accept within 30 seconds.`,
+        userId,
+        title: "Assigned to Site Visit",
+        message: `You have been assigned to the site visit at ${siteVisit.siteName}.`,
         type: "info",
         link: `/site-visits/${siteVisit.id}`,
         relatedEntityId: siteVisit.id,
         relatedEntityType: "siteVisit",
       });
+
+      // Reset and close selector
+      setShowNotification(false);
+      setCountdown(0);
+      setShowSelector(false);
+
+      if (onSuccess) onSuccess();
     }
   };
 
