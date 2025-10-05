@@ -23,6 +23,14 @@ const DynamicFieldTeamMap: React.FC<DynamicFieldTeamMapProps> = (props) => {
   const { siteVisits = [], height = '500px', eligibleCollectors = [] } = props;
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'online' | 'busy' | 'offline'>('all');
   const [loading, setLoading] = useState(true);
+  const hasValidCoords = (coords?: { latitude?: number; longitude?: number }) => {
+    const lat = coords?.latitude; const lon = coords?.longitude;
+    return (
+      typeof lat === 'number' && typeof lon === 'number' &&
+      Number.isFinite(lat) && Number.isFinite(lon) &&
+      !(lat === 0 && lon === 0)
+    );
+  };
 
   // Transform siteVisits and collectors into locations for the map
   const mapLocations = React.useMemo(() => {
@@ -84,25 +92,33 @@ const DynamicFieldTeamMap: React.FC<DynamicFieldTeamMapProps> = (props) => {
   );
 
   // Transform data for MapComponent
-  const mapCollectors = eligibleCollectors.map(collector => ({
-    id: collector.id,
-    name: collector.name,
-    location: {
-      latitude: collector.location?.latitude || 0,
-      longitude: collector.location?.longitude || 0
-    },
-    status: (collector.availability || 'offline') as 'available' | 'busy' | 'offline'
-  }));
+  const mapCollectors = eligibleCollectors
+    .filter(c => hasValidCoords(c.location))
+    .map(collector => ({
+      id: collector.id,
+      name: collector.name,
+      location: {
+        latitude: collector.location!.latitude!,
+        longitude: collector.location!.longitude!
+      },
+      status: (
+        collector.availability === 'online'
+          ? 'available'
+          : (collector.availability || 'offline')
+      ) as 'available' | 'busy' | 'offline'
+    }));
 
-  const mapSiteVisits = siteVisits.map(visit => ({
-    id: visit.id,
-    name: visit.siteName,
-    location: {
-      latitude: visit.location?.latitude || 0,
-      longitude: visit.location?.longitude || 0
-    },
-    status: visit.status as 'pending' | 'assigned' | 'inProgress' | 'completed'
-  }));
+  const mapSiteVisits = siteVisits
+    .filter(v => hasValidCoords(v.location))
+    .map(visit => ({
+      id: visit.id,
+      name: visit.siteName,
+      location: {
+        latitude: visit.location.latitude,
+        longitude: visit.location.longitude
+      },
+      status: visit.status as 'pending' | 'assigned' | 'inProgress' | 'completed'
+    }));
 
   // Filter based on selected filter
   const filteredCollectors = selectedFilter === 'all' 

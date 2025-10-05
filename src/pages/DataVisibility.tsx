@@ -133,13 +133,15 @@ const riskMetricsData = [
 ];
 
 const DataVisibility: React.FC = () => {
-  const { currentUser } = useUser();
+  const { currentUser, users, refreshUsers } = useUser();
   const { siteVisits } = useSiteVisitContext();
   const [activeTab, setActiveTab] = useState("integrated-view");
   const { toast } = useToast();
   const [activeCompliancePieIndex, setActiveCompliancePieIndex] = useState(0);
 
   const [siteVisitsList, setSiteVisitsList] = useState<SiteVisit[]>(siteVisits || []);
+  const [loadingCollectors, setLoadingCollectors] = useState<boolean>(false);
+  const [collectorsError, setCollectorsError] = useState<string | null>(null);
 
   const [mmps, setMmps] = useState<MMPFile[]>([
     {
@@ -196,6 +198,45 @@ const DataVisibility: React.FC = () => {
       setSiteVisitsList(siteVisits);
     }
   }, [siteVisits]);
+
+  // Ensure we have fresh users from DB on mount (production readiness)
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      try {
+        setLoadingCollectors(true);
+        setCollectorsError(null);
+        await refreshUsers();
+      } catch (e: any) {
+        if (!isMounted) return;
+        setCollectorsError(e?.message || 'Failed to load users');
+      } finally {
+        if (!isMounted) return;
+        setLoadingCollectors(false);
+      }
+    })();
+    return () => { isMounted = false; };
+  }, [refreshUsers]);
+
+  const hasValidCoords = (coords?: { latitude?: number; longitude?: number }) => {
+    const lat = coords?.latitude; const lon = coords?.longitude;
+    return (
+      typeof lat === 'number' && typeof lon === 'number' &&
+      Number.isFinite(lat) && Number.isFinite(lon) &&
+      !(lat === 0 && lon === 0)
+    );
+  };
+
+  // Only data collectors with valid coordinates
+  const eligibleCollectors = React.useMemo(() => {
+    const isCollector = (u: any) => {
+      const roleVal = (u?.role || '').toString();
+      const direct = roleVal === 'dataCollector' || roleVal.toLowerCase() === 'datacollector';
+      const inArray = Array.isArray(u?.roles) && u.roles.some((r: any) => r === 'dataCollector' || (typeof r === 'string' && r.toLowerCase() === 'datacollector'));
+      return direct || inArray;
+    };
+    return (users || []).filter(u => isCollector(u) && hasValidCoords(u.location));
+  }, [users]);
 
   const filteredSiteVisits = siteVisitsList.filter(visit => {
     const matchesSearch = visit.siteName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -484,8 +525,14 @@ const DataVisibility: React.FC = () => {
             <CardContent className="p-0">
               <DynamicFieldTeamMap 
                 siteVisits={siteVisits}
+                eligibleCollectors={eligibleCollectors}
                 height="500px"
               />
+              {(loadingCollectors || collectorsError) && (
+                <div className="px-4 py-2 text-xs text-muted-foreground">
+                  {loadingCollectors ? 'Loading team locations…' : collectorsError}
+                </div>
+              )}
             </CardContent>
           </Card>
 
