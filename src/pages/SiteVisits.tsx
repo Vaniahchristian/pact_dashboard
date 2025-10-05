@@ -422,7 +422,7 @@ const SiteVisits = () => {
         {renderContent()}
       </div>
       
-      <FloatingMessenger />
+      {/* <FloatingMessenger /> */}
     </div>
   );
 };
