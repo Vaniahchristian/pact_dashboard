@@ -4,15 +4,18 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Search } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Search, Eye } from 'lucide-react';
 
 interface MMPSiteEntriesTableProps {
   siteEntries: any[];
-  onViewSiteDetail: (site: any) => void;
+  onViewSiteDetail?: (site: any) => void;
 }
 
 const MMPSiteEntriesTable = ({ siteEntries, onViewSiteDetail }: MMPSiteEntriesTableProps) => {
   const [searchQuery, setSearchQuery] = useState("");
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [selectedSite, setSelectedSite] = useState<any | null>(null);
 
   // Normalize a row from either MMP siteEntries (camelCase) or site_visits (snake_case)
   const normalizeSite = (site: any) => {
@@ -49,6 +52,15 @@ const MMPSiteEntriesTable = ({ siteEntries, onViewSiteDetail }: MMPSiteEntriesTa
     const comments = site.comments || site.notes || '';
 
     return { hubOffice, state, locality, siteName, cpName, mainActivity, siteActivity, visitType, visitDate, comments };
+  };
+
+  const handleView = (site: any) => {
+    if (onViewSiteDetail) {
+      onViewSiteDetail(site);
+      return;
+    }
+    setSelectedSite(site);
+    setDetailOpen(true);
   };
 
   const filteredSites = searchQuery.trim() === ""
@@ -125,8 +137,9 @@ const MMPSiteEntriesTable = ({ siteEntries, onViewSiteDetail }: MMPSiteEntriesTa
                         <Button 
                           variant="ghost" 
                           size="sm" 
-                          onClick={() => onViewSiteDetail(site)}
-                          className="hover:bg-muted">
+                          onClick={() => handleView(site)}
+                          className="hover:bg-muted inline-flex items-center gap-1">
+                          <Eye className="h-4 w-4" />
                           View
                         </Button>
                       </TableCell>
@@ -144,6 +157,62 @@ const MMPSiteEntriesTable = ({ siteEntries, onViewSiteDetail }: MMPSiteEntriesTa
           </Table>
         </div>
       </CardContent>
+
+      {/* Local fallback dialog for site detail view */}
+      <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{(selectedSite && normalizeSite(selectedSite).siteName) || 'Site Details'}</DialogTitle>
+          </DialogHeader>
+          {selectedSite && (() => {
+            const row = normalizeSite(selectedSite);
+            return (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Hub Office</p>
+                  <p className="font-medium">{row.hubOffice || '—'}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">State</p>
+                  <p className="font-medium">{row.state || '—'}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Locality</p>
+                  <p className="font-medium">{row.locality || '—'}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Site Name</p>
+                  <p className="font-medium">{row.siteName || '—'}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">CP Name</p>
+                  <p className="font-medium">{row.cpName || '—'}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Main Activity</p>
+                  <p className="font-medium">{row.mainActivity || '—'}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Activity at Site</p>
+                  <p className="font-medium">{row.siteActivity || '—'}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Visit Type</p>
+                  <p className="font-medium">{row.visitType || '—'}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Visit Date</p>
+                  <p className="font-medium">{row.visitDate || '—'}</p>
+                </div>
+                <div className="sm:col-span-2">
+                  <p className="text-sm text-muted-foreground">Comments</p>
+                  <p className="font-medium">{row.comments || '—'}</p>
+                </div>
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };
