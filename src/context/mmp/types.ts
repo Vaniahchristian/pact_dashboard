@@ -19,7 +19,7 @@ export interface MMPContextType {
   setCurrentMMP: (mmp: MMPFile | null) => void;
   addMMPFile: (mmp: MMPFile) => void;
   updateMMPFile: (mmp: MMPFile) => void;
-  deleteMMPFile: (id: string) => void;
+  deleteMMPFile: (id: string) => Promise<boolean>;
   getMMPById: (id: string) => MMPFile | undefined;
   getMmpById: (id: string) => MMPFile | undefined;
   archiveMMP: (id: string, archivedBy: string) => void;

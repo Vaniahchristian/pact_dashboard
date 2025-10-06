@@ -105,17 +105,25 @@ const MMPDetailView = () => {
   const handleDelete = async () => {
     if (id) {
       try {
-        await deleteMMPFile(id);
-        toast({ 
-          title: "MMP File Deleted",
-          description: "The MMP file has been permanently deleted.",
-        });
-        navigate("/mmp");
+        const ok = await deleteMMPFile(id);
+        if (ok) {
+          toast({ 
+            title: "MMP File Deleted",
+            description: "The MMP file has been permanently deleted.",
+          });
+          navigate("/mmp");
+        } else {
+          toast({
+            title: "Deletion Failed",
+            description: "Could not delete from database. Please check permissions/RLS and try again.",
+            variant: "destructive"
+          });
+        }
       } catch (error) {
         console.error("Failed to delete MMP:", error);
         toast({
           title: "Deletion Failed",
-          description: "There was a problem deleting the MMP file.",
+          description: "Unexpected error deleting the MMP file.",
           variant: "destructive"
         });
       }

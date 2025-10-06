@@ -93,26 +93,28 @@ export const useMMPOperations = (mmpFiles: MMPFile[], setMMPFiles: React.Dispatc
     }
   };
 
-  const deleteMMPFile = (id: string) => {
+  const deleteMMPFile = async (id: string): Promise<boolean> => {
     try {
-      setMMPFiles((prev: MMPFile[]) => (prev || []).filter((mmp) => mmp.id !== id));
-
-      // Physical delete in Supabase
-      supabase
+      // Delete from DB first to ensure it persists across refresh
+      const { error } = await supabase
         .from('mmp_files')
         .delete()
-        .eq('id', id)
-        .then(({ error }) => {
-          if (error) {
-            console.error('Supabase delete error:', error);
-            toast.error('Database delete failed');
-          } else {
-            toast.success('MMP file deleted');
-          }
-        });
+        .eq('id', id);
+
+      if (error) {
+        console.error('Supabase delete error:', error);
+        toast.error('Database delete failed. Check permissions/RLS and try again.');
+        return false;
+      }
+
+      // Only update local state after successful DB delete
+      setMMPFiles((prev: MMPFile[]) => (prev || []).filter((mmp) => mmp.id !== id));
+      toast.success('MMP file deleted');
+      return true;
     } catch (error) {
       console.error('Error deleting MMP file:', error);
       toast.error('Failed to delete MMP file');
+      return false;
     }
   };
 
