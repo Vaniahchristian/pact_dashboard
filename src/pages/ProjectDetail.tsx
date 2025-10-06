@@ -13,7 +13,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 const ProjectDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { getProjectById, loading, error, fetchProjects, projects } = useProjectContext();
+  const { getProjectById, loading, error, fetchProjects, projects, deleteProject } = useProjectContext();
   const [project, setProject] = useState<Project | undefined>(undefined);
   const { toast } = useToast();
 
@@ -48,12 +48,17 @@ const ProjectDetailPage = () => {
     navigate(`/projects/${id}/edit`);
   };
 
-  const handleDelete = () => {
-    // Here you would typically show a confirmation dialog before deletion
-    toast({
-      title: "Delete Project",
-      description: "This functionality will be implemented in the next sprint.",
-    });
+  const handleDelete = async () => {
+    if (!id) {
+      toast({
+        title: "Invalid Project",
+        description: "Missing project ID. Please try again.",
+        variant: "destructive",
+      });
+      return;
+    }
+    await deleteProject(id);
+    navigate('/projects');
   };
 
   if (loading && !project) {
