@@ -17,6 +17,7 @@ import {
   Map,
   MapPin,
   Clock,
+  CalendarX,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -104,45 +105,49 @@ const CalendarPage = () => {
         </Tabs>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="md:col-span-1">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="lg:col-span-1">
           <CardHeader>
             <CardTitle className="text-lg">Calendar</CardTitle>
           </CardHeader>
-          <CardContent>
-            <Tabs value={viewMode}>
+          <CardContent className="flex flex-col items-center">
+            <Tabs value={viewMode} className="w-full">
               <TabsContent value="daily" className="mt-0">
-                <Calendar
-                  mode="single"
-                  selected={date}
-                  onSelect={(newDate) => setDate(newDate || new Date())}
-                  className="rounded-md border"
-                  modifiers={{
-                    withVisits: (day) => isDayWithVisits(day),
-                    today: (day) => isToday(day),
-                  }}
-                  modifiersStyles={{
-                    withVisits: {
-                      backgroundColor: "rgba(99, 102, 241, 0.1)",
-                      fontWeight: "bold",
-                      color: "#4F46E5",
-                    },
-                    today: {
-                      fontWeight: "bold",
-                      border: "2px solid currentColor",
-                    },
-                  }}
-                />
+                <div className="flex justify-center">
+                  <Calendar
+                    mode="single"
+                    selected={date}
+                    onSelect={(newDate) => setDate(newDate || new Date())}
+                    className="rounded-md w-full"
+                    modifiers={{
+                      withVisits: (day) => isDayWithVisits(day),
+                      today: (day) => isToday(day),
+                    }}
+                    modifiersStyles={{
+                      withVisits: {
+                        backgroundColor: "rgba(99, 102, 241, 0.1)",
+                        fontWeight: "bold",
+                        color: "#4F46E5",
+                      },
+                      today: {
+                        fontWeight: "bold",
+                        border: "2px solid currentColor",
+                      },
+                    }}
+                  />
+                </div>
               </TabsContent>
               <TabsContent value="range" className="mt-0">
-                <DatePickerWithRange
-                  dateRange={dateRange}
-                  onDateRangeChange={setDateRange}
-                />
+                <div className="flex justify-center w-full">
+                  <DatePickerWithRange
+                    dateRange={dateRange}
+                    onDateRangeChange={setDateRange}
+                  />
+                </div>
               </TabsContent>
             </Tabs>
 
-            <div className="mt-4">
+            <div className="mt-6 w-full">
               <Button
                 variant="outline"
                 size="sm"
@@ -156,7 +161,7 @@ const CalendarPage = () => {
           </CardContent>
         </Card>
 
-        <Card className="md:col-span-2">
+        <Card className="lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-lg">
               {viewMode === "daily"
@@ -164,7 +169,7 @@ const CalendarPage = () => {
                 : "Scheduled Visits"}
             </CardTitle>
             <Badge variant="outline" className="ml-auto">
-              {filteredVisits.length} visits
+              {filteredVisits.length} visit{filteredVisits.length !== 1 ? 's' : ''}
             </Badge>
           </CardHeader>
           <CardContent>
@@ -250,7 +255,7 @@ const CalendarPage = () => {
               </ScrollArea>
             ) : (
               <div className="flex flex-col items-center justify-center h-[300px] text-center">
-                <Calendar className="h-16 w-16 text-gray-300 mb-4" />
+                <CalendarX className="h-16 w-16 text-gray-300 mb-4" />
                 <h3 className="text-lg font-medium mb-1">No visits scheduled</h3>
                 <p className="text-muted-foreground mb-4">
                   {viewMode === "daily"
