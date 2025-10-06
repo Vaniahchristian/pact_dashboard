@@ -80,7 +80,7 @@ const Auth = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50/20 via-orange-50/20 to-gray-100 dark:from-black dark:via-gray-900 dark:to-gray-800 p-4">
-      <Card className="w-full max-w-5xl backdrop-blur-lg bg-white/30 dark:bg-gray-900/30 border border-white/20 shadow-xl overflow-hidden flex flex-col md:flex-row rounded-3xl">
+      <Card className="w-full max-w-5xl backdrop-blur-lg bg-gray-200 dark:bg-gray-900/30 border border-white/20 shadow-xl overflow-hidden flex flex-col md:flex-row rounded-3xl my-8">
         
         {/* Left Hero Column */}
         <div className="hidden md:flex md:w-1/2 flex-col p-8 space-y-6 bg-gradient-to-br from-blue-50/50 via-orange-50/20 to-gray-100 rounded-l-3xl">
@@ -109,7 +109,7 @@ const Auth = () => {
           </div>
 
           {/* Modules */}
-          <div>
+          {/* <div>
             <h3 className="font-semibold text-gray-800 dark:text-gray-100 flex items-center text-lg mb-4">
               <Server className="h-5 w-5 mr-2 text-blue-600 dark:text-orange-400" />
               System Modules
@@ -129,19 +129,13 @@ const Auth = () => {
                 </div>
               ))}
             </div>
-          </div>
+          </div> */}
         </div>
 
         {/* Right Auth Column */}
         <div className="md:w-1/2 w-full p-6 md:p-10 flex flex-col items-center justify-center text-center">
           <CardHeader className="space-y-2 text-center mb-4">
-            <div className="text-right mb-3">
-              <select className="border border-gray-300 rounded-md p-1 text-sm bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200">
-                <option>English</option>
-                <option>Français</option>
-                <option>Español</option>
-              </select>
-            </div>
+         
             <CardTitle className="text-2xl font-bold">Welcome To Pact</CardTitle>
             <CardDescription className="flex items-center justify-center text-sm text-gray-600 dark:text-gray-300">
               Sign in to your account
