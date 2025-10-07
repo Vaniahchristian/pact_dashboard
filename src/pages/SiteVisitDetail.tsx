@@ -124,31 +124,13 @@ const SiteVisitDetail = () => {
     }
   };
 
-  // Get nearby collectors
+  // Get all data collectors
   const getNearbyCollectors = () => {
     if (!siteVisit) return [];
     
     return users.filter(user => {
-      // Check if user is a data collector and has location data
-      if (
-        (user.role !== 'dataCollector' && user.role !== 'datacollector') ||
-        !user.location?.latitude || 
-        !user.location?.longitude ||
-        user.availability === 'offline'
-      ) {
-        return false;
-      }
-      
-      // Calculate distance using the calculateDistance utility
-      const distance = calculateDistance(
-        user.location.latitude,
-        user.location.longitude,
-        siteVisit.coordinates.latitude,
-        siteVisit.coordinates.longitude
-      );
-      
-      // Return users within 50km
-      return distance < 50;
+      // Check if user is a data collector
+      return user.role === 'dataCollector' || user.role === 'datacollector';
     });
   };
 
