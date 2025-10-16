@@ -55,6 +55,7 @@ import { Toaster } from './components/ui/toaster';
 import { Toaster as SonnerToaster } from './components/ui/sonner';
 import { useAppContext } from './context/AppContext';
 import ErrorBoundary from './components/ErrorBoundary';
+import { debugDatabase } from './utils/debug-db';
 
 // Redirect for old MMP view paths
 const MmpViewRedirect = () => {
@@ -175,6 +176,13 @@ function App() {
       document.documentElement.classList.remove("dark");
       document.documentElement.classList.add("light");
       localStorage.setItem("theme", "light");
+    }
+  }, []);
+
+  // Add debug function to window for testing
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (window as any).debugDatabase = debugDatabase;
     }
   }, []);
 

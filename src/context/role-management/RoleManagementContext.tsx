@@ -173,17 +173,24 @@ export const RoleManagementProvider: React.FC<{ children: React.ReactNode }> = (
   const updateRole = async (roleId: string, roleData: UpdateRoleRequest): Promise<boolean> => {
     setIsLoading(true);
     try {
+      console.log('🔄 Starting role update for roleId:', roleId, 'with data:', roleData);
+      
       const updates: any = {};
       if (roleData.display_name !== undefined) updates.display_name = roleData.display_name;
       if (roleData.description !== undefined) updates.description = roleData.description;
       if (roleData.is_active !== undefined) updates.is_active = roleData.is_active;
 
       if (Object.keys(updates).length > 0) {
+        console.log('📝 Updating role basic info:', updates);
         const { error: roleError } = await supabase
           .from('roles')
           .update(updates)
           .eq('id', roleId);
-        if (roleError) throw roleError;
+        if (roleError) {
+          console.error('❌ Role update error:', roleError);
+          throw roleError;
+        }
+        console.log('✅ Role basic info updated successfully');
       }
 
       const isAdminRole = roles.find(r => r.id === roleId)?.name === 'admin';
@@ -191,46 +198,81 @@ export const RoleManagementProvider: React.FC<{ children: React.ReactNode }> = (
         ? RESOURCES.flatMap(rsrc => ACTIONS.map(act => ({ resource: rsrc, action: act })))
         : roleData.permissions;
 
+      console.log('🔐 Processing permissions. isAdminRole:', isAdminRole, 'desiredPermissions:', desiredPermissions);
+
       if (desiredPermissions) {
+        console.log('📋 Fetching existing permissions...');
         const { data: existing, error: existingErr } = await supabase
           .from('permissions')
           .select('id, resource, action')
           .eq('role_id', roleId);
-        if (existingErr) throw existingErr;
+        if (existingErr) {
+          console.error('❌ Error fetching existing permissions:', existingErr);
+          throw existingErr;
+        }
 
+        const existingArr = (existing || []) as { id: string; resource: string; action: string }[];
+        console.log('📋 Existing permissions:', existingArr);
+        
         const desiredSet = new Set(desiredPermissions.map(p => `${p.resource}:${p.action}`));
-        const toDeleteIds = (existing || [])
-          .filter((p: any) => !desiredSet.has(`${p.resource}:${p.action}`))
-          .map((p: any) => p.id);
+        const existingSet = new Set(existingArr.map(p => `${p.resource}:${p.action}`));
 
+        // Delete permissions that are no longer desired
+        const toDeleteIds = existingArr
+          .filter((p) => !desiredSet.has(`${p.resource}:${p.action}`))
+          .map((p) => p.id);
+        
         if (toDeleteIds.length > 0) {
+          console.log('🗑️ Deleting permissions:', toDeleteIds);
           const { error: delErr } = await supabase
             .from('permissions')
             .delete()
             .in('id', toDeleteIds);
-          if (delErr) throw delErr;
+          if (delErr) {
+            console.error('❌ Error deleting permissions:', delErr);
+            throw delErr;
+          }
+          console.log('✅ Permissions deleted successfully');
         }
 
-        const toUpsert = desiredPermissions.map(p => ({
-          role_id: roleId,
-          resource: p.resource,
-          action: p.action,
-          conditions: p.conditions ?? null,
-        }));
-
-        if (toUpsert.length > 0) {
-          const { error: upsertErr } = await supabase
+        // Insert only missing desired permissions to avoid requiring ON CONFLICT
+        const toInsert = desiredPermissions
+          .filter(p => !existingSet.has(`${p.resource}:${p.action}`))
+          .map(p => ({
+            role_id: roleId,
+            resource: p.resource,
+            action: p.action,
+            conditions: p.conditions ?? null,
+          }));
+        
+        if (toInsert.length > 0) {
+          console.log('➕ Inserting new permissions:', toInsert);
+          const { error: insErr } = await supabase
             .from('permissions')
-            .upsert(toUpsert, { onConflict: 'role_id,resource,action' });
-          if (upsertErr) throw upsertErr;
+            .insert(toInsert);
+          if (insErr) {
+            console.error('❌ Error inserting permissions:', insErr);
+            throw insErr;
+          }
+          console.log('✅ Permissions inserted successfully');
+        } else {
+          console.log('ℹ️ No new permissions to insert');
         }
       }
 
+      console.log('✅ Role update completed successfully');
       toast({ title: 'Role updated', description: 'Role was updated successfully.' });
-      await fetchRoles();
+      // Refresh roles in background to avoid blocking the dialog close
+      fetchRoles().catch(() => {});
       return true;
     } catch (error: any) {
-      console.error('Error updating role:', error);
+      console.error('❌ Error updating role:', error);
+      console.error('❌ Error details:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      });
       toast({
         title: 'Error updating role',
         description: error.message,

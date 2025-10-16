@@ -31,6 +31,7 @@ export const EditRoleDialog: React.FC<EditRoleDialogProps> = ({
   });
 
   const [selectedPermissions, setSelectedPermissions] = useState<{ resource: ResourceType; action: ActionType }[]>([]);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (role) {
@@ -54,12 +55,17 @@ export const EditRoleDialog: React.FC<EditRoleDialogProps> = ({
     
     if (!role) return;
 
-    const ok = await onUpdateRole(role.id, {
-      ...formData,
-      permissions: selectedPermissions
-    });
-    if (ok) {
-      onOpenChange(false);
+    setSubmitting(true);
+    try {
+      const ok = await onUpdateRole(role.id, {
+        ...formData,
+        permissions: selectedPermissions
+      });
+      if (ok) {
+        onOpenChange(false);
+      }
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -126,8 +132,8 @@ export const EditRoleDialog: React.FC<EditRoleDialogProps> = ({
                 <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                   Cancel
                 </Button>
-                <Button type="submit" disabled={isLoading}>
-                  {isLoading ? 'Updating...' : 'Update Role'}
+                <Button type="submit" disabled={submitting}>
+                  {submitting ? 'Updating...' : 'Update Role'}
                 </Button>
               </DialogFooter>
             </form>
