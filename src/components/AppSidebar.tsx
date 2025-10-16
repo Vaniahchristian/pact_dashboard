@@ -11,7 +11,8 @@ import {
   LogOut,
   LayoutDashboard,
   ChevronUp,
-  Shield
+  Shield,
+  Calendar
 } from "lucide-react";
 import { useSiteVisitReminders } from "@/hooks/use-site-visit-reminders";
 import Logo from "../assets/logo.png";
@@ -73,6 +74,12 @@ const getMenuGroups = (roles: AppRole[] = [], defaultRole: string = 'dataCollect
 
   const dataItems = [
     { title: "Data Visibility", url: "/data-visibility", icon: Link2 },
+    {
+      title: "Reports",
+      url: "/reports",
+      icon: Calendar,
+    },
+
   ];
 
   // Enhanced admin items with role management

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -94,10 +94,14 @@ const MMPUpload = () => {
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [uploadedMmpId, setUploadedMmpId] = useState<string | null>(null);
   const [selectedHub, setSelectedHub] = useState<string>('');
+  const [uploadTimeout, setUploadTimeout] = useState<NodeJS.Timeout | null>(null);
   
   const form = useForm<UploadFormValues>({
     resolver: zodResolver(uploadSchema),
     defaultValues: {
+      name: "",
+      month: "",
+      hub: "",
       includeDistributionByCP: true,
       includeVisitStatus: true,
       includeSubmissionStatus: true,
@@ -117,6 +121,24 @@ const MMPUpload = () => {
     setShowPreview(false);
     setPreviewData([]);
   };
+
+  const resetUploadState = () => {
+    setIsUploading(false);
+    setUploadDialogOpen(false);
+    if (uploadTimeout) {
+      clearTimeout(uploadTimeout);
+      setUploadTimeout(null);
+    }
+  };
+
+  // Cleanup timeout on component unmount
+  useEffect(() => {
+    return () => {
+      if (uploadTimeout) {
+        clearTimeout(uploadTimeout);
+      }
+    };
+  }, [uploadTimeout]);
 
   const handleSaveForLater = () => {
     setSaveDialogOpen(true);
@@ -295,10 +317,35 @@ const MMPUpload = () => {
     }
     
     setIsUploading(true);
+    setUploadDialogOpen(false); // Close dialog immediately when starting upload
+    
+    // Set up a timeout to prevent infinite loading
+    const timeout = setTimeout(() => {
+      console.error('Upload timeout - taking too long');
+      resetUploadState();
+      toast({
+        title: "Upload Timeout",
+        description: "The upload is taking longer than expected. Please refresh the page and try again.",
+        variant: "destructive",
+      });
+    }, 60000); // 60 second timeout
+    
+    setUploadTimeout(timeout);
+    
     try {
-      const success = await uploadMMP(data.file);
-      if (success) {
-        const mockMmpId = `mmp-${Date.now().toString(36)}`;
+      console.log('Starting MMP upload process...');
+      const result = await uploadMMP(data.file);
+      
+      // Clear timeout since upload completed
+      if (uploadTimeout) {
+        clearTimeout(uploadTimeout);
+        setUploadTimeout(null);
+      }
+      
+      console.log('Upload result:', result);
+      
+      if (result && result.success) {
+        const mockMmpId = result.id || `mmp-${Date.now().toString(36)}`;
         setUploadedMmpId(mockMmpId);
         setUploadSuccess(true);
         
@@ -306,16 +353,27 @@ const MMPUpload = () => {
           title: "MMP file uploaded successfully",
           description: "Your file has been uploaded and is now ready for review.",
         });
+      } else {
+        // Handle case where uploadMMP returns success: false
+        const errorMessage = 'Upload failed for unknown reason';
+        console.error('Upload failed:', errorMessage);
+        toast({
+          title: "Upload failed",
+          description: errorMessage,
+          variant: "destructive",
+        });
       }
     } catch (error) {
+      console.error('Upload error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       toast({
         title: "Upload failed",
-        description: "There was a problem uploading your file. Please try again.",
+        description: `There was a problem uploading your file: ${errorMessage}`,
         variant: "destructive",
       });
     } finally {
-      setIsUploading(false);
-      setUploadDialogOpen(false);
+      // Always reset uploading state, regardless of success or failure
+      resetUploadState();
     }
   };
 
@@ -1171,27 +1229,41 @@ const MMPUpload = () => {
                   </Button>
                 </div>
                 
-                <Button 
-                  type="submit"
-                  disabled={!form.formState.isValid || isUploading}
-                >
-                  {isUploading ? (
-                    <>
-                      <ArrowUpCircle className="mr-2 h-4 w-4 animate-spin" />
-                      Uploading...
-                    </>
-                  ) : validationResults === 'idle' ? (
-                    <>
-                      <FileCheck className="mr-2 h-4 w-4" />
-                      Validate File
-                    </>
-                  ) : (
-                    <>
-                      <Upload className="mr-2 h-4 w-4" />
-                      Upload MMP
-                    </>
+                <div className="flex gap-2">
+                  {isUploading && (
+                    <Button 
+                      type="button"
+                      variant="outline"
+                      onClick={resetUploadState}
+                      className="text-red-600 hover:text-red-700"
+                    >
+                      <X className="mr-2 h-4 w-4" />
+                      Cancel Upload
+                    </Button>
                   )}
-                </Button>
+                  
+                  <Button 
+                    type="submit"
+                    disabled={!form.formState.isValid || isUploading}
+                  >
+                    {isUploading ? (
+                      <>
+                        <ArrowUpCircle className="mr-2 h-4 w-4 animate-spin" />
+                        Uploading...
+                      </>
+                    ) : validationResults === 'idle' ? (
+                      <>
+                        <FileCheck className="mr-2 h-4 w-4" />
+                        Validate File
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="mr-2 h-4 w-4" />
+                        Upload MMP
+                      </>
+                    )}
+                  </Button>
+                </div>
               </CardFooter>
             </Card>
           </form>
