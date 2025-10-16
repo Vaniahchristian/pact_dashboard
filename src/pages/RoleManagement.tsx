@@ -10,6 +10,7 @@ import { CreateRoleDialog } from '@/components/role-management/CreateRoleDialog'
 import { EditRoleDialog } from '@/components/role-management/EditRoleDialog';
 import { UserRoleAssignment } from '@/components/role-management/UserRoleAssignment';
 import { PermissionTester } from '@/components/role-management/PermissionTester';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { RoleWithPermissions, CreateRoleRequest, UpdateRoleRequest, AssignRoleRequest, AppRole } from '@/types/roles';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -293,24 +294,22 @@ const RoleManagement = () => {
       />
 
       {/* Permission Tester Dialog */}
-      {showPermissionTester && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-6xl max-h-[90vh] overflow-y-auto w-full">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold">Permission Testing</h2>
-                <Button 
-                  variant="outline" 
-                  onClick={() => setShowPermissionTester(false)}
-                >
-                  Close
-                </Button>
-              </div>
-              <PermissionTester />
+      <Dialog open={showPermissionTester} onOpenChange={setShowPermissionTester}>
+        <DialogContent className="w-full sm:max-w-2xl md:max-w-3xl lg:max-w-4xl max-h-[85vh] overflow-y-auto p-0">
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold">Permission Testing</h2>
+              <Button 
+                variant="outline" 
+                onClick={() => setShowPermissionTester(false)}
+              >
+                Close
+              </Button>
             </div>
+            <PermissionTester />
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
