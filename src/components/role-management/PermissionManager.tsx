@@ -170,10 +170,7 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({
                   <div className="flex items-center gap-2">
                     <Checkbox
                       id={`${resource}-all`}
-                      checked={allSelected}
-                      ref={(el) => {
-                        if (el) el.indeterminate = someSelected;
-                      }}
+                      checked={someSelected ? 'indeterminate' : allSelected}
                       onCheckedChange={() => handleSelectAll(resource)}
                     />
                     <Label htmlFor={`${resource}-all`} className="text-sm font-medium">
