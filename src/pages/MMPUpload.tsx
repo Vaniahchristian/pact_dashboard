@@ -95,6 +95,7 @@ const MMPUpload = () => {
   const [uploadedMmpId, setUploadedMmpId] = useState<string | null>(null);
   const [selectedHub, setSelectedHub] = useState<string>('');
   const [uploadTimeout, setUploadTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [activeTab, setActiveTab] = useState<string>('upload');
   
   const form = useForm<UploadFormValues>({
     resolver: zodResolver(uploadSchema),
@@ -204,11 +205,7 @@ const MMPUpload = () => {
           action: (
             <Button 
               variant="outline" 
-              onClick={() => {
-                document.querySelector('[value="validation"]')?.dispatchEvent(
-                  new MouseEvent('click', { bubbles: true })
-                );
-              }}
+              onClick={() => { setActiveTab('validation'); }}
               className="bg-red-800/30 hover:bg-red-800/50 border-red-900/50 text-white"
             >
               <ListChecks className="mr-2 h-4 w-4" />
@@ -234,11 +231,7 @@ const MMPUpload = () => {
           action: (
             <Button 
               variant="outline" 
-              onClick={() => {
-                document.querySelector('[value="validation"]')?.dispatchEvent(
-                  new MouseEvent('click', { bubbles: true })
-                );
-              }}
+              onClick={() => { setActiveTab('validation'); }}
               className="bg-amber-800/30 hover:bg-amber-800/50 border-amber-900/50 text-white"
             >
               <ListChecks className="mr-2 h-4 w-4" />
@@ -707,19 +700,17 @@ const MMPUpload = () => {
                   />
                 </div>
 
-                <Tabs defaultValue="upload" className="w-full">
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                   <TabsList>
                     <TabsTrigger value="upload">Upload File</TabsTrigger>
                     <TabsTrigger 
                       value="preview" 
-                      disabled={previewData.length === 0}
                       onClick={() => setShowPreview(true)}
                     >
                       Data Preview
                     </TabsTrigger>
                     <TabsTrigger 
                       value="validation" 
-                      disabled={validationResults === 'idle'}
                     >
                       Validation Results
                     </TabsTrigger>
@@ -872,7 +863,7 @@ const MMPUpload = () => {
                   </TabsContent>
                   
                   <TabsContent value="preview" className="pt-4">
-                    {showPreview && previewData.length > 0 && (
+                    {previewData.length > 0 ? (
                       <div className="space-y-4">
                         <div className="flex items-center justify-between">
                           <h3 className="text-lg font-medium">Data Preview</h3>
@@ -937,11 +928,27 @@ const MMPUpload = () => {
                           </p>
                         </div>
                       </div>
+                    ) : (
+                      <div className="text-sm text-muted-foreground">
+                        No preview available yet. Upload a file and run validation to see a preview.
+                      </div>
                     )}
                   </TabsContent>
                   
                   <TabsContent value="validation" className="pt-4">
-                    {validationResults !== 'idle' && (
+                    {validationResults === 'idle' ? (
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-lg font-medium">Validation Results</h3>
+                          <Button variant="outline" size="sm" onClick={() => form.handleSubmit(onSubmit)()}>
+                            Run Validation
+                          </Button>
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          No validation has been run yet. Upload a file and click "Validate File" to see results.
+                        </div>
+                      </div>
+                    ) : (
                       <div className="space-y-4">
                         <div className="flex items-center justify-between">
                           <h3 className="text-lg font-medium">Validation Results</h3>
