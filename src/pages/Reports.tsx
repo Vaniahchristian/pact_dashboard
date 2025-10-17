@@ -533,11 +533,11 @@ const Reports: React.FC = () => {
   const getChartData = (reportType: string) => {
     switch (reportType) {
       case "site_visits":
-        return generateSiteVisitsChartData(siteVisits.map(buildSiteVisitsRows).flat());
+        return generateSiteVisitsChartData(buildSiteVisitsRows(siteVisits));
       case "project_budget":
-        return generateProjectBudgetChartData(projects.map(buildProjectBudgetRows).flat());
+        return generateProjectBudgetChartData(buildProjectBudgetRows(projects));
       case "mmp_progress":
-        return generateMMPProgressChartData(mmpFiles.map(buildMMPProgressRows).flat());
+        return generateMMPProgressChartData(buildMMPProgressRows(mmpFiles));
       case "team_performance":
         return generateTeamPerformanceChartData(buildTeamPerformanceRows(siteVisits, profiles));
       default:
