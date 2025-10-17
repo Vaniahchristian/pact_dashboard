@@ -20,6 +20,7 @@ import {
   BarChart4,
   FileSpreadsheet,
   FileBarChart,
+  FileDown,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -34,6 +35,18 @@ import { DatePickerWithRange } from "@/components/ui/date-range-picker";
 import { DateRange } from "react-day-picker";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
+import {
+  generateSiteVisitsPDF,
+  generateProjectBudgetPDF,
+  generateMMPProgressPDF,
+  generateTeamPerformancePDF,
+} from "@/utils/pdfReportGenerator";
+import ReportChart, {
+  generateSiteVisitsChartData,
+  generateProjectBudgetChartData,
+  generateMMPProgressChartData,
+  generateTeamPerformanceChartData,
+} from "@/components/reports/ReportChart";
 
 const Reports: React.FC = () => {
   const [activeTab, setActiveTab] = useState("financial");
@@ -46,6 +59,9 @@ const Reports: React.FC = () => {
   const [mmpFiles, setMmpFiles] = useState<any[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
+  const [chartCanvas, setChartCanvas] = useState<HTMLCanvasElement | null>(null);
+  const [showChart, setShowChart] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const handleBackToDashboard = () => {
     navigate("/dashboard");
@@ -104,6 +120,59 @@ const Reports: React.FC = () => {
     };
     load();
   }, [dateRange]);
+
+  const fetchLatestForReports = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      let svQuery = supabase.from("site_visits").select("*");
+      let mmpQuery = supabase.from("mmp_files").select("*");
+      let projQuery = supabase.from("projects").select("*");
+      let profQuery = supabase.from("profiles").select("id, full_name, role, email");
+
+      if (dateRange?.from) {
+        const from = startOfDay(dateRange.from).toISOString();
+        svQuery = svQuery.gte("due_date", from);
+        mmpQuery = mmpQuery.gte("created_at", from);
+        projQuery = projQuery.gte("created_at", from);
+      }
+      if (dateRange?.to) {
+        const to = endOfDay(dateRange.to).toISOString();
+        svQuery = svQuery.lte("due_date", to);
+        mmpQuery = mmpQuery.lte("created_at", to);
+        projQuery = projQuery.lte("created_at", to);
+      }
+
+      svQuery = svQuery.order("due_date", { ascending: false });
+      mmpQuery = mmpQuery.order("created_at", { ascending: false });
+      projQuery = projQuery.order("created_at", { ascending: false });
+
+      const [svRes, mmpRes, projRes, profRes] = await Promise.all([
+        svQuery,
+        mmpQuery,
+        projQuery,
+        profQuery,
+      ]);
+
+      if (svRes.error) throw svRes.error;
+      if (mmpRes.error) throw mmpRes.error;
+      if (projRes.error) throw projRes.error;
+      if (profRes.error) throw profRes.error;
+
+      return {
+        siteVisits: svRes.data || [],
+        mmpFiles: mmpRes.data || [],
+        projects: projRes.data || [],
+        profiles: profRes.data || [],
+      };
+    } catch (e: any) {
+      setError(e?.message || "Failed to load reports data");
+      throw e;
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const recentReports = useMemo(() => {
     const now = new Date().toISOString();
@@ -191,6 +260,27 @@ const Reports: React.FC = () => {
     saveAs(blob, fileName);
   };
 
+  const exportPDF = async (rows: any[], reportType: string, baseName: string) => {
+    const dateRangeObj = dateRange ? { from: dateRange.from, to: dateRange.to } : undefined;
+    
+    switch (reportType) {
+      case "site_visits":
+        await generateSiteVisitsPDF(rows, dateRangeObj, chartCanvas || undefined);
+        break;
+      case "project_budget":
+        await generateProjectBudgetPDF(rows, dateRangeObj, chartCanvas || undefined);
+        break;
+      case "mmp_progress":
+        await generateMMPProgressPDF(rows, dateRangeObj, chartCanvas || undefined);
+        break;
+      case "team_performance":
+        await generateTeamPerformancePDF(rows, dateRangeObj, chartCanvas || undefined);
+        break;
+      default:
+        console.warn("Unknown report type for PDF export:", reportType);
+    }
+  };
+
   const buildSiteVisitsRows = (visits: any[]) => {
     return visits.filter(v => inRange(v.due_date || v.created_at)).map((v) => ({
       "Site Name": v.site_name || "",
@@ -208,7 +298,9 @@ const Reports: React.FC = () => {
   };
 
   const buildProjectBudgetRows = (projs: any[]) => {
-    return projs.map((p) => ({
+    return projs
+      .filter((p) => inRange(p.updated_at || p.created_at))
+      .map((p) => ({
       "Project Name": p.name || "",
       "Project Code": p.project_code || "",
       "Status": p.status || "",
@@ -221,7 +313,9 @@ const Reports: React.FC = () => {
   };
 
   const buildMMPProgressRows = (mmps: any[]) => {
-    return mmps.map((m) => ({
+    return mmps
+      .filter((m) => inRange(m.uploaded_at || m.created_at))
+      .map((m) => ({
       "Name": m.name || "",
       "Status": m.status || "",
       "Entries": m.entries ?? "",
@@ -256,20 +350,33 @@ const Reports: React.FC = () => {
     }));
   };
 
-  const handleDownloadReport = (report) => {
+  const handleDownloadReport = async (report) => {
     try {
+      setExporting(true);
+
+      const latest = await fetchLatestForReports();
+      const sv = latest.siteVisits;
+      const mmps = latest.mmpFiles;
+      const projs = latest.projects;
+      const profs = latest.profiles;
+
+      setSiteVisits(sv);
+      setMmpFiles(mmps);
+      setProjects(projs);
+      setProfiles(profs);
+
       switch (report.id) {
         case "financial_site_visits_fees":
-          exportXLSX(buildSiteVisitsRows(siteVisits), "site_visits_fees_summary");
+          exportXLSX(buildSiteVisitsRows(sv), "site_visits_fees_summary");
           break;
         case "financial_project_budget":
-          exportXLSX(buildProjectBudgetRows(projects), "project_budget_summary");
+          exportXLSX(buildProjectBudgetRows(projs), "project_budget_summary");
           break;
         case "operational_site_visits":
-          exportXLSX(buildSiteVisitsRows(siteVisits), "site_visits_performance");
+          exportXLSX(buildSiteVisitsRows(sv), "site_visits_performance");
           break;
         case "operational_mmp_progress":
-          exportXLSX(buildMMPProgressRows(mmpFiles), "mmp_implementation_progress");
+          exportXLSX(buildMMPProgressRows(mmps), "mmp_implementation_progress");
           break;
         default:
           exportXLSX([], "report");
@@ -285,19 +392,81 @@ const Reports: React.FC = () => {
         description: e?.message || "Unable to generate the report",
         variant: "destructive",
       });
+    } finally {
+      setExporting(false);
     }
   };
 
-  const handleGenerateReport = (reportType) => {
+  const handleDownloadPDFReport = async (report) => {
     try {
+      setExporting(true);
+
+      const latest = await fetchLatestForReports();
+      const sv = latest.siteVisits;
+      const mmps = latest.mmpFiles;
+      const projs = latest.projects;
+      const profs = latest.profiles;
+
+      setSiteVisits(sv);
+      setMmpFiles(mmps);
+      setProjects(projs);
+      setProfiles(profs);
+
+      switch (report.id) {
+        case "financial_site_visits_fees":
+          await exportPDF(buildSiteVisitsRows(sv), "site_visits", "site_visits_fees_summary");
+          break;
+        case "financial_project_budget":
+          await exportPDF(buildProjectBudgetRows(projs), "project_budget", "project_budget_summary");
+          break;
+        case "operational_site_visits":
+          await exportPDF(buildSiteVisitsRows(sv), "site_visits", "site_visits_performance");
+          break;
+        case "operational_mmp_progress":
+          await exportPDF(buildMMPProgressRows(mmps), "mmp_progress", "mmp_implementation_progress");
+          break;
+        default:
+          await exportPDF([], "site_visits", "report");
+      }
+      
+      toast({
+        title: "PDF Report Generated",
+        description: `${report.name} has been downloaded as PDF`,
+      });
+    } catch (e: any) {
+      toast({
+        title: "PDF Export failed",
+        description: e?.message || "Unable to generate the PDF report",
+        variant: "destructive",
+      });
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleGenerateReport = async (reportType) => {
+    try {
+      setExporting(true);
+
+      const latest = await fetchLatestForReports();
+      const sv = latest.siteVisits;
+      const mmps = latest.mmpFiles;
+      const projs = latest.projects;
+      const profs = latest.profiles;
+
+      setSiteVisits(sv);
+      setMmpFiles(mmps);
+      setProjects(projs);
+      setProfiles(profs);
+
       if (reportType === "Financial Summary") {
-        exportXLSX(buildSiteVisitsRows(siteVisits), "financial_summary");
+        exportXLSX(buildSiteVisitsRows(sv), "financial_summary");
       } else if (reportType === "Site Visit Report") {
-        exportXLSX(buildSiteVisitsRows(siteVisits), "site_visit_report");
+        exportXLSX(buildSiteVisitsRows(sv), "site_visit_report");
       } else if (reportType === "Team Performance Report") {
-        exportXLSX(buildTeamPerformanceRows(siteVisits, profiles), "team_performance_report");
+        exportXLSX(buildTeamPerformanceRows(sv, profs), "team_performance_report");
       } else if (reportType === "MMP Implementation Report") {
-        exportXLSX(buildMMPProgressRows(mmpFiles), "mmp_implementation_report");
+        exportXLSX(buildMMPProgressRows(mmps), "mmp_implementation_report");
       } else {
         exportXLSX([], reportType.toLowerCase().replace(/\s+/g, '_'));
       }
@@ -316,11 +485,64 @@ const Reports: React.FC = () => {
     }
   };
 
+  const handleGeneratePDFReport = async (reportType) => {
+    try {
+      setExporting(true);
+
+      const latest = await fetchLatestForReports();
+      const sv = latest.siteVisits;
+      const mmps = latest.mmpFiles;
+      const projs = latest.projects;
+      const profs = latest.profiles;
+
+      setSiteVisits(sv);
+      setMmpFiles(mmps);
+      setProjects(projs);
+      setProfiles(profs);
+
+      if (reportType === "Financial Summary") {
+        await exportPDF(buildSiteVisitsRows(sv), "site_visits", "financial_summary");
+      } else if (reportType === "Site Visit Report") {
+        await exportPDF(buildSiteVisitsRows(sv), "site_visits", "site_visit_report");
+      } else if (reportType === "Team Performance Report") {
+        await exportPDF(buildTeamPerformanceRows(sv, profs), "team_performance", "team_performance_report");
+      } else if (reportType === "MMP Implementation Report") {
+        await exportPDF(buildMMPProgressRows(mmps), "mmp_progress", "mmp_implementation_report");
+      }
+      
+      toast({
+        title: "PDF Report Generated",
+        description: `${reportType} report has been generated as PDF`,
+      });
+    } catch (e: any) {
+      toast({
+        title: "PDF Export failed",
+        description: e?.message || "Unable to generate the PDF report",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleUseTemplate = (template) => {
     toast({
       title: "Template Selected",
       description: `${template.name} template is ready to use`
     });
+  };
+
+  const getChartData = (reportType: string) => {
+    switch (reportType) {
+      case "site_visits":
+        return generateSiteVisitsChartData(siteVisits.map(buildSiteVisitsRows).flat());
+      case "project_budget":
+        return generateProjectBudgetChartData(projects.map(buildProjectBudgetRows).flat());
+      case "mmp_progress":
+        return generateMMPProgressChartData(mmpFiles.map(buildMMPProgressRows).flat());
+      case "team_performance":
+        return generateTeamPerformanceChartData(buildTeamPerformanceRows(siteVisits, profiles));
+      default:
+        return null;
+    }
   };
 
   return (
@@ -375,10 +597,39 @@ const Reports: React.FC = () => {
                 <CardTitle>Financial Reports</CardTitle>
                 <CardDescription>View and download financial reports and analyses</CardDescription>
               </div>
-              <div className="flex gap-2">
-                <Button className="flex items-center gap-2" onClick={() => handleGenerateReport("Financial Summary")}>
-                  <FileText className="h-4 w-4" />
-                  Generate Report
+              <div className="flex gap-2 flex-wrap">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button className="flex items-center gap-2" disabled={exporting}>
+                      <FileText className="h-4 w-4" />
+                      Generate Excel
+                      <ChevronDown className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => handleGenerateReport("Financial Summary")}>Financial Summary</DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button className="flex items-center gap-2" disabled={exporting} variant="outline">
+                      <FileDown className="h-4 w-4" />
+                      Generate PDF
+                      <ChevronDown className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => handleGeneratePDFReport("Financial Summary")}>Financial Summary PDF</DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowChart(!showChart)}
+                  className="flex items-center gap-2"
+                >
+                  <BarChart4 className="h-4 w-4" />
+                  {showChart ? 'Hide' : 'Show'} Chart
                 </Button>
                 <div className="w-[250px]">
                   <DatePickerWithRange dateRange={dateRange} onDateRangeChange={setDateRange} />
@@ -391,6 +642,17 @@ const Reports: React.FC = () => {
               )}
               {loading && (
                 <div className="text-sm text-muted-foreground mb-3">Loading data...</div>
+              )}
+              {showChart && siteVisits.length > 0 && (
+                <div className="mb-6">
+                  <h3 className="text-lg font-semibold mb-4">Site Visits Overview</h3>
+                  <ReportChart
+                    type="pie"
+                    data={getChartData("site_visits")}
+                    title="Site Visits by Status"
+                    onChartReady={(canvas) => setChartCanvas(canvas)}
+                  />
+                </div>
               )}
               <div className="rounded-md border overflow-x-auto">
                 <Table>
@@ -413,9 +675,14 @@ const Reports: React.FC = () => {
                           <TableCell>{report.format}</TableCell>
                           <TableCell>{report.size}</TableCell>
                           <TableCell className="text-right">
-                            <Button variant="ghost" size="sm" onClick={() => handleDownloadReport(report)}>
-                              <Download className="h-4 w-4 mr-1" /> Download
-                            </Button>
+                            <div className="flex gap-1">
+                              <Button variant="ghost" size="sm" disabled={exporting} onClick={() => handleDownloadReport(report)}>
+                                <Download className="h-4 w-4 mr-1" /> Excel
+                              </Button>
+                              <Button variant="ghost" size="sm" disabled={exporting} onClick={() => handleDownloadPDFReport(report)}>
+                                <FileDown className="h-4 w-4 mr-1" /> PDF
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -434,11 +701,12 @@ const Reports: React.FC = () => {
                 <CardTitle>Operational Reports</CardTitle>
                 <CardDescription>View and manage operational metrics and performance</CardDescription>
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button className="flex items-center gap-2">
-                      Generate Report
+                    <Button className="flex items-center gap-2" disabled={loading}>
+                      <FileText className="h-4 w-4" />
+                      Generate Excel
                       <ChevronDown className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
@@ -448,6 +716,29 @@ const Reports: React.FC = () => {
                     <DropdownMenuItem onClick={() => handleGenerateReport("MMP Implementation Report")}>MMP Implementation Report</DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button className="flex items-center gap-2" disabled={loading} variant="outline">
+                      <FileDown className="h-4 w-4" />
+                      Generate PDF
+                      <ChevronDown className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => handleGeneratePDFReport("Site Visit Report")}>Site Visit Report PDF</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleGeneratePDFReport("Team Performance Report")}>Team Performance PDF</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleGeneratePDFReport("MMP Implementation Report")}>MMP Implementation PDF</DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowChart(!showChart)}
+                  className="flex items-center gap-2"
+                >
+                  <BarChart4 className="h-4 w-4" />
+                  {showChart ? 'Hide' : 'Show'} Chart
+                </Button>
                 <div className="w-[250px]">
                   <DatePickerWithRange dateRange={dateRange} onDateRangeChange={setDateRange} />
                 </div>
@@ -459,6 +750,32 @@ const Reports: React.FC = () => {
               )}
               {loading && (
                 <div className="text-sm text-muted-foreground mb-3">Loading data...</div>
+              )}
+              {showChart && (siteVisits.length > 0 || mmpFiles.length > 0) && (
+                <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {siteVisits.length > 0 && (
+                    <div>
+                      <h3 className="text-lg font-semibold mb-4">Site Visits Performance</h3>
+                      <ReportChart
+                        type="bar"
+                        data={getChartData("site_visits")}
+                        title="Site Visits by Status"
+                        onChartReady={(canvas) => setChartCanvas(canvas)}
+                      />
+                    </div>
+                  )}
+                  {mmpFiles.length > 0 && (
+                    <div>
+                      <h3 className="text-lg font-semibold mb-4">MMP Progress</h3>
+                      <ReportChart
+                        type="bar"
+                        data={getChartData("mmp_progress")}
+                        title="MMP Implementation Progress"
+                        onChartReady={(canvas) => setChartCanvas(canvas)}
+                      />
+                    </div>
+                  )}
+                </div>
               )}
               <div className="rounded-md border overflow-x-auto">
                 <Table>
@@ -481,9 +798,14 @@ const Reports: React.FC = () => {
                           <TableCell>{report.format}</TableCell>
                           <TableCell>{report.size}</TableCell>
                           <TableCell className="text-right">
-                            <Button variant="ghost" size="sm" onClick={() => handleDownloadReport(report)}>
-                              <Download className="h-4 w-4 mr-1" /> Download
-                            </Button>
+                            <div className="flex gap-1">
+                              <Button variant="ghost" size="sm" disabled={loading} onClick={() => handleDownloadReport(report)}>
+                                <Download className="h-4 w-4 mr-1" /> Excel
+                              </Button>
+                              <Button variant="ghost" size="sm" disabled={loading} onClick={() => handleDownloadPDFReport(report)}>
+                                <FileDown className="h-4 w-4 mr-1" /> PDF
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
