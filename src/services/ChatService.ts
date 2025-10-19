@@ -69,6 +69,46 @@ export class ChatService {
     }
   }
 
+  // Find an existing private chat by pair_key among chats the user participates in
+  static async getMyChatByPairKey(userId: string, pairKey: string): Promise<DatabaseChat | null> {
+    try {
+      const { data: cpRows, error: cpError } = await supabase
+        .from('chat_participants')
+        .select('chat_id')
+        .eq('user_id', userId);
+
+      if (cpError) return null;
+
+      const chatIds = (cpRows || []).map((r: { chat_id: string }) => r.chat_id);
+      if (chatIds.length === 0) return null;
+
+      const { data, error } = await supabase
+        .from('chats')
+        .select(`
+          id,
+          name,
+          type,
+          is_group,
+          created_by,
+          state_id,
+          related_entity_id,
+          related_entity_type,
+          created_at,
+          updated_at,
+          pair_key
+        `)
+        .eq('type', 'private')
+        .eq('pair_key', pairKey)
+        .in('id', chatIds)
+        .single();
+
+      if (error) return null;
+      return data as DatabaseChat;
+    } catch {
+      return null;
+    }
+  }
+
   // Get existing private chat by pair key
   static async getPrivateChatByPairKey(pairKey: string): Promise<DatabaseChat | null> {
     try {

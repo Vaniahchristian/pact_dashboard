@@ -81,8 +81,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
           participants: [], // Will be populated separately
           status: 'active',
         }));
-        
-        setChats(convertedChats);
+        // Deduplicate by id to avoid transient duplicates
+        const uniqueChats = Array.from(new Map(convertedChats.map(c => [c.id, c])).values());
+        setChats(uniqueChats);
         
         // Load participants for each chat
         for (const chat of convertedChats) {
@@ -164,7 +165,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const subscribeToChat = (chatId: string) => {
     // Check if already subscribed
-    const isSubscribed = channels.some(channel => channel.topic === `realtime:chat_messages:chat_id=eq.${chatId}`);
+    const isSubscribed = channels.some(channel => channel.topic === `chat:${chatId}`);
     if (isSubscribed) return;
 
     const channel = supabase
@@ -180,22 +181,26 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         (payload) => {
           // Handle new message
           const newMessage = payload.new;
-          setMessages(prevMessages => ({
-            ...prevMessages,
-            [chatId]: [...(prevMessages[chatId] || []), {
-              id: newMessage.id,
-              chatId: newMessage.chat_id,
-              senderId: newMessage.sender_id,
-              content: newMessage.content,
-              contentType: newMessage.content_type,
-              timestamp: newMessage.created_at,
-              status: newMessage.status,
-              attachments: newMessage.attachments,
-              metadata: newMessage.metadata,
-              readBy: [],
-              read: false,
-            }]
-          }));
+          setMessages(prevMessages => {
+            const existing = prevMessages[chatId] || [];
+            if (existing.some(m => m.id === newMessage.id)) return prevMessages;
+            return {
+              ...prevMessages,
+              [chatId]: [...existing, {
+                id: newMessage.id,
+                chatId: newMessage.chat_id,
+                senderId: newMessage.sender_id,
+                content: newMessage.content,
+                contentType: newMessage.content_type,
+                timestamp: newMessage.created_at,
+                status: newMessage.status,
+                attachments: newMessage.attachments,
+                metadata: newMessage.metadata,
+                readBy: [],
+                read: false,
+              }]
+            };
+          });
         }
       )
       .subscribe();
@@ -256,10 +261,14 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
           read: false,
         };
 
-        setMessages(prevMessages => ({
-          ...prevMessages,
-          [chatId]: [...(prevMessages[chatId] || []), newMessage],
-        }));
+        setMessages(prevMessages => {
+          const existing = prevMessages[chatId] || [];
+          if (existing.some(m => m.id === newMessage.id)) return prevMessages;
+          return {
+            ...prevMessages,
+            [chatId]: [...existing, newMessage],
+          };
+        });
 
         // Update chat's last message
         setChats(prevChats => 
@@ -334,8 +343,12 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const ids = [currentUser.id, otherId].sort();
         pairKey = `${ids[0]}:${ids[1]}`;
 
-        // Check if a chat already exists for this pair
-        const existingDb = await ChatService.getPrivateChatByPairKey(pairKey);
+        // Check if a chat already exists for this pair that current user can access
+        let existingDb = await ChatService.getMyChatByPairKey(currentUser.id, pairKey);
+        if (!existingDb) {
+          // Fallback: direct lookup (in case of owner-created chats)
+          existingDb = await ChatService.getPrivateChatByPairKey(pairKey);
+        }
         if (existingDb) {
           const existingChat: Chat = {
             id: existingDb.id,
@@ -353,7 +366,11 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
           };
 
           // Add to state if not present and load participants
-          setChats(prev => prev.some(c => c.id === existingChat.id) ? prev : [...prev, existingChat]);
+          setChats(prev => {
+            const map = new Map(prev.map(c => [c.id, c]));
+            map.set(existingChat.id, existingChat);
+            return Array.from(map.values());
+          });
           await loadChatParticipants(existingChat.id);
           return existingChat;
         }
@@ -390,7 +407,11 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
           status: 'active',
         };
 
-        setChats(prevChats => [...prevChats, newChat]);
+        setChats(prevChats => {
+          const map = new Map(prevChats.map(c => [c.id, c]));
+          map.set(newChat.id, newChat);
+          return Array.from(map.values());
+        });
         return newChat;
       }
     } catch (err: any) {
