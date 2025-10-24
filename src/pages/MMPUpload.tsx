@@ -178,7 +178,7 @@ const MMPUpload = () => {
       if (selectedHub && result.hubOffices.length > 0) {
         const hubErrors = validateHubMatch(result.hubOffices, selectedHub, hubs);
         if (hubErrors.length > 0) {
-          setValidationErrors(prev => [
+          setValidationWarnings(prev => [
             ...prev,
             ...hubErrors.map(e => e.message)
           ]);
@@ -348,7 +348,7 @@ const MMPUpload = () => {
         });
       } else {
         // Handle case where uploadMMP returns success: false
-        const errorMessage = 'Upload failed for unknown reason';
+        const errorMessage = result?.error || 'Upload failed for unknown reason';
         console.error('Upload failed:', errorMessage);
         toast({
           title: "Upload failed",

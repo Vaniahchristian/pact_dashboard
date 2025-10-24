@@ -135,9 +135,9 @@ export const validateCSV = async (file: File): Promise<CSVParseResult> => {
     );
     
     if (missingHeaders.length > 0) {
-      errors.push({
-        type: 'error',
-        message: `Missing required headers: ${missingHeaders.join(', ')}`,
+      warnings.push({
+        type: 'warning',
+        message: `Missing headers: ${missingHeaders.join(', ')}`,
         category: 'missing_headers'
       });
     }
@@ -188,9 +188,13 @@ export const validateCSV = async (file: File): Promise<CSVParseResult> => {
         
         // Validate parsed date
         if (!isValid(parsedDate)) {
-          errors.push({
-            type: 'error',
-            message: 'Visit Date must be in DD-MM-YYYY or YYYY-MM-DD format',
+          // Fallback to today's date but report as warning
+          const today = new Date();
+          record['OriginalDate'] = format(today, 'yyyy-MM-dd');
+          record['Visit Date'] = format(today, 'dd-MM-yyyy');
+          warnings.push({
+            type: 'warning',
+            message: 'Invalid Visit Date format, using today\'s date',
             row,
             column: 'Visit Date',
             category: 'invalid_date_format'
@@ -207,16 +211,16 @@ export const validateCSV = async (file: File): Promise<CSVParseResult> => {
       // Validate site code if present
       if (record['Site Code']) {
         if (!validateSiteCode(record['Site Code'])) {
-          errors.push({
-            type: 'error',
+          warnings.push({
+            type: 'warning',
             message: 'Site Code must follow pattern [HH][SS][YYMMDD]-[0001] (e.g., KOKH230524-0001)',
             row,
             column: 'Site Code',
             category: 'invalid_site_code'
           });
         } else if (siteCodes.has(record['Site Code'])) {
-          errors.push({
-            type: 'error',
+          warnings.push({
+            type: 'warning',
             message: `Duplicate Site Code: ${record['Site Code']}`,
             row,
             column: 'Site Code',

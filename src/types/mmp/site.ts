@@ -1,12 +1,12 @@
 export interface MMPSiteEntry {
   id: string;
-  siteCode: string;
-  siteName: string;
-  inMoDa: boolean;
-  visitedBy: string;
-  mainActivity: string;
-  visitDate: string;
   status: string;
+  siteCode?: string;
+  siteName?: string;
+  inMoDa?: boolean;
+  visitedBy?: string;
+  mainActivity?: string;
+  visitDate?: string;
   isFlagged?: boolean;
   flagReason?: string;
   flaggedBy?: string;
@@ -18,6 +18,7 @@ export interface MMPSiteEntry {
   siteActivity?: string;
   visitType?: string;
   comments?: string;
+  additionalData?: Record<string, string>;
 }
 
 export interface MMPSiteVisit {

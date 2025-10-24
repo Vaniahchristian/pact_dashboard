@@ -1,7 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { MMPFile, MMPSiteEntry } from '@/types';
 import { toast } from 'sonner';
-import * as XLSX from 'xlsx';
+import { validateCSV } from '@/utils/csvValidator';
 
 // Transform database record (snake_case) to MMPFile interface (camelCase)
 const transformDBToMMPFile = (dbRecord: any): MMPFile => {
@@ -49,120 +49,95 @@ const transformDBToMMPFile = (dbRecord: any): MMPFile => {
   };
 };
 
-// Parse Excel file and validate entries
+// Parse file through validateCSV and map rows to MMPSiteEntry while preserving unmapped columns
 async function parseAndCountEntries(file: File): Promise<{ entries: MMPSiteEntry[]; count: number; errors: string[] }> {
-  const errors: string[] = [];
+  const issues: string[] = [];
   const entries: MMPSiteEntry[] = [];
 
   try {
-    // Read file as array buffer
-    const arrayBuffer = await file.arrayBuffer();
-    const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+    const result = await validateCSV(file);
 
-    // Get the first worksheet
-    const sheetName = workbook.SheetNames[0];
-    const worksheet = workbook.Sheets[sheetName];
+    // Collect both errors and warnings as non-blocking issues for this stage
+    const toText = (e: any) => e.row ? `${e.message} (Row ${e.row})` : e.message;
+    issues.push(...result.errors.map(toText));
+    issues.push(...result.warnings.map(toText));
 
-    // Convert to JSON with header row (array-of-arrays)
-    const jsonData: any[] = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
-
-    if (jsonData.length < 2) {
-      errors.push('File must contain at least a header row and one data row');
-      return { entries: [], count: 0, errors };
-    }
-
-    // Assume first row is headers
-    const headers = jsonData[0] as string[];
-    const dataRows = jsonData.slice(1);
-
-    // Build a header index map using normalized header keys
     const norm = (s: string) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
-    const headerIndex: Record<string, number> = {};
-    headers.forEach((h, idx) => { headerIndex[norm(h)] = idx; });
 
-    // Define synonyms for each target field
-    const synonyms: Record<string, string[]> = {
-      hubOffice: ['huboffice', 'hub', 'office', 'sitecode'],
-      state: ['state', 'statename'],
-      locality: ['locality', 'localityname'],
-      siteName: ['sitename', 'site', 'facilityname'],
-      cpName: ['cpname', 'partner', 'implementingpartner', 'cp'],
-      mainActivity: ['mainactivity'],
-      siteActivity: ['activityatsite', 'siteactivity', 'activitysite'],
-      visitType: ['visittype', 'type'],
-      visitDate: ['visitdate', 'date'],
-      comments: ['comments', 'comment', 'remarks', 'notes']
+    // Normalized header -> MMPSiteEntry key mapping (includes synonyms)
+    const headerMap: Record<string, keyof MMPSiteEntry> = {
+      huboffice: 'hubOffice',
+      hub: 'hubOffice',
+      office: 'hubOffice',
+      sitecode: 'siteCode',
+      state: 'state',
+      statename: 'state',
+      locality: 'locality',
+      localityname: 'locality',
+      sitename: 'siteName',
+      site: 'siteName',
+      facilityname: 'siteName',
+      cpname: 'cpName',
+      partner: 'cpName',
+      implementingpartner: 'cpName',
+      cp: 'cpName',
+      mainactivity: 'mainActivity',
+      activityatsite: 'siteActivity',
+      siteactivity: 'siteActivity',
+      activitysite: 'siteActivity',
+      visittype: 'visitType',
+      type: 'visitType',
+      visitdate: 'visitDate',
+      date: 'visitDate',
+      comments: 'comments',
+      comment: 'comments',
+      remarks: 'comments',
+      notes: 'comments',
     };
 
-    const getVal = (row: any[], keys: string[]) => {
-      for (const k of keys) {
-        const idx = headerIndex[k];
-        if (idx !== undefined) return row[idx];
+    const timestamp = Date.now();
+
+    result.data.forEach((record: Record<string, any>, index: number) => {
+      const entry: MMPSiteEntry = {
+        id: `site-${timestamp}-${index}`,
+        status: 'Pending',
+      };
+
+      // Prefer ISO OriginalDate when present
+      if (record['OriginalDate']) {
+        entry.visitDate = String(record['OriginalDate']);
       }
-      return '';
-    };
 
-    // Soft validation: ensure we have at least these core columns
-    const requiredSets: Array<[string, string[]]> = [
-      ['Hub Office', synonyms.hubOffice],
-      ['State', synonyms.state],
-      ['Locality', synonyms.locality],
-      ['Site Name', synonyms.siteName],
-      ['CP Name', synonyms.cpName],
-      ['Main Activity', synonyms.mainActivity],
-      ['Visit Date', synonyms.visitDate],
-    ];
-    const missing: string[] = [];
-    for (const [label, keys] of requiredSets) {
-      if (!keys.some(k => headerIndex[k] !== undefined)) missing.push(label);
-    }
-    if (missing.length > 0) {
-      errors.push(`Missing recommended columns: ${missing.join(', ')}`);
-    }
-
-    // Process each data row
-    dataRows.forEach((row: any[], index: number) => {
-      try {
-        const entry: Partial<MMPSiteEntry> = {};
-
-        // Map by header synonyms to our unified camelCase shape
-        const hubOffice = getVal(row, synonyms.hubOffice) || '';
-        entry.hubOffice = hubOffice;
-        entry.siteCode = hubOffice; // keep compatibility
-
-        entry.state = getVal(row, synonyms.state) || '';
-        entry.locality = getVal(row, synonyms.locality) || '';
-        entry.siteName = getVal(row, synonyms.siteName) || '';
-        entry.cpName = getVal(row, synonyms.cpName) || '';
-        entry.mainActivity = getVal(row, synonyms.mainActivity) || '';
-        entry.siteActivity = getVal(row, synonyms.siteActivity) || '';
-        entry.visitType = getVal(row, synonyms.visitType) || '';
-        entry.visitDate = getVal(row, synonyms.visitDate) || '';
-        entry.comments = getVal(row, synonyms.comments) || '';
-
-        // Defaults/compatibility
-        entry.status = entry.status || 'Pending';
-
-        // Validate required fields
-        if (!entry.hubOffice || !entry.siteName) {
-          errors.push(`Row ${index + 2}: Missing required fields (Hub Office, Site Name)`);
-          return;
+      // Assign mapped fields by normalized header
+      for (const [header, raw] of Object.entries(record)) {
+        const n = norm(header);
+        if (n === 'originaldate') continue; // handled above
+        const target = headerMap[n];
+        if (target) {
+          (entry as any)[target] = String(raw ?? '');
         }
-
-        
-        // Generate ID
-        entry.id = `site-${Date.now()}-${index}`;
-
-        entries.push(entry as MMPSiteEntry);
-      } catch (error) {
-        errors.push(`Row ${index + 2}: ${error instanceof Error ? error.message : 'Invalid data'}`);
       }
+
+      // Build additionalData from any non-mapped, non-empty fields
+      const additional: Record<string, string> = {};
+      for (const [header, value] of Object.entries(record)) {
+        const n = norm(header);
+        if (n === 'originaldate') continue;
+        if (!headerMap[n] && String(value ?? '').trim() !== '') {
+          additional[header] = String(value);
+        }
+      }
+      if (Object.keys(additional).length > 0) {
+        entry.additionalData = additional;
+      }
+
+      entries.push(entry);
     });
 
-    return { entries, count: entries.length, errors };
+    return { entries, count: entries.length, errors: issues.map(msg => `⚠️ ${msg}`) };
   } catch (error) {
-    errors.push(`File parsing error: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    return { entries: [], count: 0, errors };
+    const message = `File parsing error: ${error instanceof Error ? error.message : 'Unknown error'}`;
+    return { entries: [], count: 0, errors: [message] };
   }
 }
 
@@ -202,7 +177,8 @@ export async function uploadMMPFile(file: File, projectId?: string): Promise<{ s
     if (storageError) {
       console.error('Storage upload error:', storageError);
       toast.error('Failed to upload file to storage');
-      return { success: false, error: 'Failed to upload file to storage: ' + storageError.message };
+      const storageErrMsg = storageError?.message || JSON.stringify(storageError);
+      return { success: false, error: 'Failed to upload file to storage: ' + storageErrMsg };
     }
 
     // Get the public URL for the uploaded file
@@ -274,7 +250,8 @@ export async function uploadMMPFile(file: File, projectId?: string): Promise<{ s
       }
       console.error('Database insert error:', insertError);
       toast.error('Failed to save MMP data');
-      return { success: false, error: 'Failed to save MMP data: ' + insertError.message };
+      const insertErrMsg = insertError?.message || JSON.stringify(insertError);
+      return { success: false, error: 'Failed to save MMP data: ' + insertErrMsg };
     }
     
     // Use the returned row; if it's not present, fetch by unique key (file_path)
