@@ -33,38 +33,51 @@ const MMPOverviewCard = ({ mmpFile, siteEntries, onProceedToVerification, onEdit
       <CardContent className="space-y-6 p-6">
         <div>
           <h3 className="text-lg font-medium mb-3">Site Distribution by State</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {totalEntries > 0 ? (
-              Array(Math.min(3, Math.ceil((totalEntries) / 5))).fill(null).map((_, index) => {
-                const stateName = ["North State", "Central State", "South State"][index];
-                const siteCount = Math.floor((totalEntries) / 3) + (index === 0 ? (totalEntries) % 3 : 0);
+          <div className="space-y-3 max-w-md">
+            {siteEntries && siteEntries.length > 0 ? (() => {
+              // Group sites by state and locality using actual data
+              const stateGroups: { [key: string]: { [key: string]: number } } = {};
+              
+              siteEntries.forEach(site => {
+                const state = site.state || site.state_name || 'Unknown State';
+                const locality = site.locality || site.locality_name || 'Unknown Locality';
+                
+                if (!stateGroups[state]) {
+                  stateGroups[state] = {};
+                }
+                if (!stateGroups[state][locality]) {
+                  stateGroups[state][locality] = 0;
+                }
+                stateGroups[state][locality]++;
+              });
+
+              const states = Object.keys(stateGroups).sort();
+              
+              return states.map(state => {
+                const localities = Object.keys(stateGroups[state]).sort();
+                const totalStateSites = localities.reduce((sum, locality) => sum + stateGroups[state][locality], 0);
                 
                 return (
-                  <div key={index} className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 border rounded-lg p-4 shadow-sm hover:shadow transition-shadow">
+                  <div key={state} className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 border rounded-lg p-4 shadow-sm">
                     <div className="flex justify-between items-center mb-3">
-                      <h4 className="font-medium text-blue-700 dark:text-blue-400">{stateName}</h4>
+                      <h4 className="font-medium text-blue-700 dark:text-blue-400">{state}</h4>
                       <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300">
-                        {siteCount} sites
+                        {totalStateSites} sites
                       </Badge>
                     </div>
                     <div className="space-y-2">
-                      {Array(Math.min(3, Math.ceil(siteCount / 2))).fill(null).map((_, localityIdx) => {
-                        const localityName = `${stateName} Locality ${localityIdx + 1}`;
-                        const localitySiteCount = Math.ceil(siteCount / 3) + (localityIdx === 0 ? siteCount % 3 : 0);
-                        
-                        return (
-                          <div key={localityIdx} className="flex justify-between text-sm p-2 bg-white dark:bg-gray-800 rounded">
-                            <span>{localityName}</span>
-                            <span className="text-muted-foreground">{localitySiteCount} sites</span>
-                          </div>
-                        );
-                      })}
+                      {localities.map(locality => (
+                        <div key={locality} className="flex justify-between text-sm p-2 bg-white dark:bg-gray-800 rounded">
+                          <span>{locality}</span>
+                          <span className="text-muted-foreground">{stateGroups[state][locality]} sites</span>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 );
-              })
-            ) : (
-              <div className="col-span-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 p-4 rounded-lg">
+              });
+            })() : (
+              <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 p-4 rounded-lg">
                 <p className="text-amber-800 dark:text-amber-300 text-center">
                   No site entries available for distribution display
                 </p>
