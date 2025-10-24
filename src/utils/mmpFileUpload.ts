@@ -66,6 +66,7 @@ async function parseAndCountEntries(file: File): Promise<{ entries: MMPSiteEntry
 
     // Normalized header -> MMPSiteEntry key mapping (includes synonyms)
     const headerMap: Record<string, keyof MMPSiteEntry> = {
+      // Basic fields
       huboffice: 'hubOffice',
       hub: 'hubOffice',
       office: 'hubOffice',
@@ -82,9 +83,6 @@ async function parseAndCountEntries(file: File): Promise<{ entries: MMPSiteEntry
       implementingpartner: 'cpName',
       cp: 'cpName',
       mainactivity: 'mainActivity',
-      activityatsite: 'siteActivity',
-      siteactivity: 'siteActivity',
-      activitysite: 'siteActivity',
       visittype: 'visitType',
       type: 'visitType',
       visitdate: 'visitDate',
@@ -93,11 +91,38 @@ async function parseAndCountEntries(file: File): Promise<{ entries: MMPSiteEntry
       comment: 'comments',
       remarks: 'comments',
       notes: 'comments',
+      // Monitoring Plan specific fields
+      activityatsite: 'siteActivity',
+      siteactivity: 'siteActivity',
+      activitysite: 'siteActivity',
+      'activity at the site': 'siteActivity',
+      monitoringby: 'monitoringBy',
+      'monitoring by': 'monitoringBy',
+      'monitoring by:': 'monitoringBy',
+      surveytool: 'surveyTool',
+      'survey under master tool': 'surveyTool',
+      'survey under master tool:': 'surveyTool',
+      usemarketdiversion: 'useMarketDiversion',
+      'use market diversion monitoring': 'useMarketDiversion',
+      'use market diversion monitorir': 'useMarketDiversion',
+      usewarehousemonitoring: 'useWarehouseMonitoring',
+      'use warehouse monitoring': 'useWarehouseMonitoring',
+      'use warehouse monitorin': 'useWarehouseMonitoring',
     };
 
     const timestamp = Date.now();
 
     result.data.forEach((record: Record<string, any>, index: number) => {
+      // Skip empty rows (where all key fields are empty)
+      const hasData = record['Site Name'] || record['siteName'] || record['Site Name:'] || 
+                     record['Hub Office'] || record['hubOffice'] || record['Hub Office:'] ||
+                     record['State'] || record['state'] || record['State:'] ||
+                     record['Locality'] || record['locality'] || record['Locality:'];
+      
+      if (!hasData) {
+        return; // Skip this empty row
+      }
+
       const entry: MMPSiteEntry = {
         id: `site-${timestamp}-${index}`,
         status: 'Pending',
@@ -108,13 +133,21 @@ async function parseAndCountEntries(file: File): Promise<{ entries: MMPSiteEntry
         entry.visitDate = String(record['OriginalDate']);
       }
 
-      // Assign mapped fields by normalized header
+      // Assign mapped fields by normalized header with proper type conversion
       for (const [header, raw] of Object.entries(record)) {
         const n = norm(header);
         if (n === 'originaldate') continue; // handled above
         const target = headerMap[n];
         if (target) {
-          (entry as any)[target] = String(raw ?? '');
+          const value = raw ?? '';
+          
+          // Handle boolean fields
+          if (target === 'useMarketDiversion' || target === 'useWarehouseMonitoring') {
+            const boolValue = String(value).toLowerCase().trim();
+            (entry as any)[target] = boolValue === 'yes' || boolValue === 'true' || boolValue === '1';
+          } else {
+            (entry as any)[target] = String(value);
+          }
         }
       }
 

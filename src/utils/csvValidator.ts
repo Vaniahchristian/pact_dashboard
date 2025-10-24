@@ -1,5 +1,4 @@
 
-// Fix the import to use validateSiteCode
 import { validateSiteCode } from './mmpIdGenerator';
 import { format, parse, isValid } from 'date-fns'; 
 import * as XLSX from 'xlsx';
@@ -33,9 +32,11 @@ const REQUIRED_HEADERS = [
   'Locality',
   'Site Name',
   'CP Name',
-  'Main Activity',
   'Activity at Site',
-  'Visit Type',
+  'Monitoring By',
+  'Survey under Master tool',
+  'Use Market Diversion Monitoring',
+  'Use Warehouse Monitoring',
   'Visit Date',
   'Comments'
 ];
@@ -262,14 +263,62 @@ export const validateCSV = async (file: File): Promise<CSVParseResult> => {
         });
       }
       
-      // Check for incomplete tool information
-      if (!record['Main Activity'] || !record['Activity at Site']) {
+      // Check for monitoring plan specific fields
+      if (!record['Activity at Site']) {
         warnings.push({
           type: 'warning',
-          message: 'Incomplete activity/tool information',
+          message: 'Missing Activity at Site',
           row,
-          category: 'incomplete_activity'
+          column: 'Activity at Site',
+          category: 'missing_field'
         });
+      }
+      
+      if (!record['Monitoring By']) {
+        warnings.push({
+          type: 'warning',
+          message: 'Missing Monitoring By',
+          row,
+          column: 'Monitoring By',
+          category: 'missing_field'
+        });
+      }
+      
+      if (!record['Survey under Master tool']) {
+        warnings.push({
+          type: 'warning',
+          message: 'Missing Survey under Master tool',
+          row,
+          column: 'Survey under Master tool',
+          category: 'missing_field'
+        });
+      }
+      
+      // Validate boolean fields for monitoring plan
+      if (record['Use Market Diversion Monitoring']) {
+        const value = String(record['Use Market Diversion Monitoring']).toLowerCase().trim();
+        if (!['yes', 'no', 'true', 'false', '1', '0', ''].includes(value)) {
+          warnings.push({
+            type: 'warning',
+            message: 'Use Market Diversion Monitoring should be Yes/No',
+            row,
+            column: 'Use Market Diversion Monitoring',
+            category: 'invalid_boolean'
+          });
+        }
+      }
+      
+      if (record['Use Warehouse Monitoring']) {
+        const value = String(record['Use Warehouse Monitoring']).toLowerCase().trim();
+        if (!['yes', 'no', 'true', 'false', '1', '0', ''].includes(value)) {
+          warnings.push({
+            type: 'warning',
+            message: 'Use Warehouse Monitoring should be Yes/No',
+            row,
+            column: 'Use Warehouse Monitoring',
+            category: 'invalid_boolean'
+          });
+        }
       }
       
       data.push(record);
@@ -481,6 +530,8 @@ function formatCategoryName(category: string): string {
       return 'Hub office mismatches';
     case 'incomplete_activity':
       return 'Incomplete activity info';
+    case 'invalid_boolean':
+      return 'Invalid boolean values';
     case 'file_structure':
       return 'File structure issues';
     case 'parse_error':
