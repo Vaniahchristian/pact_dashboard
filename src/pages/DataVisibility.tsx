@@ -73,6 +73,7 @@ import { useToast } from "@/hooks/use-toast";
 import { downloadMMPTemplate } from "@/utils/templateDownload";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { DynamicFieldTeamMap } from '@/components/map/DynamicFieldTeamMap';
+import { useMMP } from "@/context/mmp/MMPContext";
 
 const reportData = [
   {
@@ -143,47 +144,7 @@ const DataVisibility: React.FC = () => {
   const [loadingCollectors, setLoadingCollectors] = useState<boolean>(false);
   const [collectorsError, setCollectorsError] = useState<string | null>(null);
 
-  const [mmps, setMmps] = useState<MMPFile[]>([
-    {
-      id: "mmp-001",
-      name: "WASH_Program_2025.xlsx",
-      uploadedBy: "admin",
-      uploadedAt: new Date().toISOString(),
-      status: "approved",
-      entries: 15,
-      projectName: "WASH Program 2025",
-      region: "South Darfur",
-      siteEntries: [
-        { id: "site1", siteCode: "WAS-001", siteName: "Water Site 1", inMoDa: true, visitedBy: "user-1", mainActivity: "Water Testing", visitDate: new Date().toISOString(), status: "completed" }
-      ]
-    },
-    {
-      id: "mmp-002",
-      name: "Education_Initiative_Q2.xlsx",
-      uploadedBy: "admin",
-      uploadedAt: new Date().toISOString(),
-      status: "pending",
-      entries: 8,
-      projectName: "Education Initiative Q2",
-      region: "Khartoum",
-      siteEntries: [
-        { id: "site2", siteCode: "SCP-002", siteName: "School Site 1", inMoDa: true, visitedBy: "user-2", mainActivity: "Building Inspection", visitDate: new Date().toISOString(), status: "inProgress" }
-      ]
-    },
-    {
-      id: "mmp-003",
-      name: "Food_Security_North.xlsx",
-      uploadedBy: "admin",
-      uploadedAt: new Date().toISOString(),
-      status: "pending",
-      entries: 12,
-      projectName: "Food Security North",
-      region: "North Kordofan",
-      siteEntries: [
-        { id: "site3", siteCode: "FDM-003", siteName: "Food Distribution Site 1", inMoDa: true, visitedBy: "user-3", mainActivity: "Distribution", visitDate: new Date().toISOString(), status: "pending" }
-      ]
-    }
-  ]);
+  const { mmpFiles } = useMMP();
 
   const [projectFilter, setProjectFilter] = useState("all");
   const [regionFilter, setRegionFilter] = useState("all");
@@ -227,7 +188,6 @@ const DataVisibility: React.FC = () => {
     );
   };
 
-  // Only data collectors with valid coordinates
   const eligibleCollectors = React.useMemo(() => {
     const isCollector = (u: any) => {
       const roleVal = (u?.role || '').toString();
@@ -250,6 +210,69 @@ const DataVisibility: React.FC = () => {
     const matchesStatus = statusFilter === "all" || visit.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
+
+  const reportChartData = React.useMemo(() => {
+    const byProject: Record<string, { name: string; complete: number; pending: number; overdue: number }> = {};
+    const now = new Date();
+    (siteVisitsList || []).forEach((v) => {
+      const mmpId = v?.mmpDetails?.mmpId as string | undefined;
+      const mmp = (mmpFiles || []).find(m => m.id === mmpId);
+      const key = mmp?.projectName || mmp?.name || 'Unassigned';
+      if (!byProject[key]) byProject[key] = { name: key, complete: 0, pending: 0, overdue: 0 };
+      if (v.status === 'completed') byProject[key].complete += 1;
+      else {
+        const due = v.dueDate ? new Date(v.dueDate) : undefined;
+        const isOverdue = !!(due && due.getTime() < now.getTime());
+        if (isOverdue) byProject[key].overdue += 1; else byProject[key].pending += 1;
+      }
+    });
+    return Object.values(byProject)
+      .sort((a,b) => (b.complete + b.pending + b.overdue) - (a.complete + a.pending + a.overdue))
+      .slice(0, 8);
+  }, [siteVisitsList, mmpFiles]);
+
+  const coverageChartData = React.useMemo(() => {
+    const groups = new Map<string, { name: string; visits: number; completed: number }>();
+    (siteVisitsList || []).forEach((v) => {
+      const key = v.state || 'Unknown';
+      const g = groups.get(key) || { name: key, visits: 0, completed: 0 };
+      g.visits += 1;
+      if (v.status === 'completed') g.completed += 1;
+      groups.set(key, g);
+    });
+    const palette = ['#10b981','#a3e635','#fbbf24','#f87171','#60a5fa','#f472b6','#34d399','#f59e0b','#ef4444','#6366f1'];
+    return Array.from(groups.values()).map((g, i) => {
+      const value = g.visits ? Math.round((g.completed / g.visits) * 100) : 0;
+      return { name: g.name, value, visits: g.visits, completed: g.completed, x: g.visits, y: g.completed, color: palette[i % palette.length] };
+    });
+  }, [siteVisitsList]);
+
+  const kpi = React.useMemo(() => {
+    const total = siteVisitsList.length || 0;
+    const completedVisits = siteVisitsList.filter(v => v.status === 'completed');
+    const completed = completedVisits.length;
+    const onTimeCompleted = completedVisits.filter(v => v.dueDate && v.completedAt && new Date(v.completedAt) <= new Date(v.dueDate)).length;
+    const onTimeRate = completed > 0 ? Math.round((onTimeCompleted / completed) * 100) : 0;
+
+    const siteCoverage = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+    const goodDataCount = siteVisitsList.filter(v => {
+      const hasNotes = !!(v.notes && v.notes.trim().length > 0);
+      const hasAtt = Array.isArray(v.attachments) && v.attachments.length > 0;
+      const hasCoords = hasValidCoords(v.coordinates);
+      return hasNotes || hasAtt || hasCoords;
+    }).length;
+    const dataQuality = total > 0 ? Math.round((goodDataCount / total) * 100) : 0;
+
+    const alignedCount = siteVisitsList.filter(v => {
+      const mId = v?.mmpDetails?.mmpId;
+      if (!mId) return false;
+      return (mmpFiles || []).some(m => m.id === mId);
+    }).length;
+    const projectAlignment = total > 0 ? Math.round((alignedCount / total) * 100) : 0;
+
+    return { onTimeRate, siteCoverage, dataQuality, projectAlignment };
+  }, [siteVisitsList, mmpFiles]);
 
   const renderActiveShape = (props: any) => {
     const RADIAN = Math.PI / 180;
@@ -355,7 +378,7 @@ const DataVisibility: React.FC = () => {
   const prepareVisitData = () => {
     return filteredSiteVisits.map(visit => ({
       siteName: visit.siteName,
-      linkedMMP: mmps.find(m => m.id === visit.mmpDetails.mmpId)?.projectName || 'N/A',
+      linkedMMP: (mmpFiles || []).find(m => m.id === visit.mmpDetails.mmpId)?.projectName || 'N/A',
       location: visit.location.address,
       status: visit.status,
       assignedTo: resolveUserName(visit.assignedTo),
@@ -415,7 +438,7 @@ const DataVisibility: React.FC = () => {
         location: visit.location.address,
         date: format(new Date(visit.scheduledDate), 'yyyy-MM-dd')
       })),
-      ...mmps.map(mmp => ({
+      ...(mmpFiles || []).map(mmp => ({
         type: 'mmp',
         id: mmp.id,
         name: mmp.projectName,
@@ -442,7 +465,7 @@ const DataVisibility: React.FC = () => {
       { metric: 'Completed Visits', value: siteVisitsList.filter(v => v.status === 'completed').length },
       { metric: 'In Progress Visits', value: siteVisitsList.filter(v => v.status === 'inProgress').length },
       { metric: 'Pending Visits', value: siteVisitsList.filter(v => v.status === 'pending').length },
-      { metric: 'Total MMPs', value: mmps.length },
+      { metric: 'Total MMPs', value: (mmpFiles || []).length },
       { metric: 'On-time Completion Rate', value: '85%' },
       { metric: 'Data Quality Score', value: '78%' },
       { metric: 'Site Coverage', value: '92%' }
@@ -628,7 +651,7 @@ const DataVisibility: React.FC = () => {
                         <TableCell>{visit.visitTypeRaw || visit.visitType || 'N/A'}</TableCell>
                         <TableCell>{visit.dueDate ? format(new Date(visit.dueDate), 'yyyy-MM-dd') : 'N/A'}</TableCell>
                         <TableCell>
-                          {mmps.find(m => m.id === visit.mmpDetails.mmpId)?.projectName || 'N/A'}
+                          {(mmpFiles || []).find(m => m.id === visit.mmpDetails.mmpId)?.projectName || 'N/A'}
                         </TableCell>
                         <TableCell>
                           <Badge variant={
@@ -721,7 +744,7 @@ const DataVisibility: React.FC = () => {
                   
                   <div className="flex items-center justify-between">
                     <div className="font-medium">MMPs</div>
-                    <Badge variant="outline">{mmps.length}</Badge>
+                    <Badge variant="outline">{(mmpFiles || []).length}</Badge>
                   </div>
                   <Progress value={75} className="h-2" />
                   
@@ -814,7 +837,7 @@ const DataVisibility: React.FC = () => {
               <div className="h-[400px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
-                    data={reportData}
+                    data={reportChartData}
                     margin={{
                       top: 20,
                       right: 30,
@@ -839,23 +862,23 @@ const DataVisibility: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div className="border rounded p-3">
                     <div className="text-sm text-muted-foreground">On-time Completion</div>
-                    <div className="text-2xl font-bold">85%</div>
-                    <div className="text-xs text-green-600">↑ 5% from last month</div>
+                    <div className="text-2xl font-bold">{kpi.onTimeRate}%</div>
+                    <div className="text-xs text-muted-foreground">Live</div>
                   </div>
                   <div className="border rounded p-3">
                     <div className="text-sm text-muted-foreground">Site Coverage</div>
-                    <div className="text-2xl font-bold">92%</div>
-                    <div className="text-xs text-green-600">↑ 3% from last month</div>
+                    <div className="text-2xl font-bold">{kpi.siteCoverage}%</div>
+                    <div className="text-xs text-muted-foreground">Live</div>
                   </div>
                   <div className="border rounded p-3">
                     <div className="text-sm text-muted-foreground">Data Quality</div>
-                    <div className="text-2xl font-bold">78%</div>
-                    <div className="text-xs text-red-600">↓ 2% from last month</div>
+                    <div className="text-2xl font-bold">{kpi.dataQuality}%</div>
+                    <div className="text-xs text-muted-foreground">Live</div>
                   </div>
                   <div className="border rounded p-3">
                     <div className="text-sm text-muted-foreground">Project Alignment</div>
-                    <div className="text-2xl font-bold">89%</div>
-                    <div className="text-xs text-green-600">↑ 7% from last month</div>
+                    <div className="text-2xl font-bold">{kpi.projectAlignment}%</div>
+                    <div className="text-xs text-muted-foreground">Live</div>
                   </div>
                 </div>
               </div>
@@ -894,8 +917,8 @@ const DataVisibility: React.FC = () => {
                             return null;
                           }}
                         />
-                        <Scatter name="Sites" data={coverageData} fill="#8884d8">
-                          {coverageData.map((entry, index) => (
+                        <Scatter name="Sites" data={coverageChartData} fill="#8884d8">
+                          {coverageChartData.map((entry, index) => (
                             <Cell key={`cell-${index}`} fill={entry.color} />
                           ))}
                         </Scatter>
