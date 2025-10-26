@@ -214,6 +214,7 @@ const CreateSiteVisitUrgent = () => {
           projectName: data.projectName,
           complexity: data.complexity,
           visitType: 'urgent',
+          status: 'pending',
           estimatedDuration: data.estimatedDuration,
           description: data.description?.toString() || '',
           risks: data.risks?.toString() || '',
