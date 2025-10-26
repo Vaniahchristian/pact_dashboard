@@ -52,6 +52,7 @@ const transformDBToMMPFile = (dbRecord: any): MMPFile => {
     financial: dbRecord.financial,
     performance: dbRecord.performance,
     cpVerification: dbRecord.cp_verification,
+    comprehensiveVerification: dbRecord.comprehensive_verification,
     activities: dbRecord.activities,
   } as MMPFile; // Type assertion to handle any remaining type issues
 };
@@ -149,6 +150,7 @@ export const useMMPProvider = () => {
         siteEntries: 'site_entries',
         projectName: 'project_name',
         cpVerification: 'cp_verification',
+        comprehensiveVerification: 'comprehensive_verification',
         rejectionReason: 'rejection_reason',
         approvedBy: 'approved_by',
         approvedAt: 'approved_at',

@@ -90,4 +90,40 @@ export interface MMPCooperatingPartnerVerification {
   overallVerified?: boolean;
 }
 
+export interface MMPComprehensiveVerification {
+  cpVerification?: MMPCooperatingPartnerVerification;
+  permitVerification?: {
+    status: VerificationStatus;
+    verifiedBy?: string;
+    verifiedAt?: string;
+    completionPercentage?: number;
+    permits: Array<{
+      id: string;
+      status: 'verified' | 'rejected' | null;
+      verifiedAt?: string;
+      verifiedBy?: string;
+      notes?: string;
+    }>;
+  };
+  contentVerification?: {
+    status: VerificationStatus;
+    verifiedBy?: string;
+    verifiedAt?: string;
+    fileReviewed: boolean;
+    contentValidated: boolean;
+    notes?: string;
+  };
+  systemValidation?: {
+    status: VerificationStatus;
+    fileIntegrity: boolean;
+    noDuplicates: boolean;
+    compliantWithRequirements: boolean;
+    entryProcessingComplete: boolean;
+  };
+  overallStatus: VerificationStatus;
+  canProceedToApproval: boolean;
+  lastUpdated?: string;
+  updatedBy?: string;
+}
+
 export interface MMPCPVerification extends MMPCooperatingPartnerVerification {}

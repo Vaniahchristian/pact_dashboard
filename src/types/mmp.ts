@@ -6,7 +6,7 @@ import { MMPSiteEntry, MMPSiteVisit } from './mmp/site';
 import { MMPPermitsData } from './mmp/permits';
 import { MMPFinancial } from './mmp/financial';
 import { MMPPerformance } from './mmp/performance';
-import { MMPCPVerification } from './mmp/verification';
+import { MMPCPVerification, MMPComprehensiveVerification } from './mmp/verification';
 
 export * from './mmp/base';
 export * from './mmp/workflow';
@@ -28,5 +28,6 @@ export interface MMPFile extends MMPBase {
   financial?: MMPFinancial;
   performance?: MMPPerformance;
   cpVerification?: MMPCPVerification;
+  comprehensiveVerification?: MMPComprehensiveVerification;
   activities?: any[];
 }

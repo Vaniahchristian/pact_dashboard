@@ -27,6 +27,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useMMP } from '@/context/mmp/MMPContext';
+import { MMPComprehensiveVerificationComponent } from './MMPComprehensiveVerification';
 
 interface MMPApprovalWorkflowProps {
   mmpFile: MMPFile;
@@ -41,8 +42,9 @@ export function MMPApprovalWorkflow({ mmpFile, onApprove, onReject, onVerify }: 
   const [verificationComments, setVerificationComments] = useState('');
   const [fileViewed, setFileViewed] = useState(false);
   const [showFileDetails, setShowFileDetails] = useState(false);
-  const { resetMMP } = useMMP();
+  const { resetMMP, updateMMP } = useMMP();
   const [parsedId, setParsedId] = useState<any>(null);
+  const [showComprehensiveVerification, setShowComprehensiveVerification] = useState(false);
   
   useEffect(() => {
     if (mmpFile.mmpId && typeof parseMMPId === 'function') {
@@ -54,6 +56,7 @@ export function MMPApprovalWorkflow({ mmpFile, onApprove, onReject, onVerify }: 
   const needsSecondApproval = mmpFile.approvalWorkflow?.firstApproval && !mmpFile.approvalWorkflow.finalApproval;
   const isApproved = mmpFile.status === 'approved';
   const isRejected = mmpFile.status === 'rejected';
+  const isVerificationComplete = mmpFile.comprehensiveVerification?.canProceedToApproval || false;
   
   const formatDate = (dateString?: string) => {
     if (!dateString) return 'N/A';
@@ -146,6 +149,19 @@ export function MMPApprovalWorkflow({ mmpFile, onApprove, onReject, onVerify }: 
   const versionHistory = generateVersionHistory();
   const siteEntries = generateSiteEntries();
 
+  const handleComprehensiveVerificationUpdate = (verification: any) => {
+    updateMMP(mmpFile.id, { comprehensiveVerification: verification });
+  };
+
+  const handleVerificationComplete = () => {
+    setVerificationStatus('verified');
+    onVerify();
+    toast({
+      title: "All Verifications Complete",
+      description: "The MMP is now ready for the approval process.",
+    });
+  };
+
   const handleReset = async () => {
     if (!mmpFile || !mmpFile.id) {
       toast({
@@ -164,6 +180,7 @@ export function MMPApprovalWorkflow({ mmpFile, onApprove, onReject, onVerify }: 
         setVerificationStatus('pending');
         setVerificationComments('');
         setFileViewed(false);
+        setShowComprehensiveVerification(false);
         
         toast({
           title: "Reset Successful",
@@ -276,157 +293,151 @@ export function MMPApprovalWorkflow({ mmpFile, onApprove, onReject, onVerify }: 
           <Separator />
           
           <div>
-            <h3 className="text-sm font-medium mb-4">Review & Verification Process</h3>
+            <h3 className="text-sm font-medium mb-4">Verification & Approval Process</h3>
             
-            <div className="space-y-4">
-              <div className={`p-4 border rounded-md ${fileViewed ? 'border-green-300 bg-green-50' : 'border-amber-300 bg-amber-50'}`}>
-                <div className="flex justify-between items-center">
-                  <div className="flex gap-2 items-center">
-                    <FileClock className={`h-5 w-5 ${fileViewed ? 'text-green-600' : 'text-amber-600'}`} />
-                    <span className="font-medium">Step 1: Review MMP File</span>
-                  </div>
+            {/* Verification Status Overview */}
+            <div className={`p-4 border rounded-md ${
+              isVerificationComplete 
+                ? 'border-green-300 bg-green-50' 
+                : 'border-amber-300 bg-amber-50'
+            }`}>
+              <div className="flex justify-between items-center">
+                <div className="flex gap-2 items-center">
+                  <ShieldCheck className={`h-5 w-5 ${isVerificationComplete ? 'text-green-600' : 'text-amber-600'}`} />
+                  <span className="font-medium">Comprehensive Verification</span>
+                </div>
+                <div className="flex gap-2">
                   <Button 
                     variant="outline" 
                     size="sm"
-                    onClick={handleFileView}
+                    onClick={() => setShowComprehensiveVerification(!showComprehensiveVerification)}
                     className="flex items-center gap-2"
                   >
-                    <FileText className="h-4 w-4" />
-                    {fileViewed ? 'View Again' : 'View Details'}
+                    <FileCheck className="h-4 w-4" />
+                    {showComprehensiveVerification ? 'Hide Details' : 'View Details'}
                   </Button>
+                  {isVerificationComplete && (
+                    <Badge className="bg-green-100 text-green-800">Complete</Badge>
+                  )}
                 </div>
-                <p className="text-sm mt-2">
-                  {fileViewed 
-                    ? "You have reviewed this file. Continue to verification." 
-                    : "You must review the MMP file details before proceeding."}
-                </p>
+              </div>
+              <p className="text-sm mt-2">
+                {isVerificationComplete 
+                  ? "All verification steps are complete. Ready for approval process." 
+                  : "Complete all verification steps before proceeding to approval."}
+              </p>
+            </div>
+
+            {/* Show Comprehensive Verification Component */}
+            {showComprehensiveVerification && (
+              <div className="mt-4">
+                <MMPComprehensiveVerificationComponent
+                  mmpFile={mmpFile}
+                  onVerificationUpdate={handleComprehensiveVerificationUpdate}
+                  onVerificationComplete={handleVerificationComplete}
+                />
+              </div>
+            )}
+            
+            {/* Approval Process */}
+            <div className={`p-4 border rounded-md ${isApproved ? 'border-green-300 bg-green-50' : 'border-gray-300 bg-gray-50'}`}>
+              <div className="flex justify-between items-center">
+                <div className="flex gap-2 items-center">
+                  <UserCheck className={`h-5 w-5 ${isApproved ? 'text-green-600' : 'text-gray-600'}`} />
+                  <span className="font-medium">Approval Process</span>
+                </div>
+                {isApproved && <Badge className="bg-green-100 text-green-800">Completed</Badge>}
               </div>
               
-              <div className={`p-4 border rounded-md ${verificationStatus === 'verified' ? 'border-green-300 bg-green-50' : verificationStatus === 'rejected' ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-gray-50'}`}>
-                <div className="flex justify-between items-center">
-                  <div className="flex gap-2 items-center">
-                    <ShieldCheck className={`h-5 w-5 ${verificationStatus === 'verified' ? 'text-green-600' : verificationStatus === 'rejected' ? 'text-red-600' : 'text-gray-600'}`} />
-                    <span className="font-medium">Step 2: Verification</span>
-                  </div>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={handleVerifyFile}
-                    disabled={!fileViewed || verificationStatus === 'verified'}
-                  >
-                    {verificationStatus === 'verified' ? 'Verified' : 'Verify Content'}
-                  </Button>
-                </div>
-                <p className="text-sm mt-2">
-                  {!fileViewed 
-                    ? "Complete file review before verification."
-                    : verificationStatus === 'verified' 
-                    ? "Content has been verified. Ready for approval process." 
-                    : "Verify that all information in the MMP file is correct."}
-                </p>
-              </div>
-              
-              <div className={`p-4 border rounded-md ${isApproved ? 'border-green-300 bg-green-50' : 'border-gray-300 bg-gray-50'}`}>
-                <div className="flex justify-between items-center">
-                  <div className="flex gap-2 items-center">
-                    <UserCheck className={`h-5 w-5 ${isApproved ? 'text-green-600' : 'text-gray-600'}`} />
-                    <span className="font-medium">Step 3: Dual Approval Process</span>
-                  </div>
-                  {isApproved && <Badge className="bg-green-100 text-green-800">Completed</Badge>}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                <div className={`p-3 rounded-md ${mmpFile.approvalWorkflow?.firstApproval ? 'bg-green-100 border border-green-200' : 'bg-gray-100 border border-gray-200'}`}>
+                  <h4 className="text-sm font-medium mb-2">First Approval</h4>
+                  {mmpFile.approvalWorkflow?.firstApproval ? (
+                    <div className="space-y-1 text-sm">
+                      <div className="flex justify-between">
+                        <span>Approver:</span>
+                        <span className="font-medium">{mmpFile.approvalWorkflow.firstApproval.approvedBy}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Date:</span>
+                        <span className="font-medium">{formatDate(mmpFile.approvalWorkflow.firstApproval.approvedAt)}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600">
+                        {!isVerificationComplete 
+                          ? "Complete verification required" 
+                          : "Ready for first approval"}
+                      </span>
+                      {isVerificationComplete && (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button size="sm">Approve</Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Confirm First Approval</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to approve this MMP file? This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => onApprove('First approval granted')}>
+                                Approve
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      )}
+                    </div>
+                  )}
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                  <div className={`p-3 rounded-md ${mmpFile.approvalWorkflow?.firstApproval ? 'bg-green-100 border border-green-200' : 'bg-gray-100 border border-gray-200'}`}>
-                    <h4 className="text-sm font-medium mb-2">First Approval</h4>
-                    {mmpFile.approvalWorkflow?.firstApproval ? (
-                      <div className="space-y-1 text-sm">
-                        <div className="flex justify-between">
-                          <span>Approver:</span>
-                          <span className="font-medium">{mmpFile.approvalWorkflow.firstApproval.approvedBy}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Date:</span>
-                          <span className="font-medium">{formatDate(mmpFile.approvalWorkflow.firstApproval.approvedAt)}</span>
-                        </div>
+                <div className={`p-3 rounded-md ${mmpFile.approvalWorkflow?.finalApproval ? 'bg-green-100 border border-green-200' : 'bg-gray-100 border border-gray-200'}`}>
+                  <h4 className="text-sm font-medium mb-2">Final Approval</h4>
+                  {mmpFile.approvalWorkflow?.finalApproval ? (
+                    <div className="space-y-1 text-sm">
+                      <div className="flex justify-between">
+                        <span>Approver:</span>
+                        <span className="font-medium">{mmpFile.approvalWorkflow.finalApproval.approvedBy}</span>
                       </div>
-                    ) : (
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600">
-                          {!fileViewed 
-                            ? "File review required" 
-                            : verificationStatus !== 'verified'
-                            ? "Verification required"
-                            : "Ready for first approval"}
-                        </span>
-                        {verificationStatus === 'verified' && (
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button size="sm">Approve</Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Confirm First Approval</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Are you sure you want to approve this MMP file? This action cannot be undone.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => onApprove('First approval granted')}>
-                                  Approve
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        )}
+                      <div className="flex justify-between">
+                        <span>Date:</span>
+                        <span className="font-medium">{formatDate(mmpFile.approvalWorkflow.finalApproval.approvedAt)}</span>
                       </div>
-                    )}
-                  </div>
-                  
-                  <div className={`p-3 rounded-md ${mmpFile.approvalWorkflow?.finalApproval ? 'bg-green-100 border border-green-200' : 'bg-gray-100 border border-gray-200'}`}>
-                    <h4 className="text-sm font-medium mb-2">Final Approval</h4>
-                    {mmpFile.approvalWorkflow?.finalApproval ? (
-                      <div className="space-y-1 text-sm">
-                        <div className="flex justify-between">
-                          <span>Approver:</span>
-                          <span className="font-medium">{mmpFile.approvalWorkflow.finalApproval.approvedBy}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Date:</span>
-                          <span className="font-medium">{formatDate(mmpFile.approvalWorkflow.finalApproval.approvedAt)}</span>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600">
-                          {!mmpFile.approvalWorkflow?.firstApproval 
-                            ? "First approval required" 
-                            : "Ready for final approval"}
-                        </span>
-                        {needsSecondApproval && (
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button size="sm">Approve</Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Confirm Final Approval</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  This is the final approval. The MMP file will be locked for editing after this action. Do you want to proceed?
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => onApprove('Final approval granted')}>
-                                  Approve
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        )}
-                      </div>
-                    )}
-                  </div>
+                    </div>
+                  ) : (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600">
+                        {!mmpFile.approvalWorkflow?.firstApproval 
+                          ? "First approval required" 
+                          : "Ready for final approval"}
+                      </span>
+                      {needsSecondApproval && (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button size="sm">Approve</Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Confirm Final Approval</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This is the final approval. The MMP file will be locked for editing after this action. Do you want to proceed?
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => onApprove('Final approval granted')}>
+                                Approve
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -489,7 +500,7 @@ export function MMPApprovalWorkflow({ mmpFile, onApprove, onReject, onVerify }: 
               </AlertDialog>
               
               <Button 
-                disabled={!fileViewed || verificationStatus !== 'verified'} 
+                disabled={!isVerificationComplete} 
                 onClick={() => toast({ description: "Notifications sent to required approvers" })}
               >
                 Notify Approvers
