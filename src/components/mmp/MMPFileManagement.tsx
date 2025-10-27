@@ -170,9 +170,9 @@ const MMPFileManagement = ({
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>Delete MMP File?</AlertDialogTitle>
+                    <AlertDialogTitle>Delete MMP File "{mmpFile.name}"?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      This action cannot be undone. The MMP file will be permanently deleted from the system.
+                      This action cannot be undone. The MMP file "{mmpFile.name}" will be permanently deleted from the system.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
