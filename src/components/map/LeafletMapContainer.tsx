@@ -73,32 +73,31 @@ const MapBoundsHandler = ({ locations }: { locations: LeafletMapContainerProps['
 };
 
 const createMarkerIcon = (type: 'user' | 'site', status?: string) => {
-  const color = type === 'user' 
+  const color = type === 'user'
     ? (status === 'online' ? '#10b981' : status === 'busy' ? '#f59e0b' : '#6b7280')
-    : (status === 'completed' ? '#10b981' : status === 'inProgress' ? '#6366f1' : 
+    : (status === 'completed' ? '#10b981' : status === 'inProgress' ? '#6366f1' :
        status === 'assigned' ? '#f59e0b' : '#ef4444');
-  
-  const svgIcon = type === 'user'
-    ? `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="${color}" width="32" height="32">
-        <circle cx="12" cy="8" r="3" stroke="white" stroke-width="2" fill="white" />
-        <path d="M7 20c0-2.5 2.2-4.5 5-4.5s5 2 5 4.5" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" />
-      </svg>`
-    : `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="${color}" width="28" height="28">
-        <path d="M3 21h18v-2H3v2zm0-4h18v-2H3v2zm0-4h18v-2H3v2zm0-4h18V7H3v2zm0-6v2h18V1H3z" fill="white" />
-        <rect x="2" y="2" width="20" height="18" rx="2" stroke="white" stroke-width="1.5" fill="none" />
-        <rect x="6" y="6" width="3" height="3" fill="white" />
-        <rect x="11" y="6" width="3" height="3" fill="white" />
-        <rect x="16" y="6" width="3" height="3" fill="white" />
-        <rect x="6" y="11" width="3" height="3" fill="white" />
-        <rect x="11" y="11" width="3" height="3" fill="white" />
-        <rect x="16" y="11" width="3" height="3" fill="white" />
-      </svg>`;
 
-  return new L.Icon({
-    iconUrl: `data:image/svg+xml;base64,${btoa(svgIcon)}`,
-    iconSize: [32, 32] as [number, number],
-    iconAnchor: [16, 32] as [number, number],
-    popupAnchor: [0, -32] as [number, number]
+  return L.divIcon({
+    className: 'custom-div-icon',
+    html: `
+      <div style="
+        background-color: ${color};
+        width: 16px;
+        height: 16px;
+        border-radius: ${type === 'user' ? '50%' : '2px'};
+        border: 2px solid white;
+        box-shadow: 0 0 0 2px ${color}40;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 8px;
+        color: white;
+        font-weight: bold;
+      ">${type === 'user' ? '👤' : '🏢'}</div>
+    `,
+    iconSize: [16, 16],
+    iconAnchor: [8, 8],
   });
 };
 
