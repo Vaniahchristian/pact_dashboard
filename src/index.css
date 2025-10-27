@@ -274,6 +274,29 @@
 }
 
 @layer components {
+  /* Fix for calendar popover transparency issue */
+  [data-radix-popper-content-wrapper] {
+    z-index: 9999 !important;
+  }
+  
+  [data-radix-popper-content-wrapper] [data-radix-popper-content] {
+    background-color: hsl(var(--popover)) !important;
+    backdrop-filter: none !important;
+  }
+
+  /* Ensure calendar has solid background */
+  .rdp {
+    background-color: hsl(var(--popover)) !important;
+  }
+  
+  .rdp-table {
+    background-color: hsl(var(--popover)) !important;
+  }
+  
+  .rdp-month {
+    background-color: hsl(var(--popover)) !important;
+  }
+
   .workflow-step {
     @apply relative flex flex-col items-center justify-center;
   }
