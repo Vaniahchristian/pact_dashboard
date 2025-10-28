@@ -88,10 +88,10 @@ const MMPOverviewCard = ({ mmpFile, siteEntries, onProceedToVerification, onEdit
         
         <div className="pt-4 border-t mt-4">
           <div className="flex justify-between">
-            <Button onClick={onProceedToVerification} className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600">
+            {/* <Button onClick={onProceedToVerification} className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600">
               <FileCheck className="h-4 w-4 mr-2" />
               Proceed to Verification
-            </Button>
+            </Button> */}
             
             <Button variant="outline" onClick={onEditMMP}>
               <Edit className="h-4 w-4 mr-2" />
