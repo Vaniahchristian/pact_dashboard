@@ -56,7 +56,7 @@ const PermitPreviewDialog: React.FC<PermitPreviewDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl">
+      <DialogContent className="max-w-3xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {isImage && <FileImage className="h-5 w-5" />}
