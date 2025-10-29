@@ -10,6 +10,7 @@ import {
 } from '@/types';
 import { User } from '@/types/user';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 // Create the context
 const ArchiveContext = createContext<ArchiveContextType | undefined>(undefined);
@@ -25,273 +26,225 @@ export const ArchiveProvider: React.FC<ArchiveProviderProps> = ({ children, curr
   const [filters, setFilters] = useState<ArchiveFilter>({});
   const [currentArchive, setCurrentArchive] = useState<ArchiveMonth>();
   
-  // Sample data for demonstration
-  const [archives, setArchives] = useState<ArchiveMonth[]>([
-    {
-      year: 2025,
-      month: 3,
-      label: 'March 2025',
-      mmpsCount: 24,
-      siteVisitsCount: 18,
-      documentsCount: 42
-    },
-    {
-      year: 2025,
-      month: 2,
-      label: 'February 2025',
-      mmpsCount: 31,
-      siteVisitsCount: 27,
-      documentsCount: 58
-    },
-    {
-      year: 2025,
-      month: 1,
-      label: 'January 2025',
-      mmpsCount: 19,
-      siteVisitsCount: 15,
-      documentsCount: 33
-    },
-    {
-      year: 2024,
-      month: 12,
-      label: 'December 2024',
-      mmpsCount: 28,
-      siteVisitsCount: 22,
-      documentsCount: 47
-    }
-  ]);
+  const [archives, setArchives] = useState<ArchiveMonth[]>([]);
 
-  const [archivedMMPs, setArchivedMMPs] = useState<ArchivedMMPFile[]>([
-    {
-      id: 'mmp-001',
-      mmpId: 'MMP-2025-001',
-      status: 'approved',
-      description: 'Implementation of water supply infrastructure in northern communities',
-      uploadedBy: 'john.doe',
-      uploadedAt: '2025-02-15T10:30:00Z',
-      region: 'North',
-      state: 'Khartoum',
-      locality: 'Bahri',
-      sites: [
-        {
-          id: 'site-001',
-          name: 'Water Treatment Plant A',
-          location: {
-            latitude: 15.6245,
-            longitude: 32.5342,
-            address: 'North Industrial Area, Bahri'
-          }
-        }
-      ],
-      archiveId: 'arc-001',
-      archiveDate: '2025-03-15T10:30:00Z',
-      archiveCategory: 'completed-projects',
-      retentionPeriod: '5 years',
-      documents: [
-        {
-          id: 'doc-001',
-          fileName: 'site-survey.pdf',
-          fileUrl: '/files/site-survey.pdf',
-          fileType: 'application/pdf',
-          fileSize: 2456789,
-          uploadedBy: 'john.doe',
-          uploadedAt: '2025-02-10T10:30:00Z',
-          category: 'mmp',
-          relatedEntityId: 'mmp-001',
-          relatedEntityType: 'mmp',
-          description: 'Initial site survey document'
-        }
-      ],
-      approvers: [],
-      createdAt: '',
-      updatedAt: '',
-      currentStage: 0,
-      stages: [],
-      name: 'North Region Water Supply Project',
-      entries: 5,
-      year: 2025,
-      month: 2
-    }
-  ]);
+  const [archivedMMPs, setArchivedMMPs] = useState<ArchivedMMPFile[]>([]);
 
-  const [archivedSiteVisits, setArchivedSiteVisits] = useState<ArchivedSiteVisit[]>([
-    {
-      id: 'sv-001',
-      siteName: 'Water Treatment Plant A Site Visit',
-      siteCode: 'WTP-A-001',
-      status: 'completed',
-      locality: 'Bahri',
-      state: 'Khartoum',
-      activity: 'Site Assessment',
-      priority: 'high',
-      dueDate: '2025-02-20T10:30:00Z',
-      assignedTo: 'field-agent-1',
-      notes: 'Complete assessment of water treatment facility location',
-      attachments: ['photo1.jpg', 'photo2.jpg'],
-      fees: {
-        total: 500,
-        currency: 'USD',
-        distanceFee: 100,
-        complexityFee: 150,
-        urgencyFee: 250
-      },
-      scheduledDate: '2025-02-18T09:00:00Z',
-      description: 'Initial site assessment for water treatment plant',
-      tasks: [
-        'Soil Testing'
-      ],
-      permitDetails: {
-        federal: true,
-        state: true,
-        locality: true
-      },
-      location: {
-        address: 'North Industrial Area, Bahri',
-        latitude: 15.6245,
-        longitude: 32.5342,
-        region: 'Khartoum'
-      },
-      coordinates: {
-        latitude: 15.6245,
-        longitude: 32.5342
-      },
-      mmpDetails: {
-        mmpId: 'MMP-2025-001',
-        projectName: 'North Region Water Supply Project',
-        uploadedBy: 'john.doe',
-        uploadedAt: '2025-02-15T10:30:00Z',
-        region: 'Khartoum'
-      },
-      complexity: 'medium',
-      visitType: 'regular',
-      mainActivity: 'site-assessment',
-      projectActivities: ['land-survey', 'environmental-assessment'],
-      hub: 'khartoum-north',
-      team: {
-        coordinator: 'coord-1',
-        supervisor: 'super-1',
-        fieldOfficer: 'fo-1'
-      },
-      resources: ['surveying-equipment', 'water-testing-kit'],
-      risks: 'Moderate access difficulties due to road conditions',
-      estimatedDuration: '4 hours',
-      visitHistory: [
-        {
-          date: '2025-02-18T09:00:00Z',
-          status: 'completed',
-          by: 'field-agent-1'
-        }
-      ],
-      monitoringType: 'regular',
-      createdAt: '2025-02-15T11:30:00Z',
-      archiveId: 'arc-sv-001',
-      archiveDate: '2025-03-15T10:30:00Z',
-      archiveCategory: 'completed-visits',
-      documents: [
-        {
-          id: 'doc-sv-001',
-          fileName: 'site-visit-report.pdf',
-          fileUrl: '/files/site-visit-report.pdf',
-          fileType: 'application/pdf',
-          fileSize: 1456789,
-          uploadedBy: 'field-agent-1',
-          uploadedAt: '2025-02-18T15:30:00Z',
-          category: 'siteVisit',
-          relatedEntityId: 'sv-001',
-          relatedEntityType: 'siteVisit',
-          description: 'Final site visit report'
-        }
-      ],
-      assignedBy: '',
-      assignedAt: '',
-      projectName: 'North Region Water Supply Project'
-    }
-  ]);
+  const [archivedSiteVisits, setArchivedSiteVisits] = useState<ArchivedSiteVisit[]>([]);
 
-  const [documents, setDocuments] = useState<ArchiveDocument[]>([
-    {
-      id: 'doc-001',
-      fileName: 'site-survey.pdf',
-      fileUrl: '/files/site-survey.pdf',
-      fileType: 'application/pdf',
-      fileSize: 2456789,
-      uploadedBy: 'john.doe',
-      uploadedAt: '2025-02-10T10:30:00Z',
-      category: 'mmp',
-      relatedEntityId: 'mmp-001',
-      relatedEntityType: 'mmp',
-      description: 'Initial site survey document'
-    },
-    {
-      id: 'doc-sv-001',
-      fileName: 'site-visit-report.pdf',
-      fileUrl: '/files/site-visit-report.pdf',
-      fileType: 'application/pdf',
-      fileSize: 1456789,
-      uploadedBy: 'field-agent-1',
-      uploadedAt: '2025-02-18T15:30:00Z',
-      category: 'siteVisit',
-      relatedEntityId: 'sv-001',
-      relatedEntityType: 'siteVisit',
-      description: 'Final site visit report'
-    }
-  ]);
+  const [documents, setDocuments] = useState<ArchiveDocument[]>([]);
 
   const [statistics, setStatistics] = useState<ArchiveStatistics>({
-    totalMmps: 82,
-    totalSiteVisits: 124,
-    totalDocuments: 237,
-    documentsByCategory: {
-      mmp: 82,
-      siteVisit: 124,
-      permit: 14,
-      verification: 8,
-      report: 9
-    },
-    mmpStatusCounts: {
-      approved: 68,
-      rejected: 8,
-      pending: 6
-    },
-    monthlyTrends: [
-      {
-        year: 2025,
-        month: 3,
-        mmps: 24,
-        siteVisits: 18,
-        documents: 42
-      },
-      {
-        year: 2025,
-        month: 2,
-        mmps: 31,
-        siteVisits: 27,
-        documents: 58
-      },
-      {
-        year: 2025,
-        month: 1,
-        mmps: 19,
-        siteVisits: 15,
-        documents: 33
-      },
-      {
-        year: 2024,
-        month: 12,
-        mmps: 28,
-        siteVisits: 22,
-        documents: 47
-      }
-    ]
+    totalMmps: 0,
+    totalSiteVisits: 0,
+    totalDocuments: 0,
+    documentsByCategory: {},
+    mmpStatusCounts: {},
+    monthlyTrends: [],
   });
 
   // Initial data loading
   useEffect(() => {
-    // This would be replaced with actual API calls in a real implementation
-    setTimeout(() => {
-      setLoading(false);
-      setCurrentArchive(archives[0]);
-    }, 1000);
+    const load = async () => {
+      try {
+        setLoading(true);
+
+        const [{ data: mmpRows, error: mmpErr }, { data: svRows, error: svErr }] = await Promise.all([
+          supabase.from('mmp_files').select('*').order('created_at', { ascending: false }),
+          supabase.from('site_visits').select('*').order('created_at', { ascending: false }),
+        ]);
+
+        let photoRows: any[] = [];
+        try {
+          const { data: pr, error: perr } = await supabase
+            .from('report_photos')
+            .select('*')
+            .order('created_at', { ascending: false });
+          if (!perr && pr) photoRows = pr as any[];
+        } catch {}
+
+        if (mmpErr) throw mmpErr;
+        if (svErr) throw svErr;
+
+        const toArchivedMMP = (r: any): ArchivedMMPFile => {
+          const uploadedAt = r.uploaded_at || r.created_at;
+          const dt = uploadedAt ? new Date(uploadedAt) : new Date();
+          const year = dt.getUTCFullYear();
+          const month = dt.getUTCMonth() + 1;
+          return {
+            id: r.id,
+            name: r.name || r.original_filename || 'MMP File',
+            entries: r.entries ?? 0,
+            uploadedAt: uploadedAt,
+            uploadedBy: r.uploaded_by || 'Unknown',
+            status: r.status || 'approved',
+            mmpId: r.mmp_id || '',
+            projectName: r.project_name || '',
+            fileUrl: r.file_url || '',
+            originalFilename: r.original_filename || '',
+            version: r.version,
+            siteEntries: r.site_entries || [],
+            workflow: r.workflow || undefined,
+            archiveId: r.id,
+            archiveDate: uploadedAt,
+            archiveCategory: 'mmp',
+            documents: r.file_url
+              ? [{
+                  id: `mmpdoc-${r.id}`,
+                  fileName: r.original_filename || r.name || 'file',
+                  fileUrl: r.file_url,
+                  fileType: 'application/octet-stream',
+                  fileSize: 0,
+                  uploadedBy: r.uploaded_by || 'Unknown',
+                  uploadedAt: uploadedAt,
+                  category: 'mmp',
+                  relatedEntityId: r.id,
+                  relatedEntityType: 'mmp',
+                }]
+              : [],
+            createdAt: r.created_at,
+            updatedAt: r.updated_at,
+            year,
+            month,
+          } as ArchivedMMPFile;
+        };
+
+        const toArchivedSiteVisit = (v: any): ArchivedSiteVisit => {
+          const completedAt = v.completed_at || v.created_at;
+          return {
+            id: v.id,
+            siteName: v.site_name,
+            siteCode: v.site_code,
+            status: v.status,
+            locality: v.locality,
+            state: v.state,
+            activity: v.activity,
+            priority: v.priority,
+            dueDate: v.due_date,
+            scheduledDate: v.due_date,
+            assignedTo: v.assigned_to,
+            assignedBy: v.assigned_by,
+            assignedAt: v.assigned_at,
+            notes: v.notes,
+            attachments: v.attachments || [],
+            completedAt: v.completed_at,
+            rating: v.rating,
+            fees: v.fees || {},
+            location: v.location,
+            mainActivity: v.main_activity || v.activity,
+            archiveId: v.id,
+            archiveDate: completedAt,
+            archiveCategory: 'siteVisit',
+            documents: Array.isArray(v.attachments)
+              ? (v.attachments as string[]).map((url, i) => ({
+                  id: `svdoc-${v.id}-${i}`,
+                  fileName: (url || '').split('/').pop() || 'attachment',
+                  fileUrl: url,
+                  fileType: 'application/octet-stream',
+                  fileSize: 0,
+                  uploadedBy: v.assigned_by || 'system',
+                  uploadedAt: completedAt || v.created_at,
+                  category: 'siteVisit',
+                  relatedEntityId: v.id,
+                  relatedEntityType: 'siteVisit',
+                }))
+              : [],
+          } as ArchivedSiteVisit;
+        };
+
+        const mmpArchivedRows = (mmpRows || []).filter((r: any) => {
+          const st = (r.status || '').toLowerCase();
+          return st === 'approved' || st === 'archived';
+        });
+        const svArchivedRows = (svRows || []).filter((v: any) => (v.status || '').toLowerCase() === 'completed');
+
+        const mmp = mmpArchivedRows.map(toArchivedMMP);
+        const visits = svArchivedRows.map(toArchivedSiteVisit);
+
+        const docFromMmp: ArchiveDocument[] = mmp.flatMap((x) => x.documents);
+        const docFromVisits: ArchiveDocument[] = visits.flatMap((x) => x.documents);
+        const docFromPhotos: ArchiveDocument[] = (photoRows || []).map((p: any) => ({
+          id: p.id,
+          fileName: (p.photo_url || '').split('/').pop() || 'photo',
+          fileUrl: p.photo_url,
+          fileType: 'image/jpeg',
+          fileSize: 0,
+          uploadedBy: 'system',
+          uploadedAt: p.created_at,
+          category: 'report',
+          relatedEntityId: p.report_id,
+          relatedEntityType: 'siteVisit',
+        }));
+        const docs = [...docFromMmp, ...docFromVisits, ...docFromPhotos];
+
+        const monthBuckets = new Map<string, { y: number; m: number; mmps: number; svs: number; docs: number }>();
+        const bump = (d?: string | null, kind?: 'mmps' | 'svs' | 'docs') => {
+          if (!d || !kind) return;
+          const date = new Date(d);
+          const y = date.getUTCFullYear();
+          const m = date.getUTCMonth() + 1;
+          const key = `${y}-${m}`;
+          if (!monthBuckets.has(key)) monthBuckets.set(key, { y, m, mmps: 0, svs: 0, docs: 0 });
+          const bucket = monthBuckets.get(key)!;
+          bucket[kind] = bucket[kind] + 1;
+        };
+        mmp.forEach(x => bump(x.uploadedAt, 'mmps'));
+        visits.forEach(x => bump(x.completedAt, 'svs'));
+        docs.forEach(x => bump(x.uploadedAt, 'docs'));
+
+        const months: ArchiveMonth[] = [...monthBuckets.values()]
+          .sort((a, b) => (b.y - a.y) || (b.m - a.m))
+          .map(x => ({
+            year: x.y,
+            month: x.m,
+            label: new Date(Date.UTC(x.y, x.m - 1, 1)).toLocaleString('en', { month: 'long', year: 'numeric', timeZone: 'UTC' }),
+            mmpsCount: x.mmps,
+            siteVisitsCount: x.svs,
+            documentsCount: x.docs,
+          }));
+
+        const documentsByCategory = docs.reduce<Record<string, number>>((acc, d) => {
+          acc[d.category] = (acc[d.category] || 0) + 1;
+          return acc;
+        }, {});
+        const mmpStatusCounts = mmp.reduce<Record<string, number>>((acc, f) => {
+          const s = (f.status || 'unknown').toLowerCase();
+          acc[s] = (acc[s] || 0) + 1;
+          return acc;
+        }, {});
+        const monthlyTrends = months.map(x => ({
+          year: x.year,
+          month: x.month,
+          mmps: x.mmpsCount,
+          siteVisits: x.siteVisitsCount,
+          documents: x.documentsCount,
+        }));
+
+        setArchivedMMPs(mmp);
+        setArchivedSiteVisits(visits);
+        setDocuments(docs);
+        setArchives(months);
+        setCurrentArchive(months[0]);
+        setStatistics({
+          totalMmps: mmp.length,
+          totalSiteVisits: visits.length,
+          totalDocuments: docs.length,
+          documentsByCategory,
+          mmpStatusCounts,
+          monthlyTrends,
+        });
+      } catch (e) {
+        console.error('Archive load error:', e);
+        toast({
+          title: 'Failed to load archive',
+          description: 'Please check your internet connection and try again.',
+          variant: 'destructive',
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
   }, []);
 
   // Select a specific month's archive

@@ -77,7 +77,7 @@ const ArchiveSiteVisitList = () => {
     ? archivedSiteVisits.filter(visit => {
         const visitDate = new Date(visit.archiveDate);
         return visitDate.getFullYear() === currentArchive.year && 
-               visitDate.getMonth() === currentArchive.month;
+               (visitDate.getMonth() + 1) === currentArchive.month;
       })
     : archivedSiteVisits;
   
