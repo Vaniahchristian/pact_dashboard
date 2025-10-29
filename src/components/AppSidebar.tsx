@@ -12,7 +12,8 @@ import {
   LayoutDashboard,
   ChevronUp,
   Shield,
-  Calendar
+  Calendar,
+  Archive
 } from "lucide-react";
 import { useSiteVisitReminders } from "@/hooks/use-site-visit-reminders";
 import Logo from "../assets/logo.png";
@@ -67,6 +68,7 @@ const getMenuGroups = (roles: AppRole[] = [], defaultRole: string = 'dataCollect
     { title: "MMP Management", url: "/mmp", icon: Database },
     { title: "Monitoring Plan", url: "/monitoring-plan", icon: Activity },
     { title: "Site Visits", url: "/site-visits", icon: ClipboardList },
+    { title: "Archive", url: "/archive", icon: Archive },
   ];
 
   const teamItems = [
