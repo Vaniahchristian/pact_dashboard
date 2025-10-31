@@ -704,7 +704,7 @@ const Reports: React.FC = () => {
               <div className="flex gap-2 flex-wrap">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button className="flex items-center gap-2" disabled={loading}>
+                    <Button className="flex items-center gap-2" disabled={exporting}>
                       <FileText className="h-4 w-4" />
                       Generate Excel
                       <ChevronDown className="h-4 w-4" />
@@ -718,7 +718,7 @@ const Reports: React.FC = () => {
                 </DropdownMenu>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button className="flex items-center gap-2" disabled={loading} variant="outline">
+                    <Button className="flex items-center gap-2" disabled={exporting} variant="outline">
                       <FileDown className="h-4 w-4" />
                       Generate PDF
                       <ChevronDown className="h-4 w-4" />
@@ -799,10 +799,10 @@ const Reports: React.FC = () => {
                           <TableCell>{report.size}</TableCell>
                           <TableCell className="text-right">
                             <div className="flex gap-1">
-                              <Button variant="ghost" size="sm" disabled={loading} onClick={() => handleDownloadReport(report)}>
+                              <Button variant="ghost" size="sm" disabled={exporting} onClick={() => handleDownloadReport(report)}>
                                 <Download className="h-4 w-4 mr-1" /> Excel
                               </Button>
-                              <Button variant="ghost" size="sm" disabled={loading} onClick={() => handleDownloadPDFReport(report)}>
+                              <Button variant="ghost" size="sm" disabled={exporting} onClick={() => handleDownloadPDFReport(report)}>
                                 <FileDown className="h-4 w-4 mr-1" /> PDF
                               </Button>
                             </div>
