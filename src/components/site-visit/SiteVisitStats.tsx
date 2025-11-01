@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { SiteVisit } from '@/types';
@@ -6,9 +5,10 @@ import { Clock, CheckCircle, AlertCircle, CalendarClock } from 'lucide-react';
 
 interface SiteVisitStatsProps {
   visits: SiteVisit[];
+  onStatusClick?: (status: string) => void;
 }
 
-const SiteVisitStats: React.FC<SiteVisitStatsProps> = ({ visits }) => {
+const SiteVisitStats: React.FC<SiteVisitStatsProps> = ({ visits, onStatusClick }) => {
   const stats = {
     pending: visits.filter(v => v.status === 'pending').length,
     inProgress: visits.filter(v => v.status === 'inProgress').length,
@@ -16,9 +16,18 @@ const SiteVisitStats: React.FC<SiteVisitStatsProps> = ({ visits }) => {
     scheduled: visits.filter(v => ['assigned', 'permitVerified'].includes(v.status)).length,
   };
 
+  const handleCardClick = (status: string) => {
+    if (onStatusClick) {
+      onStatusClick(status);
+    }
+  };
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-      <Card className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 hover:bg-amber-50/50">
+      <Card 
+        className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 hover:bg-amber-50/50 cursor-pointer"
+        onClick={() => handleCardClick('pending')}
+      >
         <CardContent className="pt-6">
           <div className="flex items-center justify-between">
             <div className="space-y-2">
@@ -33,10 +42,16 @@ const SiteVisitStats: React.FC<SiteVisitStatsProps> = ({ visits }) => {
               <Clock className="h-6 w-6 text-amber-600" />
             </div>
           </div>
+          <div className="mt-3 text-xs text-amber-600 opacity-0 group-hover:opacity-100 transition-opacity">
+            Click to view pending visits →
+          </div>
         </CardContent>
       </Card>
       
-      <Card className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 hover:bg-blue-50/50">
+      <Card 
+        className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 hover:bg-blue-50/50 cursor-pointer"
+        onClick={() => handleCardClick('inProgress')}
+      >
         <CardContent className="pt-6">
           <div className="flex items-center justify-between">
             <div className="space-y-2">
@@ -51,10 +66,16 @@ const SiteVisitStats: React.FC<SiteVisitStatsProps> = ({ visits }) => {
               <AlertCircle className="h-6 w-6 text-blue-600" />
             </div>
           </div>
+          <div className="mt-3 text-xs text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity">
+            Click to view in progress visits →
+          </div>
         </CardContent>
       </Card>
       
-      <Card className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 hover:bg-green-50/50">
+      <Card 
+        className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 hover:bg-green-50/50 cursor-pointer"
+        onClick={() => handleCardClick('completed')}
+      >
         <CardContent className="pt-6">
           <div className="flex items-center justify-between">
             <div className="space-y-2">
@@ -69,10 +90,16 @@ const SiteVisitStats: React.FC<SiteVisitStatsProps> = ({ visits }) => {
               <CheckCircle className="h-6 w-6 text-green-600" />
             </div>
           </div>
+          <div className="mt-3 text-xs text-green-600 opacity-0 group-hover:opacity-100 transition-opacity">
+            Click to view completed visits →
+          </div>
         </CardContent>
       </Card>
       
-      <Card className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 hover:bg-purple-50/50">
+      <Card 
+        className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 hover:bg-purple-50/50 cursor-pointer"
+        onClick={() => handleCardClick('scheduled')}
+      >
         <CardContent className="pt-6">
           <div className="flex items-center justify-between">
             <div className="space-y-2">
@@ -86,6 +113,9 @@ const SiteVisitStats: React.FC<SiteVisitStatsProps> = ({ visits }) => {
             <div className="h-12 w-12 rounded-full bg-purple-100 flex items-center justify-center group-hover:bg-purple-200 transition-colors">
               <CalendarClock className="h-6 w-6 text-purple-600" />
             </div>
+          </div>
+          <div className="mt-3 text-xs text-purple-600 opacity-0 group-hover:opacity-100 transition-opacity">
+            Click to view scheduled visits →
           </div>
         </CardContent>
       </Card>
