@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -28,7 +27,7 @@ import LeafletMapContainer from '@/components/map/LeafletMapContainer';
 
 const SiteVisits = () => {
   const { currentUser, hasRole } = useAppContext();
-  const { canViewAllSiteVisits } = useAuthorization();
+  const { canViewAllSiteVisits, checkPermission, hasAnyRole } = useAuthorization();
   const { siteVisits } = useSiteVisitContext();
   const { mmpFiles } = useMMP();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -47,6 +46,32 @@ const SiteVisits = () => {
   const [view, setView] = useState<'grid' | 'map' | 'calendar'>('grid');
   const [isLoading, setIsLoading] = useState(true);
   const [selectedVisit, setSelectedVisit] = useState<SiteVisit | null>(null);
+
+  // Page-level access guard: require read permission or admin
+  const canAccess = checkPermission('site_visits', 'read') || hasAnyRole(['admin']);
+  if (!canAccess) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle className="text-destructive">Access Denied</CardTitle>
+            <CardDescription>
+              You don't have permission to access this page.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button
+              variant="outline"
+              onClick={() => navigate('/dashboard')}
+              className="w-full"
+            >
+              Return to Dashboard
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   // Filter for approved MMPs
   const approvedMMPs = mmpFiles?.filter(mmp => mmp.status === 'approved') || [];
@@ -386,7 +411,7 @@ const SiteVisits = () => {
             </p>
           </div>
         </div>
-        {['admin', 'ict'].includes(currentUser?.role || '') && (
+        {(checkPermission('site_visits', 'create') || hasAnyRole(['admin'])) && (
           <Button 
             className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground shadow-lg hover:shadow-xl transition-all duration-300" 
             asChild

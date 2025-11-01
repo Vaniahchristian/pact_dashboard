@@ -49,7 +49,7 @@ export const useAuthorization = () => {
     return checkPermission('roles', 'create') || 
            checkPermission('roles', 'update') || 
            checkPermission('roles', 'delete') ||
-           hasAnyRole(['admin', 'ict']);
+           hasAnyRole(['admin']);
   };
 
   /**
@@ -59,7 +59,7 @@ export const useAuthorization = () => {
     return checkPermission('users', 'create') || 
            checkPermission('users', 'update') || 
            checkPermission('users', 'delete') ||
-           hasAnyRole(['admin', 'ict']);
+           hasAnyRole(['admin']);
   };
 
   /**
@@ -67,7 +67,7 @@ export const useAuthorization = () => {
    */
   const canApproveMMP = (): boolean => {
     return checkPermission('mmp', 'approve') ||
-           hasAnyRole(['admin', 'ict', 'fom']);
+           hasAnyRole(['admin']);
   };
 
   /**
@@ -76,7 +76,7 @@ export const useAuthorization = () => {
   const canManageFinances = (): boolean => {
     return checkPermission('finances', 'update') ||
            checkPermission('finances', 'approve') ||
-           hasAnyRole(['admin', 'ict', 'financialAdmin']);
+           hasAnyRole(['admin']);
   };
 
   /**
@@ -84,7 +84,7 @@ export const useAuthorization = () => {
    */
   const canViewAllSiteVisits = (): boolean => {
     return checkPermission('site_visits', 'read') ||
-           hasAnyRole(['admin', 'ict', 'fom', 'financialAdmin', 'supervisor']);
+           hasAnyRole(['admin']);
   };
 
   /**
@@ -92,7 +92,7 @@ export const useAuthorization = () => {
    */
   const canCreateProjects = (): boolean => {
     return checkPermission('projects', 'create') ||
-           hasAnyRole(['admin', 'ict', 'fom']);
+           hasAnyRole(['admin']);
   };
 
   /**

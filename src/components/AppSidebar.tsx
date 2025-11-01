@@ -34,6 +34,7 @@ import {
   SidebarRail
 } from "@/components/ui/sidebar";
 import { AppRole } from "@/types";
+import { useAuthorization } from "@/hooks/use-authorization";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -52,59 +53,42 @@ interface MenuGroup {
   }>;
 }
 
-const getMenuGroups = (roles: AppRole[] = [], defaultRole: string = 'dataCollector'): MenuGroup[] => {
+const getMenuGroups = (
+  roles: AppRole[] = [], 
+  defaultRole: string = 'dataCollector',
+  perms: Record<string, boolean> = {}
+): MenuGroup[] => {
   const isAdmin = roles.includes('admin' as AppRole) || defaultRole === 'admin';
-  const isICT = roles.includes('ict' as AppRole) || defaultRole === 'ict';
-  const isFOM = roles.includes('fom' as AppRole) || defaultRole === 'fom';
-  const isFinancialAdmin = roles.includes('financialAdmin' as AppRole) || defaultRole === 'financialAdmin';
-  const canManageRoles = isAdmin || isICT; // Role management access
+  // Build items per permission, allowing admin bypass
+  const mainItems = [] as MenuGroup['items'];
+  if (isAdmin || perms.dashboard) mainItems.push({ title: "Dashboard", url: "/dashboard", icon: LayoutDashboard });
 
-  const mainItems = [
-    { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
-  ];
+  const projectItems = [] as MenuGroup['items'];
+  if (isAdmin || perms.projects) projectItems.push({ title: "Projects", url: "/projects", icon: FolderKanban });
+  if (isAdmin || perms.mmp) projectItems.push({ title: "MMP Management", url: "/mmp", icon: Database });
+  if (isAdmin || perms.monitoringPlan) projectItems.push({ title: "Monitoring Plan", url: "/monitoring-plan", icon: Activity });
+  if (isAdmin || perms.siteVisits) projectItems.push({ title: "Site Visits", url: "/site-visits", icon: ClipboardList });
+  if (isAdmin || perms.archive) projectItems.push({ title: "Archive", url: "/archive", icon: Archive });
 
-  const projectItems = [
-    { title: "Projects", url: "/projects", icon: FolderKanban },
-    { title: "MMP Management", url: "/mmp", icon: Database },
-    { title: "Monitoring Plan", url: "/monitoring-plan", icon: Activity },
-    { title: "Site Visits", url: "/site-visits", icon: ClipboardList },
-    { title: "Archive", url: "/archive", icon: Archive },
-  ];
+  const teamItems = [] as MenuGroup['items'];
+  if (isAdmin || perms.fieldTeam) teamItems.push({ title: "Field Team", url: "/field-team", icon: Activity });
 
-  const teamItems = [
-    { title: "Field Team", url: "/field-team", icon: Activity },
-  ];
+  const dataItems = [] as MenuGroup['items'];
+  if (isAdmin || perms.dataVisibility) dataItems.push({ title: "Data Visibility", url: "/data-visibility", icon: Link2 });
+  if (isAdmin || perms.reports) dataItems.push({ title: "Reports", url: "/reports", icon: Calendar });
 
-  const dataItems = [
-    { title: "Data Visibility", url: "/data-visibility", icon: Link2 },
-    {
-      title: "Reports",
-      url: "/reports",
-      icon: Calendar,
-    },
+  const adminItems = [] as MenuGroup['items'];
+  if (isAdmin || perms.users) adminItems.push({ title: "User Management", url: "/users", icon: Users });
+  if (isAdmin || perms.roleManagement) adminItems.push({ title: "Role Management", url: "/role-management", icon: Shield });
+  if (isAdmin || perms.settings) adminItems.push({ title: "Settings", url: "/settings", icon: Settings });
 
-  ];
-
-  // Enhanced admin items with role management
-  const adminItems = [
-    { title: "User Management", url: "/users", icon: Users },
-    ...(canManageRoles ? [{ title: "Role Management", url: "/role-management", icon: Shield }] : []),
-    { title: "Settings", url: "/settings", icon: Settings }
-  ];
-
-  const settingsOnly = [
-    { title: "Settings", url: "/settings", icon: Settings }
-  ];
-
-  const groups: MenuGroup[] = [
-    { label: "Overview", items: mainItems },
-    { label: "Projects", items: projectItems },
-  ];
-
-  if (!isFinancialAdmin) groups.push({ label: "Team", items: teamItems });
-  if (isAdmin || isICT || isFOM || isFinancialAdmin) groups.push({ label: "Data & Reports", items: dataItems });
-  if (isAdmin || isICT) groups.push({ label: "Administration", items: adminItems });
-  else groups.push({ label: "Administration", items: settingsOnly });
+  // Compose groups only if they have items
+  const groups: MenuGroup[] = [];
+  if (mainItems.length) groups.push({ label: "Overview", items: mainItems });
+  if (projectItems.length) groups.push({ label: "Projects", items: projectItems });
+  if (teamItems.length) groups.push({ label: "Team", items: teamItems });
+  if (dataItems.length) groups.push({ label: "Data & Reports", items: dataItems });
+  if (adminItems.length) groups.push({ label: "Administration", items: adminItems });
 
   return groups;
 };
@@ -115,7 +99,23 @@ const AppSidebar = () => {
   const { currentUser, logout, roles } = useAppContext();
   const { showDueReminders } = useSiteVisitReminders();
   
-  const menuGroups = currentUser ? getMenuGroups(roles || [], currentUser.role) : [];
+  const { checkPermission, hasAnyRole, canManageRoles } = useAuthorization();
+  const isAdmin = hasAnyRole(['admin']);
+  const perms = {
+    dashboard: true,
+    projects: checkPermission('projects', 'read') || isAdmin,
+    mmp: checkPermission('mmp', 'read') || isAdmin,
+    monitoringPlan: checkPermission('mmp', 'read') || isAdmin,
+    siteVisits: checkPermission('site_visits', 'read') || isAdmin,
+    archive: checkPermission('reports', 'read') || isAdmin,
+    fieldTeam: checkPermission('users', 'read') || isAdmin,
+    dataVisibility: checkPermission('reports', 'read') || isAdmin,
+    reports: checkPermission('reports', 'read') || isAdmin,
+    users: checkPermission('users', 'read') || isAdmin,
+    roleManagement: canManageRoles() || isAdmin,
+    settings: checkPermission('settings', 'read') || isAdmin,
+  };
+  const menuGroups = currentUser ? getMenuGroups(roles || [], currentUser.role, perms) : [];
 
   const getInitials = (name: string) =>
     name.split(" ").map((part) => part[0]).join("").toUpperCase().substring(0, 2);

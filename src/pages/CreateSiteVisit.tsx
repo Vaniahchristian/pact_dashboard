@@ -5,13 +5,16 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from '@/components/ui/button';
 import { useAppContext } from '@/context/AppContext';
 import { FileText, AlertTriangle, ChevronLeft } from 'lucide-react';
+import { useAuthorization } from '@/hooks/use-authorization';
 
 const CreateSiteVisit = () => {
   const navigate = useNavigate();
   const { currentUser } = useAppContext();
+  const { checkPermission, hasAnyRole } = useAuthorization();
 
-  // Check if user has permission
-  if (!currentUser || !['admin', 'ict'].includes(currentUser.role)) {
+  // Check if user has permission (admin bypass)
+  const canAccess = checkPermission('site_visits', 'create') || hasAnyRole(['admin']);
+  if (!canAccess) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <Card className="w-full max-w-md">

@@ -40,7 +40,7 @@ const FieldTeamMapPermissions: React.FC<FieldTeamMapPermissionsProps> = ({
   const act = action ?? mapLegacy(requiredAction).action;
 
   const canAccess = (res && act ? checkPermission(res, act) : false) ||
-                    hasAnyRole(['admin', 'ict', 'fom', 'supervisor']);
+                    hasAnyRole(['admin']);
   
   const label = requiredAction
     ? requiredAction.replace('_', ' ')

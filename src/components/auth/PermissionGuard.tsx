@@ -68,7 +68,7 @@ export const AdminOrICT: React.FC<{ children: React.ReactNode; fallback?: React.
   children, 
   fallback 
 }) => (
-  <PermissionGuard roles={['admin', 'ict']} fallback={fallback}>
+  <PermissionGuard roles={['admin']} fallback={fallback}>
     {children}
   </PermissionGuard>
 );
@@ -77,7 +77,7 @@ export const ManagerOnly: React.FC<{ children: React.ReactNode; fallback?: React
   children, 
   fallback 
 }) => (
-  <PermissionGuard roles={['admin', 'ict', 'fom']} fallback={fallback}>
+  <PermissionGuard roles={['admin']} fallback={fallback}>
     {children}
   </PermissionGuard>
 );

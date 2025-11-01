@@ -8,6 +8,9 @@ import TeamHeader from '@/components/field-team/TeamHeader';
 import SimpleFieldTeamMap from '@/components/map/SimpleFieldTeamMap';
 import SiteVisitsSummary from '@/components/field-team/SiteVisitsSummary';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useAuthorization } from '@/hooks/use-authorization';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 
 const FieldTeam = () => {
   const { users, currentUser } = useUser();
@@ -18,6 +21,32 @@ const FieldTeam = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+  const { checkPermission, hasAnyRole } = useAuthorization();
+
+  const canAccess = checkPermission('users', 'read') || hasAnyRole(['admin']);
+  if (!canAccess) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle className="text-destructive">Access Denied</CardTitle>
+            <CardDescription>
+              You don't have permission to access this page.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button
+              variant="outline"
+              onClick={() => navigate('/dashboard')}
+              className="w-full"
+            >
+              Return to Dashboard
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   const handleBackToDashboard = () => {
     navigate('/dashboard');

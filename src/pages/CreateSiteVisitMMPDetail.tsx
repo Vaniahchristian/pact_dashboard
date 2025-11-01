@@ -13,12 +13,14 @@ import { MMPInfoCard } from '@/components/site-visit/MMPInfoCard';
 import { Separator } from '@/components/ui/separator';
 import { useMMP } from '@/context/mmp/MMPContext';
 import { useSiteVisitContext } from '@/context/siteVisit/SiteVisitContext';
+import { useAuthorization } from '@/hooks/use-authorization';
 
 const CreateSiteVisitMMPDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
   const { currentUser, calculateDistanceFee } = useAppContext();
+  const { checkPermission, hasAnyRole } = useAuthorization();
   const { getMmpById } = useMMP();
   const { createSiteVisit } = useSiteVisitContext();
   
@@ -70,7 +72,8 @@ const CreateSiteVisitMMPDetail = () => {
     setLoading(false);
   }, [id]);
 
-  if (!currentUser || !['admin', 'ict'].includes(currentUser.role)) {
+  const canAccess = checkPermission('site_visits', 'create') || hasAnyRole(['admin']);
+  if (!canAccess) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <Card className="w-full max-w-md">

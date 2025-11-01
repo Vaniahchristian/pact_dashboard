@@ -23,6 +23,7 @@ import {
 import { sudanStates, hubs, getLocalitiesByState, getHubForState } from '@/data/sudanStates';
 import { useUser } from '@/context/user/UserContext';
 import { useSiteVisitContext } from '@/context/siteVisit/SiteVisitContext';
+import { useAuthorization } from '@/hooks/use-authorization';
 
 interface UrgentSiteVisitForm {
   siteSource: 'existing' | 'new';
@@ -51,6 +52,7 @@ interface UrgentSiteVisitForm {
 const CreateSiteVisitUrgent = () => {
   const navigate = useNavigate();
   const { currentUser, users } = useUser();
+  const { checkPermission, hasAnyRole } = useAuthorization();
   const { mmpFiles } = useMMP();
   const { createSiteVisit } = useSiteVisitContext();
   const [localities, setLocalities] = useState<{ id: string; name: string; }[]>([]);
@@ -120,7 +122,8 @@ const CreateSiteVisitUrgent = () => {
       code: site.siteCode
     }));
 
-  if (!currentUser || !['admin', 'ict'].includes(currentUser.role)) {
+  const canAccess = checkPermission('site_visits', 'create') || hasAnyRole(['admin']);
+  if (!canAccess) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <Card className="w-full max-w-md">

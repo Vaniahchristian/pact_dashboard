@@ -11,10 +11,12 @@ import { MMPFile } from '@/types';
 import { format } from 'date-fns';
 import { useMMP } from '@/context/mmp/MMPContext';
 import { debugMMPFiles } from '@/utils/mmpUtils';
+import { useAuthorization } from '@/hooks/use-authorization';
 
 const CreateSiteVisitMMP = () => {
   const navigate = useNavigate();
   const { currentUser } = useAppContext();
+  const { checkPermission, hasAnyRole } = useAuthorization();
   const { mmpFiles, loading } = useMMP();
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -36,8 +38,9 @@ const CreateSiteVisitMMP = () => {
     (mmp.projectName && mmp.projectName.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  // Check if user has permission
-  if (!currentUser || !['admin', 'ict'].includes(currentUser.role)) {
+  // Check if user has permission (admin bypass)
+  const canAccess = checkPermission('site_visits', 'create') || hasAnyRole(['admin']);
+  if (!canAccess) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <Card className="w-full max-w-md">
