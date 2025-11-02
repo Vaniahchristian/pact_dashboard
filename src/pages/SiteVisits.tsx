@@ -144,6 +144,35 @@ const SiteVisits = () => {
       date,
     }));
   };
+
+  const handleStatusClick = (status: string) => {
+    // Handle special case for scheduled status (which includes multiple statuses)
+    if (status === 'scheduled') {
+      // For scheduled, we'll filter to show assigned and permitVerified statuses
+      // Since we can only filter by one status at a time, we'll default to 'assigned'
+      setStatusFilter('assigned');
+      setActiveFilters(prev => ({
+        ...prev,
+        status: 'assigned',
+      }));
+      setSearchParams({ status: 'assigned' });
+    } else {
+      setStatusFilter(status);
+      setActiveFilters(prev => ({
+        ...prev,
+        status,
+      }));
+      setSearchParams({ status });
+    }
+
+    // Scroll to the filtered results
+    setTimeout(() => {
+      const resultsElement = document.querySelector('[data-results-section]');
+      if (resultsElement) {
+        resultsElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 100);
+  };
   
   const handleVisitSelection = (visit: SiteVisit) => {
     setSelectedVisit(visit);
@@ -424,14 +453,17 @@ const SiteVisits = () => {
         )}
       </div>
 
-      <SiteVisitStats visits={siteVisits} />
+      <SiteVisitStats 
+        visits={siteVisits} 
+        onStatusClick={handleStatusClick}
+      />
 
       <ApprovedMMPList 
         mmps={approvedMMPs} // Pass the filtered MMP files
         onSelectMMP={(mmp) => navigate(`/site-visits/create/mmp/${mmp.id}`)}
       />
 
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-4" data-results-section>
         <div className="flex flex-col md:flex-row md:items-center gap-4 justify-between">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -465,6 +497,23 @@ const SiteVisits = () => {
           onRemoveFilter={handleRemoveFilter}
           onDateSelect={handleDateSelect}
         />
+
+        {/* Show active filter indicator */}
+        {statusFilter !== 'all' && (
+          <div className="flex items-center gap-2 p-3 bg-primary/5 border border-primary/20 rounded-lg">
+            <div className="text-sm font-medium text-primary">
+              Showing {statusFilter === 'assigned' ? 'scheduled' : statusFilter} visits
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handleStatusClick('all')}
+              className="text-primary hover:text-primary/80"
+            >
+              Clear filter
+            </Button>
+          </div>
+        )}
 
         {renderContent()}
       </div>
