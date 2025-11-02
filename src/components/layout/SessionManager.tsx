@@ -1,7 +1,5 @@
 import React from 'react';
 import { useSessionTimeout } from '@/hooks/useSessionTimeout';
-import SessionTimeoutWarning from '@/components/auth/SessionTimeoutWarning';
-import SessionIndicator from '@/components/ui/SessionIndicator';
 import { useAppContext } from '@/context/AppContext';
 
 interface SessionManagerProps {
@@ -9,44 +7,17 @@ interface SessionManagerProps {
 }
 
 const SessionManager: React.FC<SessionManagerProps> = ({ children }) => {
-  const { currentUser } = useAppContext();
+  const { currentUser, logout } = useAppContext();
 
-  const {
-    isWarningVisible,
-    timeLeft,
-    extendSession,
+  // Only auto-logout logic, no UI or warning
+  useSessionTimeout({
+    sessionDuration: 90,
+    checkInterval: 1000,
     logout,
-    formatTimeLeft,
-  } = useSessionTimeout({
-    warningTime: 60, // warn after 60s of inactivity
-    sessionDuration: 90, // auto-logout after 90s total (60s warning + 30s countdown)
-    checkInterval: 1000, // check every second
   });
 
-  if (!currentUser) return <>{children}</>;
-
-  return (
-    <>
-      {children}
-
-      <div className="fixed bottom-6 right-6 z-50">
-        <SessionIndicator
-          timeLeft={timeLeft}
-          extendSession={extendSession}
-          formatTimeLeft={formatTimeLeft}
-          small
-        />
-      </div>
-
-      <SessionTimeoutWarning
-        isVisible={isWarningVisible}
-        timeLeft={timeLeft}
-        onExtendSession={extendSession}
-        onLogout={logout}
-        formatTimeLeft={formatTimeLeft}
-      />
-    </>
-  );
+  // Just render children, no session indicator or warning dialog
+  return <>{children}</>;
 };
 
 export default SessionManager;

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { useUser } from '@/context/user/UserContext';
 import { User } from '@/types';
@@ -78,9 +77,7 @@ const Users = () => {
   const [showAdminSection, setShowAdminSection] = useState(true);
 
   const [editingUser, setEditingUser] = useState<User | null>(null);
-  // Encoded value: 'sys:<AppRole>' or 'custom:<roleId>'
   const [roleSelect, setRoleSelect] = useState<string>('');
-  const [roleAction, setRoleAction] = useState<'add' | 'remove'>('add');
   const [isRoleLoading, setIsRoleLoading] = useState(false);
 
   const pendingUsers = useMemo(() => users.filter(user => !user.isApproved), [users]);
@@ -211,7 +208,6 @@ const Users = () => {
   const handleOpenRoleEdit = (user: User) => {
     setEditingUser(user);
     setRoleSelect('');
-    setRoleAction('add');
   };
 
   const handleCloseRoleEdit = () => {
@@ -227,84 +223,74 @@ const Users = () => {
       let success = false;
       if (roleSelect.startsWith('sys:')) {
         const sysRole = roleSelect.slice(4) as AppRole;
-        if (roleAction === 'add') {
-          // Exclusive: clear all current roles first
-          const { error: clearErr } = await supabase
-            .from('user_roles')
-            .delete()
-            .eq('user_id', editingUser.id);
-          if (clearErr) throw clearErr;
+        // Exclusive: clear all current roles first
+        const { error: clearErr } = await supabase
+          .from('user_roles')
+          .delete()
+          .eq('user_id', editingUser.id);
+        if (clearErr) throw clearErr;
 
-          // Assign the single selected system role
-          success = await addRole(editingUser.id, sysRole);
+        // Assign the selected system role
+        success = await addRole(editingUser.id, sysRole);
 
-          // Reflect primary in profiles.role for system roles
-          const { error: profErr } = await supabase
-            .from('profiles')
-            .update({ role: sysRole })
-            .eq('id', editingUser.id);
-          if (profErr) throw profErr;
+        // Reflect primary in profiles.role for system roles
+        const { error: profErr } = await supabase
+          .from('profiles')
+          .update({ role: sysRole })
+          .eq('id', editingUser.id);
+        if (profErr) throw profErr;
 
-          // Keep local cache light: set only the selected system role
-          const storedUser = localStorage.getItem(`user-${editingUser.id}`);
-          if (storedUser) {
-            try {
-              const parsedUser = JSON.parse(storedUser);
-              localStorage.setItem(`user-${editingUser.id}`, JSON.stringify({
-                ...parsedUser,
-                role: sysRole,
-                roles: [sysRole],
-              }));
-            } catch (error) {
-              console.error("Error updating stored user roles:", error);
-            }
+        // Keep local cache light: set only the selected system role
+        const storedUser = localStorage.getItem(`user-${editingUser.id}`);
+        if (storedUser) {
+          try {
+            const parsedUser = JSON.parse(storedUser);
+            localStorage.setItem(`user-${editingUser.id}`, JSON.stringify({
+              ...parsedUser,
+              role: sysRole,
+              roles: [sysRole],
+            }));
+          } catch (error) {
+            console.error("Error updating stored user roles:", error);
           }
-
-          await refreshUsers();
-        } else {
-          // Remove selected system role only
-          success = await removeRole(editingUser.id, sysRole);
         }
+
+        await refreshUsers();
       } else if (roleSelect.startsWith('custom:')) {
         const roleId = roleSelect.slice(7);
-        if (roleAction === 'add') {
-          // Exclusive: clear all current roles first
-          const { error: clearErr } = await supabase
-            .from('user_roles')
-            .delete()
-            .eq('user_id', editingUser.id);
-          if (clearErr) throw clearErr;
+        // Exclusive: clear all current roles first
+        const { error: clearErr } = await supabase
+          .from('user_roles')
+          .delete()
+          .eq('user_id', editingUser.id);
+        if (clearErr) throw clearErr;
 
-          // Assign the single selected custom role
-          success = await assignRoleToUser({ user_id: editingUser.id, role_id: roleId });
+        // Assign the selected custom role
+        success = await assignRoleToUser({ user_id: editingUser.id, role_id: roleId });
 
-          // Set profiles.role to a neutral marker (not a system role) to avoid miscount
-          const { error: profErr } = await supabase
-            .from('profiles')
-            .update({ role: 'custom' })
-            .eq('id', editingUser.id);
-          if (profErr) throw profErr;
+        // Set profiles.role to a neutral marker (not a system role) to avoid miscount
+        const { error: profErr } = await supabase
+          .from('profiles')
+          .update({ role: 'custom' })
+          .eq('id', editingUser.id);
+        if (profErr) throw profErr;
 
-          // Update local cache to reflect single effective role
-          const storedUser = localStorage.getItem(`user-${editingUser.id}`);
-          if (storedUser) {
-            try {
-              const parsedUser = JSON.parse(storedUser);
-              localStorage.setItem(`user-${editingUser.id}`, JSON.stringify({
-                ...parsedUser,
-                role: 'custom',
-                roles: [],
-              }));
-            } catch (error) {
-              console.error("Error updating stored user roles:", error);
-            }
+        // Update local cache to reflect single effective role
+        const storedUser = localStorage.getItem(`user-${editingUser.id}`);
+        if (storedUser) {
+          try {
+            const parsedUser = JSON.parse(storedUser);
+            localStorage.setItem(`user-${editingUser.id}`, JSON.stringify({
+              ...parsedUser,
+              role: 'custom',
+              roles: [],
+            }));
+          } catch (error) {
+            console.error("Error updating stored user roles:", error);
           }
-
-          await refreshUsers();
-        } else {
-          // Remove selected custom role only
-          success = await removeRoleFromUser(editingUser.id, roleId);
         }
+
+        await refreshUsers();
       }
 
       if (!success) {
@@ -760,9 +746,9 @@ const Users = () => {
       <Dialog open={!!editingUser} onOpenChange={handleCloseRoleEdit}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit Roles</DialogTitle>
+            <DialogTitle>Edit Role</DialogTitle>
             <DialogDescription>
-              Assign or remove roles for{' '}
+              Select a new role for{' '}
               <span className="font-bold">{editingUser?.name ?? ''}</span>
             </DialogDescription>
           </DialogHeader>
@@ -795,24 +781,6 @@ const Users = () => {
                   ))}
               </SelectContent>
             </Select>
-            <div className="flex gap-3 mt-3">
-              <Button
-                type="button"
-                variant={roleAction === 'add' ? 'default' : 'outline'}
-                onClick={() => setRoleAction('add')}
-                className={roleAction === 'add' ? 'ring-2 ring-primary' : ''}
-              >
-                Add
-              </Button>
-              <Button
-                type="button"
-                variant={roleAction === 'remove' ? 'destructive' : 'outline'}
-                onClick={() => setRoleAction('remove')}
-                className={roleAction === 'remove' ? 'ring-2 ring-destructive' : ''}
-              >
-                Remove
-              </Button>
-            </div>
           </div>
           <DialogFooter>
             <Button
@@ -820,7 +788,7 @@ const Users = () => {
               onClick={handleConfirmRoleEdit}
               disabled={!roleSelect || isRoleLoading}
             >
-              {isRoleLoading ? "Processing..." : (roleAction === 'add' ? 'Add Role' : 'Remove Role')}
+              {isRoleLoading ? "Updating..." : "Update Role"}
             </Button>
             <DialogClose asChild>
               <Button type="button" variant="outline">Cancel</Button>

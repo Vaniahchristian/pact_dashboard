@@ -8,7 +8,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Clock, RefreshCw, LogOut } from 'lucide-react';
+import { Clock, RefreshCw, LogOut, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 
@@ -31,26 +31,32 @@ const SessionTimeoutWarning: React.FC<SessionTimeoutWarningProps> = ({
 
   useEffect(() => {
     if (!isVisible) return;
-    // progress relative to 60s warning window; clamp between 0-100
-    const value = Math.max(0, Math.min(100, (timeLeft / 60) * 100));
+    const value = Math.max(0, Math.min(100, (timeLeft / 30) * 100));
     setProgress(Math.round(value));
   }, [timeLeft, isVisible]);
 
   return (
-    <Dialog open={isVisible} onOpenChange={() => {}}>
-      <DialogContent className="max-w-md">
+    <Dialog open={isVisible} onOpenChange={(open) => { if (!open) onExtendSession(); }}>
+      <DialogContent className="max-w-md animate-fade-in">
         <DialogHeader>
           <div className="flex items-center gap-3">
             <Clock className="h-5 w-5 text-muted-foreground" />
             <DialogTitle className="text-base font-semibold">
-              Session Ending Soon
+              Session About to Expire
             </DialogTitle>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="ml-auto"
+              onClick={onExtendSession}
+              aria-label="Close"
+            >
+              <X className="h-4 w-4" />
+            </Button>
           </div>
           <DialogDescription className="mt-3 text-sm text-muted-foreground">
-            Your session will expire due to inactivity. You can extend your
-            session to stay logged in.
+            Your session is about to expire due to inactivity.
           </DialogDescription>
-
           <div className="mt-4 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <span className="text-xs text-muted-foreground">
@@ -64,12 +70,10 @@ const SessionTimeoutWarning: React.FC<SessionTimeoutWarningProps> = ({
               Auto logout in {formatTimeLeft(timeLeft)}
             </div>
           </div>
-
           <div className="mt-3">
-            <Progress value={progress} className="h-2" />
+            <Progress value={progress} className="h-2 transition-all duration-300" />
           </div>
         </DialogHeader>
-
         <DialogFooter className="mt-4 flex gap-2">
           <Button
             variant="outline"
@@ -77,14 +81,14 @@ const SessionTimeoutWarning: React.FC<SessionTimeoutWarningProps> = ({
             className="flex-1 hover:bg-red-50"
           >
             <LogOut className="h-4 w-4 mr-2" />
-            Logout
+            Logout Now
           </Button>
           <Button
             onClick={onExtendSession}
             className="flex-1 bg-blue-600 text-white hover:bg-blue-700"
           >
             <RefreshCw className="h-4 w-4 mr-2" />
-            Stay Logged In
+            Extend Session
           </Button>
         </DialogFooter>
       </DialogContent>
