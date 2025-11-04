@@ -156,10 +156,10 @@ const RoleManagement = () => {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={() => setShowPermissionTester(true)} variant="outline">
+          {/* <Button onClick={() => setShowPermissionTester(true)} variant="outline">
             <Shield className="h-4 w-4 mr-2" />
             Test Permissions
-          </Button>
+          </Button> */}
           <Button onClick={() => setShowCreateDialog(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Create Role
