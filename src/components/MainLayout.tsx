@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation, Outlet } from "react-router-dom";
-import { SidebarProvider } from "@/components/ui/sidebar";
+import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import AppSidebar from "@/components/AppSidebar";
 import Navbar from "@/components/Navbar";
 import MobileNavigation from "@/components/MobileNavigation";
@@ -68,7 +68,7 @@ const MainLayoutContent: React.FC<MainLayoutContentProps> = ({ children }) => {
       <SidebarProvider>
         <div className="min-h-screen flex w-full">
           {!isMobile && <AppSidebar />}
-          <div className={`flex-1 flex flex-col ${isMobile ? 'bg-gray-50 dark:bg-gray-900' : ''} relative z-0`}>
+          <SidebarInset className={`${isMobile ? 'bg-gray-50 dark:bg-gray-900' : ''} relative z-0 flex flex-col min-w-0 overflow-x-hidden`}>
             {isMobile ? (
               <MobileAppHeader 
                 toggleSidebar={toggleSidebar} 
@@ -78,11 +78,11 @@ const MainLayoutContent: React.FC<MainLayoutContentProps> = ({ children }) => {
             ) : (
               <Navbar />
             )}
-            <main className={`flex-1 ${isMobile ? 'px-3 pb-24 pt-2' : 'p-4 md:p-6 lg:p-8'} ${isMobile ? 'bg-gray-50 dark:bg-gray-900' : 'bg-slate-50/70 dark:bg-gray-900/70'} overflow-y-auto relative z-0`}>
+            <div className={`flex-1 ${isMobile ? 'px-3 pb-24 pt-2' : 'p-4 md:p-6 lg:p-8'} ${isMobile ? 'bg-gray-50 dark:bg-gray-900' : 'bg-slate-50/70 dark:bg-gray-900/70'} overflow-y-auto relative z-0 min-w-0`}>
               {children || <Outlet />}
-            </main>
+            </div>
             {isMobile && <MobileNavigation />}
-          </div>
+          </SidebarInset>
           <div className="fixed bottom-4 right-4 flex gap-2">
             <Tooltip>
               <TooltipTrigger asChild>

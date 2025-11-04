@@ -550,7 +550,7 @@ const DataVisibility: React.FC = () => {
   };
 
   return (
-    <div className="container mx-auto p-4 space-y-6 max-w-full overflow-x-hidden">
+    <div className="container mx-auto p-4 space-y-6 max-w-full overflow-x-hidden min-w-0">
       <div className="flex items-center mb-6">
         <Button
           variant="outline"
@@ -563,7 +563,7 @@ const DataVisibility: React.FC = () => {
         </Button>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full overflow-x-hidden">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full overflow-x-hidden min-w-0">
         <TabsList className="grid grid-cols-1 md:grid-cols-3">
           <TabsTrigger value="integrated-view">Integrated Module View</TabsTrigger>
           <TabsTrigger value="reporting">Reporting & Trends</TabsTrigger>
@@ -571,7 +571,7 @@ const DataVisibility: React.FC = () => {
         </TabsList>
         
         <TabsContent value="integrated-view" className="space-y-4">
-          <Card className="overflow-hidden">
+          <Card className="overflow-hidden min-w-0">
             <CardHeader>
               <CardTitle>Site Visits & Data Collectors Map</CardTitle>
               <CardDescription>
@@ -592,7 +592,7 @@ const DataVisibility: React.FC = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="min-w-0">
             <CardHeader>
               <CardTitle>Site Visits & MMP Integration</CardTitle>
               <CardDescription>
@@ -756,7 +756,7 @@ const DataVisibility: React.FC = () => {
           </Card>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card>
+            <Card className="min-w-0">
               <CardHeader>
                 <CardTitle>Linked Modules</CardTitle>
                 <CardDescription>Connected data across modules</CardDescription>
@@ -962,7 +962,7 @@ const DataVisibility: React.FC = () => {
 
         <TabsContent value="compliance" className="space-y-4">
           {/* Add compliance tab content here */}
-          <Card>
+          <Card className="min-w-0">
             <CardHeader>
               <CardTitle>Compliance & Audit Overview</CardTitle>
               <CardDescription>
