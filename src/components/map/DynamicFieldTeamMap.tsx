@@ -155,9 +155,7 @@ const DynamicFieldTeamMap: React.FC<DynamicFieldTeamMapProps> = (props) => {
                 center={[15.5007, 32.5599]} // Sudan's center
                 zoom={6}
                 onMarkerClick={(type, id) => {
-                  if (type === 'site' && props.onAssign) {
-                    props.onAssign(id);
-                  } else if (type === 'collector' && props.onUserSelect) {
+                  if (type === 'collector' && props.onUserSelect) {
                     props.onUserSelect(id);
                   }
                 }}
