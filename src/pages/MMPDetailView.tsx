@@ -180,7 +180,7 @@ const MMPDetailView = () => {
 
   const handleProceedToVerification = () => {
     if (mmpFile) {
-      navigate(`/mmp/verify/${mmpFile.id}`);
+      navigate(`/mmp/${mmpFile.id}/verification`);
     } else {
       toast({
         title: "Cannot Proceed",
