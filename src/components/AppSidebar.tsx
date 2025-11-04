@@ -66,7 +66,7 @@ const getMenuGroups = (
   const projectItems = [] as MenuGroup['items'];
   if (isAdmin || perms.projects) projectItems.push({ title: "Projects", url: "/projects", icon: FolderKanban });
   if (isAdmin || perms.mmp) projectItems.push({ title: "MMP Management", url: "/mmp", icon: Database });
-  if (isAdmin || perms.monitoringPlan) projectItems.push({ title: "Monitoring Plan", url: "/monitoring-plan", icon: Activity });
+  // if (isAdmin || perms.monitoringPlan) projectItems.push({ title: "Monitoring Plan", url: "/monitoring-plan", icon: Activity });
   if (isAdmin || perms.siteVisits) projectItems.push({ title: "Site Visits", url: "/site-visits", icon: ClipboardList });
   if (isAdmin || perms.archive) projectItems.push({ title: "Archive", url: "/archive", icon: Archive });
 
