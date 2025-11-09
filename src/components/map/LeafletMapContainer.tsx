@@ -44,14 +44,28 @@ interface LeafletMapContainerProps {
   mapType?: 'standard' | 'satellite' | 'terrain';
   defaultCenter?: [number, number];
   defaultZoom?: number;
+  showHubs?: boolean;
 }
 
-// This component will adjust the map bounds to fit all locations
-const MapBoundsHandler = ({ locations }: { locations: LeafletMapContainerProps['locations'] }) => {
+// This component will adjust the map bounds to fit all locations or fall back to provided center/zoom
+const MapBoundsHandler = ({ 
+  locations, 
+  defaultCenter, 
+  defaultZoom 
+}: { 
+  locations: LeafletMapContainerProps['locations'];
+  defaultCenter: [number, number];
+  defaultZoom: number;
+}) => {
   const map = useMap();
   
   useEffect(() => {
     if (!locations || locations.length === 0) {
+      try {
+        map.setView(defaultCenter, defaultZoom);
+      } catch (error) {
+        // ignore
+      }
       return;
     }
     
@@ -67,7 +81,7 @@ const MapBoundsHandler = ({ locations }: { locations: LeafletMapContainerProps['
         console.error("Error setting map bounds:", error);
       }
     }
-  }, [map, locations]);
+  }, [map, locations, defaultCenter, defaultZoom]);
   
   return null;
 };
@@ -168,8 +182,9 @@ const LeafletMapContainer: React.FC<LeafletMapContainerProps> = ({
   height = '500px',
   onLocationClick,
   mapType = 'standard',
-  defaultCenter = [15.5007, 32.5599],
-  defaultZoom = 6
+  defaultCenter = [20, 0],
+  defaultZoom = 3,
+  showHubs = false
 }) => {
   const formatLastActive = (lastActive?: string) => {
     if (!lastActive) return 'Never';
@@ -184,10 +199,10 @@ const LeafletMapContainer: React.FC<LeafletMapContainerProps> = ({
         zoom={defaultZoom}
         style={{ height: '100%', width: '100%' }}
         className="rounded-lg"
-        minZoom={5}
+        minZoom={2}
         maxBounds={[
-          [8.5, 21.8], // Southwest coordinates
-          [22.5, 39.0]  // Northeast coordinates
+          [-90, -180], // Southwest coordinates
+          [90, 180]  // Northeast coordinates
         ]}
       >
         <TileLayer
@@ -196,7 +211,7 @@ const LeafletMapContainer: React.FC<LeafletMapContainerProps> = ({
         />
         
         {/* Add Hub Highlights */}
-        {hubs.map(hub => (
+        {showHubs && hubs.map(hub => (
           <HubHighlight
             key={hub.id}
             hub={hub}
@@ -268,7 +283,7 @@ const LeafletMapContainer: React.FC<LeafletMapContainerProps> = ({
           </Marker>
         ))}
         
-        <MapBoundsHandler locations={locations} />
+        <MapBoundsHandler locations={locations} defaultCenter={defaultCenter} defaultZoom={defaultZoom} />
       </MapContainer>
     </div>
   );

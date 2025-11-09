@@ -77,8 +77,8 @@ const StaticTeamMap: React.FC<StaticTeamMapProps> = ({ users, siteVisits }) => {
         <LeafletMapContainer
           locations={allLocations}
           height="100%"
-          defaultCenter={[15.5007, 32.5599]} // Sudan's center
-          defaultZoom={6}
+          defaultCenter={[20, 0]} // Global default
+          defaultZoom={3}
           onLocationClick={(id) => {
             console.log('Location clicked:', id);
           }}

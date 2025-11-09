@@ -140,8 +140,8 @@ const SimpleFieldTeamMap: React.FC<SimpleFieldTeamMapProps> = ({
             <LeafletMapContainer
               locations={allLocations}
               height={height}
-              defaultCenter={[15.5007, 32.5599]} // Sudan's center
-              defaultZoom={6}
+              defaultCenter={[20, 0]} // Sudan's center
+              defaultZoom={3}
               onLocationClick={(id) => {
                 console.log('Location clicked:', id);
                 // You can add navigation or modal logic here

@@ -29,8 +29,8 @@ const MapComponent: React.FC<MapComponentProps> = ({
   collectors = [],
   siteVisits = [],
   assignments = [],
-  center = [15.5007, 32.5599], // Sudan's center coordinates
-  zoom = 6,
+  center = [20, 0], // Sudan's center coordinates
+  zoom = 3,
   onMapReady,
   onMarkerClick,
   showAssignmentLines = true,
@@ -106,10 +106,10 @@ const MapComponent: React.FC<MapComponentProps> = ({
 
     // Create map instance
     map.current = L.map(mapContainer.current, {
-      minZoom: 5,
+      minZoom: 2,
       maxBounds: [
-        [8.5, 21.8], // Southwest coordinates
-        [22.5, 39.0]  // Northeast coordinates
+        [-90, -180],
+        [90, 180]
       ]
     }).setView(center, zoom);
 
@@ -132,6 +132,34 @@ const MapComponent: React.FC<MapComponentProps> = ({
       }
     };
   }, []);
+
+  // Auto-fit to data when collectors or siteVisits change; otherwise respect provided center/zoom
+  useEffect(() => {
+    if (!map.current) return;
+
+    const points: [number, number][] = [];
+    collectors.forEach(c => {
+      if (c.location?.latitude !== undefined && c.location?.longitude !== undefined) {
+        points.push([c.location.latitude, c.location.longitude]);
+      }
+    });
+    siteVisits.forEach(s => {
+      if (s.location?.latitude !== undefined && s.location?.longitude !== undefined) {
+        points.push([s.location.latitude, s.location.longitude]);
+      }
+    });
+
+    if (points.length > 0) {
+      try {
+        const bounds = L.latLngBounds(points);
+        map.current.fitBounds(bounds, { padding: [40, 40] });
+      } catch (e) {
+        // ignore fit errors
+      }
+    } else {
+      map.current.setView(center, zoom);
+    }
+  }, [collectors, siteVisits, center, zoom]);
 
   // Update collectors
   useEffect(() => {

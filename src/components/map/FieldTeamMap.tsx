@@ -347,7 +347,7 @@ const FieldTeamMap: React.FC<FieldTeamMapProps> = ({
     if (!reactLeafletModule || !leafletLoaded) return <MapPlaceholder />;
 
     const { MapContainer, TileLayer, Marker, Popup, Circle, useMap } = reactLeafletModule;
-    const defaultCenter: [number, number] = [15.5007, 32.5599];
+    const defaultCenter: [number, number] = [20, 0];
     
     const MapBoundsComponent = () => {
       const map = useMap();
@@ -400,7 +400,7 @@ const FieldTeamMap: React.FC<FieldTeamMapProps> = ({
         <MapContainer 
           key={`map-${userLocations.length}-${siteLocations.length}-${selectedUserId}`}
           center={defaultCenter} 
-          zoom={6} 
+          zoom={3} 
           style={{ height: '100%', width: '100%' }}
         >
           <TileLayer

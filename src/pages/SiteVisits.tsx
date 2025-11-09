@@ -46,6 +46,22 @@ const SiteVisits = () => {
   const [view, setView] = useState<'grid' | 'map' | 'calendar'>('grid');
   const [isLoading, setIsLoading] = useState(true);
   const [selectedVisit, setSelectedVisit] = useState<SiteVisit | null>(null);
+  const countryParam = (searchParams.get("country") || "").toUpperCase();
+  const regionParam = searchParams.get("region") || "";
+  const countryCenters: Record<string, { center: [number, number]; zoom: number }> = {
+    SD: { center: [15.5007, 32.5599], zoom: 5 },
+    SS: { center: [6.8769, 31.3069], zoom: 5 },
+    UG: { center: [1.3733, 32.2903], zoom: 6 },
+    RW: { center: [-1.9403, 29.8739], zoom: 7 },
+    QA: { center: [25.3548, 51.1839], zoom: 7 },
+    US: { center: [39.8283, -98.5795], zoom: 4 }
+  };
+  let mapDefaultCenter: [number, number] = [20, 0];
+  let mapDefaultZoom = 3;
+  if (countryParam && countryCenters[countryParam]) {
+    mapDefaultCenter = countryCenters[countryParam].center;
+    mapDefaultZoom = countryCenters[countryParam].zoom;
+  }
 
   // Page-level access guard: require read permission or admin
   const canAccess = checkPermission('site_visits', 'read') || hasAnyRole(['admin']);
@@ -229,8 +245,8 @@ const SiteVisits = () => {
               <LeafletMapContainer
                 locations={siteLocations}
                 height="500px"
-                defaultCenter={[15.5007, 32.5599]}
-                defaultZoom={6}
+                defaultCenter={mapDefaultCenter}
+                defaultZoom={mapDefaultZoom}
                 onLocationClick={(id) => {
                   const v = filteredVisits.find(x => x.id === id);
                   if (v) setSelectedVisit(v);

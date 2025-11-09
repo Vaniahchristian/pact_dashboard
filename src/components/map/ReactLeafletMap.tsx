@@ -47,8 +47,8 @@ const ReactLeafletMap: React.FC<ReactLeafletMapProps> = ({
   height = '500px', 
   onLocationClick,
   mapType = 'standard',
-  defaultCenter = [15.5007, 32.5599], // Sudan's center coordinates
-  defaultZoom = 6  // Good zoom level for Sudan
+  defaultCenter = [20, 0], // Global default
+  defaultZoom = 3  // Global zoom
 }) => {
   const [isClient, setIsClient] = useState(false);
   const [error, setError] = useState<string | null>(null);

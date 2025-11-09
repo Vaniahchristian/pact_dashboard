@@ -152,8 +152,8 @@ const DynamicFieldTeamMap: React.FC<DynamicFieldTeamMapProps> = (props) => {
                 collectors={filteredCollectors}
                 siteVisits={mapSiteVisits}
                 assignments={[]}
-                center={[15.5007, 32.5599]} // Sudan's center
-                zoom={6}
+                center={[20, 0]} // Global default
+                zoom={3}
                 onMarkerClick={(type, id) => {
                   if (type === 'collector' && props.onUserSelect) {
                     props.onUserSelect(id);

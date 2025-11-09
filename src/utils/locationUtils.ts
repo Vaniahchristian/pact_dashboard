@@ -17,11 +17,8 @@ export const getFallbackCoordinates = (state?: string, locality?: string): { lat
     };
   }
 
-  // Default to Sudan center if no hub found
-  return {
-    latitude: 15.5007,
-    longitude: 32.5599
-  };
+  // If no hub found, don't force a country-specific default
+  return null;
 };
 
 /**
