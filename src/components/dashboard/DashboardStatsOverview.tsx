@@ -9,6 +9,7 @@ import { useSiteVisitContext } from '@/context/siteVisit/SiteVisitContext';
 import { useNavigate } from 'react-router-dom';
 import { format, startOfMonth, subMonths, isAfter } from 'date-fns';
 import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { CheckCircleIcon, ClipboardDocumentCheckIcon, CalendarDaysIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline';
 
 export const DashboardStatsOverview = () => {
   const [hoveredCard, setHoveredCard] = useState<number | null>(null);
@@ -23,11 +24,32 @@ export const DashboardStatsOverview = () => {
   const navigate = useNavigate();
 
   // ====================== KPI CARDS ======================
+  // Use meaningful icons for each KPI
   const statsToDisplay = [
-    { title: 'Active Projects', value: activeProjects, description: 'Current ongoing projects', icon: <svg className="h-4 w-4 text-primary" /> },
-    { title: 'Approved MMPs', value: approvedMmps, description: 'Total approved monitoring plans', icon: <svg className="h-4 w-4 text-primary" /> },
-    { title: 'Completed Visits', value: completedVisits, description: 'Successfully completed site visits', icon: <svg className="h-4 w-4 text-primary" /> },
-    { title: 'Pending Site Visits', value: pendingSiteVisits, description: 'Site visits requiring action', icon: <svg className="h-4 w-4 text-primary" /> },
+    {
+      title: 'Active Projects',
+      value: activeProjects,
+      description: 'Current ongoing projects',
+      icon: <ClipboardDocumentCheckIcon className="h-5 w-5 text-primary" />,
+    },
+    {
+      title: 'Approved MMPs',
+      value: approvedMmps,
+      description: 'Total approved monitoring plans',
+      icon: <CheckCircleIcon className="h-5 w-5 text-green-600" />,
+    },
+    {
+      title: 'Completed Visits',
+      value: completedVisits,
+      description: 'Successfully completed site visits',
+      icon: <CalendarDaysIcon className="h-5 w-5 text-blue-600" />,
+    },
+    {
+      title: 'Pending Site Visits',
+      value: pendingSiteVisits,
+      description: 'Site visits requiring action',
+      icon: <ExclamationCircleIcon className="h-5 w-5 text-amber-600" />,
+    },
   ];
 
   // ====================== MMP GROUPS ======================
@@ -103,158 +125,183 @@ export const DashboardStatsOverview = () => {
   // ====================== LOADING STATE ======================
   if (!isLoaded) {
     return (
-      <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
-        {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-32" />)}
+      <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-4 items-stretch">
+        {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-32 rounded-xl" />)}
       </div>
     );
   }
 
   // ====================== DASHBOARD LAYOUT ======================
   return (
-    <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-6">
+    <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-8">
 
       {/* ===== TOP KPIs ===== */}
-      <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 items-stretch">
         {statsToDisplay.map((stat, index) => (
           <motion.div
             key={stat.title}
             variants={itemVariants}
-            className="h-full"
+            className="flex flex-col h-full"
             onMouseEnter={() => setHoveredCard(index)}
             onMouseLeave={() => setHoveredCard(null)}
-            whileHover={{ scale: 1.02, transition: { duration: 0.2 } }}
+            whileHover={{ scale: 1.025, transition: { duration: 0.18 } }}
           >
-            <StatsCard
-              {...stat}
-              value={hoveredCard === index ? (
-                <motion.div animate={{ scale: [1, 1.05, 1] }} transition={{ duration: 0.5 }}>
-                  {stat.value}
-                </motion.div>
-              ) : stat.value}
-            />
+            <div className="flex flex-col flex-1 bg-white rounded-xl shadow-sm border border-neutral-100 p-5 gap-2 transition hover:shadow-md min-h-[140px]">
+              <div className="flex items-center gap-3">
+                <div className="bg-primary/10 rounded-full p-2">{stat.icon}</div>
+                <div>
+                  <div className="text-lg font-semibold">{stat.title}</div>
+                  <div className="text-xs text-muted-foreground">{stat.description}</div>
+                </div>
+              </div>
+              <div className="mt-2 text-3xl font-bold text-primary flex-1 flex items-end">
+                {hoveredCard === index ? (
+                  <motion.div animate={{ scale: [1, 1.08, 1] }} transition={{ duration: 0.4 }}>
+                    {stat.value}
+                  </motion.div>
+                ) : stat.value}
+              </div>
+            </div>
           </motion.div>
         ))}
       </div>
 
       {/* ===== MIDDLE GRID: MMPs + Site Visits Summary + Costs/Schedule ===== */}
-      <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
+      <div className="grid gap-6 grid-cols-1 lg:grid-cols-3 items-stretch">
 
         {/* ===== MMP Overview ===== */}
-        <div className="bg-white border rounded-lg shadow-sm p-4">
-          <div className="flex justify-between items-center mb-3">
-            <h3 className="text-lg font-semibold">MMP Overview — Last 3 Months</h3>
-            <button className="text-sm text-primary" onClick={() => navigate('/mmp')}>Manage</button>
-          </div>
-          <div className="space-y-2">
-            {threeMonthGroups.map(group => (
-              <details key={group.key} className="p-2 border rounded hover:shadow-sm">
-                <summary className="font-medium flex justify-between cursor-pointer">
-                  {group.monthLabel} <span className="text-muted-foreground">{group.items.length} files</span>
-                </summary>
-                <ul className="mt-1 space-y-1 text-sm">
-                  {group.items.slice(0, 3).map(m => (
-                    <li key={m.id} className="flex justify-between items-center">
-                      <span className="truncate">{m.projectName || m.mmpId}</span>
-                      <span className={`px-2 py-0.5 rounded text-xs ${m.status === 'approved' ? 'bg-green-100 text-green-800' : m.status === 'rejected' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'}`}>
-                        {m.status || 'unknown'}
-                      </span>
-                      <button className="text-xs text-primary" onClick={() => navigate(`/mmp/${m.id}`)}>View</button>
-                    </li>
-                  ))}
-                  {group.items.length === 0 && <li className="text-xs text-muted-foreground">No uploads</li>}
-                </ul>
-              </details>
-            ))}
+        <div className="flex flex-col h-full">
+          <div className="bg-white border border-neutral-100 rounded-xl shadow-sm p-5 flex flex-col flex-1">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">MMP Overview — Last 3 Months</h3>
+              <button className="text-sm text-primary font-medium hover:underline" onClick={() => navigate('/mmp')}>Manage</button>
+            </div>
+            <div className="space-y-2">
+              {threeMonthGroups.map(group => (
+                <details key={group.key} className="rounded-lg border border-neutral-100 bg-neutral-50 hover:shadow transition">
+                  <summary className="font-medium flex justify-between items-center cursor-pointer px-3 py-2 text-base rounded-lg select-none focus:outline-none focus:ring-2 focus:ring-primary/30">
+                    <span>{group.monthLabel}</span>
+                    <span className="text-muted-foreground text-sm">{group.items.length} files</span>
+                  </summary>
+                  <ul className="mt-2 space-y-1 text-sm px-3 pb-2">
+                    {group.items.slice(0, 3).map(m => (
+                      <li key={m.id} className="flex justify-between items-center py-1">
+                        <span className="truncate">{m.projectName || m.mmpId}</span>
+                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${m.status === 'approved' ? 'bg-green-100 text-green-700' : m.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
+                          {m.status || 'unknown'}
+                        </span>
+                        <button className="text-xs text-primary hover:underline ml-2" onClick={() => navigate(`/mmp/${m.id}`)}>View</button>
+                      </li>
+                    ))}
+                    {group.items.length === 0 && <li className="text-xs text-muted-foreground">No uploads</li>}
+                  </ul>
+                </details>
+              ))}
+            </div>
           </div>
         </div>
 
         {/* ===== Site Visits Summary ===== */}
-        <div className="bg-white border rounded-lg shadow-sm p-4 space-y-4">
-          <div className="flex justify-between items-center mb-3">
-            <h3 className="text-lg font-semibold">Site Visits</h3>
-            <button className="text-sm text-primary" onClick={() => navigate('/site-visits')}>Details</button>
-          </div>
-
-          {/* Filters */}
-          <div className="flex flex-col sm:flex-row gap-2 mb-3">
-            <div className="relative w-full sm:w-1/3">
-              <input
-                placeholder="Search by Hub"
-                value={hubFilter}
-                onChange={e => setHubFilter(e.target.value)}
-                className="input input-sm w-full pl-8"
-              />
-              <MagnifyingGlassIcon className="absolute left-2 top-2.5 w-4 h-4 text-muted-foreground" />
+        <div className="flex flex-col h-full">
+          <div className="bg-white border border-neutral-100 rounded-xl shadow-sm p-5 space-y-5 flex flex-col flex-1">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">Site Visits</h3>
+              <button className="text-sm text-primary font-medium hover:underline" onClick={() => navigate('/site-visits')}>Details</button>
             </div>
-            <div className="relative w-full sm:w-1/3">
-              <input
-                placeholder="Search by Region"
-                value={regionFilter}
-                onChange={e => setRegionFilter(e.target.value)}
-                className="input input-sm w-full pl-8"
-              />
-              <MagnifyingGlassIcon className="absolute left-2 top-2.5 w-4 h-4 text-muted-foreground" />
-            </div>
-            <select value={monthFilter} onChange={e => setMonthFilter(e.target.value)} className="input input-sm w-full sm:w-1/3">
-              <option value="">All months</option>
-              {[0, 1, 2].map(i => {
-                const d = subMonths(new Date(), i);
-                const v = format(d, 'yyyy-MM');
-                return <option key={v} value={v}>{format(d, 'MMMM yyyy')}</option>;
-              })}
-            </select>
-          </div>
 
-          {/* Stats Grid */}
-          <div className="grid grid-cols-2 gap-4 text-center">
-            <div><div className="text-2xl font-bold">{totalVisits}</div><div className="text-sm text-muted-foreground">Total</div></div>
-            <div><div className="text-2xl font-bold text-green-700">{completedCount}</div><div className="text-sm text-green-700">Completed</div></div>
-            <div><div className="text-2xl font-bold text-blue-700">{ongoingCount}</div><div className="text-sm text-blue-700">Ongoing</div></div>
-            <div><div className="text-2xl font-bold text-amber-700">{scheduledCount}</div><div className="text-sm text-amber-700">Scheduled</div></div>
-          </div>
-
-          {/* Ongoing Site Visits */}
-          <div className="grid grid-cols-2 gap-4 mt-4">
-            <div className="p-3 border rounded">
-              <div className="text-sm text-muted-foreground">Assigned</div>
-              <div className="text-2xl font-bold">{assignedCount}</div>
-              <button className="text-sm text-primary mt-2" onClick={() => navigate('/site-visits?status=assigned')}>View</button>
+            {/* Filters */}
+            <div className="flex flex-col sm:flex-row gap-2 mb-2">
+              <div className="relative w-full sm:w-1/3">
+                <input
+                  placeholder="Search by Hub"
+                  value={hubFilter}
+                  onChange={e => setHubFilter(e.target.value)}
+                  className="input input-sm w-full pl-8 rounded-lg border border-neutral-200 focus:ring-primary/30"
+                />
+                <MagnifyingGlassIcon className="absolute left-2 top-2.5 w-4 h-4 text-muted-foreground" />
+              </div>
+              <div className="relative w-full sm:w-1/3">
+                <input
+                  placeholder="Search by Region"
+                  value={regionFilter}
+                  onChange={e => setRegionFilter(e.target.value)}
+                  className="input input-sm w-full pl-8 rounded-lg border border-neutral-200 focus:ring-primary/30"
+                />
+                <MagnifyingGlassIcon className="absolute left-2 top-2.5 w-4 h-4 text-muted-foreground" />
+              </div>
+              <select value={monthFilter} onChange={e => setMonthFilter(e.target.value)} className="input input-sm w-full sm:w-1/3 rounded-lg border border-neutral-200 focus:ring-primary/30">
+                <option value="">All months</option>
+                {[0, 1, 2].map(i => {
+                  const d = subMonths(new Date(), i);
+                  const v = format(d, 'yyyy-MM');
+                  return <option key={v} value={v}>{format(d, 'MMMM yyyy')}</option>;
+                })}
+              </select>
             </div>
-            <div className="p-3 border rounded">
-              <div className="text-sm text-muted-foreground">Unassigned</div>
-              <div className="text-2xl font-bold">{unassignedCount}</div>
-              <button className="text-sm text-primary mt-2" onClick={() => navigate('/site-visits?status=pending')}>View</button>
+
+            {/* Stats Grid */}
+            <div className="grid grid-cols-2 gap-4 text-center">
+              <div>
+                <div className="text-2xl font-bold">{totalVisits}</div>
+                <div className="text-xs text-muted-foreground">Total</div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-green-700">{completedCount}</div>
+                <div className="text-xs text-green-700">Completed</div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-blue-700">{ongoingCount}</div>
+                <div className="text-xs text-blue-700">Ongoing</div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-amber-700">{scheduledCount}</div>
+                <div className="text-xs text-amber-700">Scheduled</div>
+              </div>
+            </div>
+
+            {/* Ongoing Site Visits */}
+            <div className="grid grid-cols-2 gap-4 mt-3">
+              <div className="p-3 border border-neutral-100 rounded-lg bg-neutral-50">
+                <div className="text-xs text-muted-foreground">Assigned</div>
+                <div className="text-xl font-bold">{assignedCount}</div>
+                <button className="text-xs text-primary mt-2 hover:underline" onClick={() => navigate('/site-visits?status=assigned')}>View</button>
+              </div>
+              <div className="p-3 border border-neutral-100 rounded-lg bg-neutral-50">
+                <div className="text-xs text-muted-foreground">Unassigned</div>
+                <div className="text-xl font-bold">{unassignedCount}</div>
+                <button className="text-xs text-primary mt-2 hover:underline" onClick={() => navigate('/site-visits?status=pending')}>View</button>
+              </div>
             </div>
           </div>
         </div>
 
         {/* ===== Costs & Upcoming Schedule ===== */}
-        <div className="space-y-4">
+        <div className="flex flex-col h-full space-y-5">
           {isFinanceOrAdmin && (
-            <div className="bg-white border rounded-lg shadow-sm p-4">
-              <div className="flex justify-between items-center mb-3">
+            <div className="bg-white border border-neutral-100 rounded-xl shadow-sm p-5 flex flex-col flex-1">
+              <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold">Cost of Site Visits</h3>
-                <button className="text-sm text-primary" onClick={() => navigate('/finance')}>Finance</button>
+                <button className="text-sm text-primary font-medium hover:underline" onClick={() => navigate('/finance')}>Finance</button>
               </div>
-              <div className="space-y-1">
-                <div className="flex justify-between"><span>Total</span><span>{costTotals.total.toLocaleString()} SDG</span></div>
-                <div className="flex justify-between text-green-700"><span>Completed</span><span>{costTotals.completed.toLocaleString()} SDG</span></div>
-                <div className="flex justify-between text-blue-700"><span>Ongoing</span><span>{costTotals.ongoing.toLocaleString()} SDG</span></div>
+              <div className="space-y-1 text-sm">
+                <div className="flex justify-between"><span>Total</span><span className="font-semibold">{costTotals.total.toLocaleString()} SDG</span></div>
+                <div className="flex justify-between text-green-700"><span>Completed</span><span className="font-semibold">{costTotals.completed.toLocaleString()} SDG</span></div>
+                <div className="flex justify-between text-blue-700"><span>Ongoing</span><span className="font-semibold">{costTotals.ongoing.toLocaleString()} SDG</span></div>
               </div>
             </div>
           )}
 
-          <div className="bg-white border rounded-lg shadow-sm p-4">
-            <div className="flex justify-between items-center mb-3">
+          <div className="bg-white border border-neutral-100 rounded-xl shadow-sm p-5 flex flex-col flex-1">
+            <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold">Upcoming Visits (Next 14 Days)</h3>
-              <button className="text-sm text-primary" onClick={() => navigate('/calendar')}>Calendar</button>
+              <button className="text-sm text-primary font-medium hover:underline" onClick={() => navigate('/calendar')}>Calendar</button>
             </div>
             {upcoming.length > 0 ? (
               <ul className="space-y-2 text-sm">
                 {upcoming.map(u => (
-                  <li key={u.id} className="flex justify-between items-start">
+                  <li key={u.id} className="flex justify-between items-center py-1">
                     <div className="truncate">{u.siteName || u.siteCode || 'Unnamed site'}</div>
-                    <div className="text-xs">{u.dueDate ? format(new Date(u.dueDate), 'MMM d') : '-'}</div>
+                    <div className="text-xs text-muted-foreground">{u.dueDate ? format(new Date(u.dueDate), 'MMM d') : '-'}</div>
                   </li>
                 ))}
               </ul>
