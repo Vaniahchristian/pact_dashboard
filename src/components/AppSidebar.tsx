@@ -68,7 +68,9 @@ const getMenuGroups = (
   if (isAdmin || perms.mmp) projectItems.push({ title: "MMP Management", url: "/mmp", icon: Database });
   // if (isAdmin || perms.monitoringPlan) projectItems.push({ title: "Monitoring Plan", url: "/monitoring-plan", icon: Activity });
   if (isAdmin || perms.siteVisits) projectItems.push({ title: "Site Visits", url: "/site-visits", icon: ClipboardList });
+  if (isAdmin || perms.fieldOpManager) projectItems.push({ title: "Field Operation Manager", url: "/field-operation-manager", icon: ClipboardList });
   if (isAdmin || perms.archive) projectItems.push({ title: "Archive", url: "/archive", icon: Archive });
+  
 
   const teamItems = [] as MenuGroup['items'];
   if (isAdmin || perms.fieldTeam) teamItems.push({ title: "Field Team", url: "/field-team", icon: Activity });
@@ -158,7 +160,7 @@ const AppSidebar = () => {
       <SidebarContent className="px-3 py-4">
         {menuGroups.map((group, index) => (
           <SidebarGroup key={group.label} className={index > 0 ? "mt-1" : ""}>
-            <SidebarGroupLabel className="px-2 text-[11px] uppercase tracking-wide font-semibold text-gray-500 dark:text-gray-400">
+            <SidebarGroupLabel className="px-2 text-[11px] uppercase tracking-wide font-semibold text-blue-600 dark:text-blue-300">
               {group.label}
             </SidebarGroupLabel>
             <SidebarGroupContent>

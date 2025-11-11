@@ -21,7 +21,8 @@ import {
   Globe, 
   TrendingUp, 
   Users, 
-  CheckCircle 
+  CheckCircle,
+  ClipboardList // Add icon for the new section
 } from 'lucide-react';
 
 export const DashboardStatsOverview = () => {
@@ -159,7 +160,7 @@ export const DashboardStatsOverview = () => {
             onMouseLeave={() => setHoveredCard(null)}
             whileHover={{ scale: 1.025, transition: { duration: 0.18 } }}
           >
-            <div className="flex flex-col flex-1 bg-white rounded-xl shadow-sm border border-neutral-100 p-5 gap-2 transition hover:shadow-md min-h-[140px]">
+            <div className="flex flex-col flex-1 bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-blue-100 dark:border-blue-900 p-5 gap-2 transition hover:shadow-md min-h-[140px]">
               <div className="flex items-center gap-3">
                 <div className="bg-primary/10 rounded-full p-2">{stat.icon}</div>
                 <div>
@@ -184,7 +185,7 @@ export const DashboardStatsOverview = () => {
 
         {/* ===== MMP Overview ===== */}
         <div className="flex flex-col h-full">
-          <div className="bg-white border border-neutral-100 rounded-xl shadow-sm p-5 flex flex-col flex-1">
+          <div className="bg-white dark:bg-gray-900 border border-blue-100 dark:border-blue-900 rounded-xl shadow-sm p-5 flex flex-col flex-1">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold">MMP Overview — Last 3 Months</h3>
               <button className="text-sm text-primary font-medium hover:underline" onClick={() => navigate('/mmp')}>Manage</button>
@@ -216,7 +217,7 @@ export const DashboardStatsOverview = () => {
 
         {/* ===== Site Visits Summary ===== */}
         <div className="flex flex-col h-full">
-          <div className="bg-white border border-neutral-100 rounded-xl shadow-sm p-5 space-y-5 flex flex-col flex-1">
+          <div className="bg-white dark:bg-gray-900 border border-blue-100 dark:border-blue-900 rounded-xl shadow-sm p-5 space-y-5 flex flex-col flex-1">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold">Site Visits</h3>
               <button className="text-sm text-primary font-medium hover:underline" onClick={() => navigate('/site-visits')}>Details</button>
@@ -291,7 +292,7 @@ export const DashboardStatsOverview = () => {
         {/* ===== Costs & Upcoming Schedule ===== */}
         <div className="flex flex-col h-full space-y-5">
           {isFinanceOrAdmin && (
-            <div className="bg-white border border-neutral-100 rounded-xl shadow-sm p-5 flex flex-col flex-1">
+            <div className="bg-white dark:bg-gray-900 border border-blue-100 dark:border-blue-900 rounded-xl shadow-sm p-5 flex flex-col flex-1">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold">Cost of Site Visits</h3>
                 <button className="text-sm text-primary font-medium hover:underline" onClick={() => navigate('/finance')}>Finance</button>
@@ -304,7 +305,7 @@ export const DashboardStatsOverview = () => {
             </div>
           )}
 
-          <div className="bg-white border border-neutral-100 rounded-xl shadow-sm p-5 flex flex-col flex-1">
+          <div className="bg-white dark:bg-gray-900 border border-blue-100 dark:border-blue-900 rounded-xl shadow-sm p-5 flex flex-col flex-1">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold">Upcoming Visits (Next 14 Days)</h3>
               <button className="text-sm text-primary font-medium hover:underline" onClick={() => navigate('/calendar')}>Calendar</button>

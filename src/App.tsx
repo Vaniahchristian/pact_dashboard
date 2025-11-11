@@ -50,6 +50,7 @@ import Archive from './pages/Archive';
 import Calendar from './pages/Calendar';
 import RoleManagement from './pages/RoleManagement';
 import MonitoringPlanPage from './pages/MonitoringPlanPage';
+import FieldOperationManagerPage from './pages/FieldOperationManager';
 
 // Components
 import MainLayout from './components/MainLayout';
@@ -153,6 +154,7 @@ const AppRoutes = () => {
         <Route path="/calendar" element={<Calendar />} />
         <Route path="/role-management" element={<RoleManagement />} />
         <Route path="/monitoring-plan" element={<MonitoringPlanPage />} />
+        <Route path="/field-operation-manager" element={<FieldOperationManagerPage />} />
       </Route>
 
       {/* Redirects */}
