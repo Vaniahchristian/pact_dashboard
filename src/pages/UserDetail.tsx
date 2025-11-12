@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
+import { useSettings } from "@/context/settings/SettingsContext";
 
 const availableRoles = [
   "admin",
@@ -33,6 +34,7 @@ const UserDetail: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [bankAccountFormOpen, setBankAccountFormOpen] = useState(false);
+  const { walletSettings, updateWalletSettings } = useSettings();
 
   const canEditBankAccount = currentUser?.role === "admin" || currentUser?.role === "ict";
   const isAdmin = currentUser?.role === "admin" || (currentUser?.roles && currentUser.roles.includes("admin"));
@@ -83,6 +85,21 @@ const UserDetail: React.FC = () => {
         .then((success) => {
           if (success) {
             setUser(updatedUser);
+            // Persist bank account into wallet_settings.notification_prefs
+            try {
+              updateWalletSettings({
+                notification_prefs: {
+                  ...(walletSettings?.notification_prefs || {}),
+                  bank_account: {
+                    accountName: values.accountName,
+                    accountNumber: values.accountNumber,
+                    branch: values.branch,
+                  },
+                },
+              });
+            } catch (e) {
+              console.warn('Failed to persist bank account to wallet_settings:', e);
+            }
             toast({
               title: "Bank Account Updated",
               description: `Bank account details updated for ${user.name}`,
@@ -142,18 +159,43 @@ const UserDetail: React.FC = () => {
 
       if (success) {
         // Fetch the latest user data from the database
-        const { data, error } = await supabase
-          .from("users")
+        const { data: profile, error } = await supabase
+          .from("profiles")
           .select("*")
           .eq("id", user.id)
           .single();
 
-        if (error || !data) {
+        if (error || !profile) {
           setUser(updatedUser);
           setEditForm(updatedUser);
         } else {
-          setUser(data);
-          setEditForm(data);
+          const mappedUser: User = {
+            id: profile.id,
+            name: profile.full_name || profile.username || 'Unknown',
+            email: profile.email || updatedUser.email || '',
+            role: profile.role || updatedUser.role,
+            roles: updatedUser.roles,
+            stateId: profile.state_id || updatedUser.stateId,
+            hubId: profile.hub_id || updatedUser.hubId,
+            localityId: profile.locality_id || updatedUser.localityId,
+            avatar: profile.avatar_url || updatedUser.avatar,
+            username: profile.username || updatedUser.username,
+            fullName: profile.full_name || updatedUser.fullName,
+            phone: profile.phone || updatedUser.phone,
+            employeeId: profile.employee_id || updatedUser.employeeId,
+            bankAccount: (profile as any).bank_account || updatedUser.bankAccount,
+            lastActive: updatedUser.lastActive || new Date().toISOString(),
+            isApproved: profile.status === 'approved' || false,
+            availability: profile.availability || updatedUser.availability || 'offline',
+            createdAt: profile.created_at || updatedUser.createdAt || new Date().toISOString(),
+            location: (typeof profile.location === 'string')
+              ? (() => { try { return JSON.parse(profile.location); } catch { return updatedUser.location; } })()
+              : (profile.location || updatedUser.location),
+            wallet: updatedUser.wallet || { balance: 0, currency: 'USD' },
+            performance: updatedUser.performance,
+          };
+          setUser(mappedUser);
+          setEditForm(mappedUser);
         }
 
         toast({
