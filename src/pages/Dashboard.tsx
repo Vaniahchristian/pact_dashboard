@@ -42,7 +42,7 @@ const Dashboard = () => {
 
   return (
     <TooltipProvider>
-      <div className="container mx-auto p-6 md:p-8 space-y-12">
+      <div className="container mx-auto p-6 md:p-8 space-y-12 bg-gradient-to-br from-slate-50 via-blue-50 to-blue-100 dark:from-gray-900 dark:via-gray-950 dark:to-gray-900 min-h-screen">
         {/* Header */}
         <header className="space-y-3">
           <h1 className="text-3xl md:text-5xl font-extrabold text-gray-900 dark:text-white tracking-tight">
@@ -64,9 +64,19 @@ const Dashboard = () => {
                   alt="PACT Logo"
                   className="h-7 w-7 object-contain"
                 />
-                Account Type:
+                <span>Account Type:</span>
+                {/* Solid orange oval for each role */}
+                <div className="flex flex-wrap gap-2">
+                  {(roles && roles.length > 0 ? roles : [currentUser?.role]).map((role, idx) => (
+                    <span
+                      key={idx}
+                      className="px-4 py-1 rounded-full bg-orange-500 text-white font-semibold border border-orange-600"
+                    >
+                      {role}
+                    </span>
+                  ))}
+                </div>
               </div>
-              <div className="flex flex-wrap gap-3">{renderRoles()}</div>
             </div>
           )}
         </header>
@@ -80,6 +90,8 @@ const Dashboard = () => {
           />
           <div className="mt-4 p-6 rounded-3xl bg-white dark:bg-gray-900 shadow-lg transition-all duration-300 hover:shadow-2xl">
             <DashboardStatsOverview />
+            {/* Optionally, add a workflow summary for the current role */}
+            {/* <WorkflowStatusSummary role={roles?.[0]} /> */}
           </div>
         </section>
         <section className="mt-8">
