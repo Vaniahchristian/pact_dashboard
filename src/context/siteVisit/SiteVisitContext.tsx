@@ -179,7 +179,7 @@ export const SiteVisitProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           addNotification({
             userId: best.user.id,
             title: "Assigned to Site Visit",
-            message: `You have been assigned to the site visit at ${newVisit.siteName}.`,
+            message: `You have been assigned to the site visit at ${newVisit.siteName}. Total fee: ${Number(newVisit.fees?.total || 0)} ${newVisit.fees?.currency || 'SDG'}. Payment schedule: 20% (${(Number(newVisit.fees?.total || 0) * 0.2).toFixed(2)}) upfront cleared before start, 80% (${(Number(newVisit.fees?.total || 0) * 0.8).toFixed(2)}) after completion.`,
             type: "info",
             link: `/site-visits/${newVisit.id}`,
             relatedEntityId: newVisit.id,
@@ -207,7 +207,7 @@ export const SiteVisitProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             addNotification({
               userId: bestState.user.id,
               title: "Assigned to Site Visit",
-              message: `You have been assigned to the site visit at ${newVisit.siteName}.`,
+              message: `You have been assigned to the site visit at ${newVisit.siteName}. Total fee: ${Number(newVisit.fees?.total || 0)} ${newVisit.fees?.currency || 'SDG'}. Payment schedule: 20% (${(Number(newVisit.fees?.total || 0) * 0.2).toFixed(2)}) upfront cleared before start, 80% (${(Number(newVisit.fees?.total || 0) * 0.8).toFixed(2)}) after completion.`,
               type: "info",
               link: `/site-visits/${newVisit.id}`,
               relatedEntityId: newVisit.id,
@@ -235,7 +235,7 @@ export const SiteVisitProvider: React.FC<{ children: React.ReactNode }> = ({ chi
               addNotification({
                 userId: bestHub.user.id,
                 title: "Assigned to Site Visit",
-                message: `You have been assigned to the site visit at ${newVisit.siteName}.`,
+                message: `You have been assigned to the site visit at ${newVisit.siteName}. Total fee: ${Number(newVisit.fees?.total || 0)} ${newVisit.fees?.currency || 'SDG'}. Payment schedule: 20% (${(Number(newVisit.fees?.total || 0) * 0.2).toFixed(2)}) upfront cleared before start, 80% (${(Number(newVisit.fees?.total || 0) * 0.8).toFixed(2)}) after completion.`,
                 type: "info",
                 link: `/site-visits/${newVisit.id}`,
                 relatedEntityId: newVisit.id,
@@ -260,7 +260,7 @@ export const SiteVisitProvider: React.FC<{ children: React.ReactNode }> = ({ chi
               addNotification({
                 userId: bestAny.user.id,
                 title: "Assigned to Site Visit",
-                message: `You have been assigned to the site visit at ${newVisit.siteName}.`,
+                message: `You have been assigned to the site visit at ${newVisit.siteName}. Total fee: ${Number(newVisit.fees?.total || 0)} ${newVisit.fees?.currency || 'SDG'}. Payment schedule: 20% (${(Number(newVisit.fees?.total || 0) * 0.2).toFixed(2)}) upfront cleared before start, 80% (${(Number(newVisit.fees?.total || 0) * 0.8).toFixed(2)}) after completion.`,
                 type: "info",
                 link: `/site-visits/${newVisit.id}`,
                 relatedEntityId: newVisit.id,
@@ -373,6 +373,17 @@ export const SiteVisitProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       setAppSiteVisits(prev => 
         prev.map(v => v.id === siteVisitId ? updatedVisit : v)
       );
+
+      // Notify the assignee with fee and payment schedule details
+      addNotification({
+        userId,
+        title: "Assigned to Site Visit",
+        message: `You have been assigned to the site visit at ${updatedVisit.siteName}. Total fee: ${Number(updatedVisit.fees?.total || 0)} ${updatedVisit.fees?.currency || 'SDG'}. Payment schedule: 20% (${(Number(updatedVisit.fees?.total || 0) * 0.2).toFixed(2)}) upfront cleared before start, 80% (${(Number(updatedVisit.fees?.total || 0) * 0.8).toFixed(2)}) after completion.`,
+        type: "info",
+        link: `/site-visits/${siteVisitId}`,
+        relatedEntityId: siteVisitId,
+        relatedEntityType: "siteVisit",
+      });
 
       toast({
         title: "Site visit assigned",

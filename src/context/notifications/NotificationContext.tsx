@@ -1,6 +1,7 @@
 
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import { Notification } from '@/types';
+import { supabase } from '@/integrations/supabase/client';
 
 // Remove direct dependency on useUser
 // import { useUser } from '../user/UserContext';
@@ -96,6 +97,23 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       }
       return updatedNotifications;
     });
+
+    // Fire-and-forget persistence to Supabase
+    (async () => {
+      try {
+        await supabase.from('notifications').insert({
+          user_id: notification.userId,
+          title: notification.title,
+          message: notification.message,
+          type: notification.type,
+          link: notification.link,
+          related_entity_id: notification.relatedEntityId,
+          related_entity_type: notification.relatedEntityType,
+        });
+      } catch (err) {
+        console.warn('Failed to persist notification:', err);
+      }
+    })();
   }, [isDuplicateNotification]);
 
   const markNotificationAsRead = useCallback((notificationId: string) => {
