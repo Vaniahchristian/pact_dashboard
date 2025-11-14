@@ -1,6 +1,6 @@
 
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Home, Map, FileText, Users, Wallet, MessageSquare } from 'lucide-react';
+import { Home, Map, FileText, Users, MessageSquare } from 'lucide-react';
 import { useChat } from '@/context/chat/ChatContextSupabase';
 
 const MobileNavigation = () => {
@@ -15,7 +15,6 @@ const MobileNavigation = () => {
     { icon: FileText, label: 'MMP', path: '/mmp' },
     { icon: MessageSquare, label: 'Chat', path: '/chat', badge: unreadChatCount },
     { icon: Users, label: 'Team', path: '/users' },
-    { icon: Wallet, label: 'Wallet', path: '/wallet' },
   ];
 
   const isActive = (path: string) => {

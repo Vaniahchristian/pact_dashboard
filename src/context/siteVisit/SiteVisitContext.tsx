@@ -7,7 +7,6 @@ import { calculateOnTimeRate, calculateUserRating } from './utils';
 import { isUserNearSite, calculateUserWorkload, calculateDistance } from '@/utils/collectorUtils';
 import { fetchSiteVisits, createSiteVisitInDb, updateSiteVisitInDb } from './supabase';
 import { useNotifications } from '../notifications/NotificationContext';
-import { useWallet } from '../wallet/WalletContext';
 import { supabase } from '@/integrations/supabase/client';
 
 const SiteVisitContext = createContext<SiteVisitContextType | undefined>(undefined);
@@ -16,7 +15,6 @@ export const SiteVisitProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [appSiteVisits, setAppSiteVisits] = useState<SiteVisit[]>([]);
   const { toast } = useToast();
   const { currentUser, users, updateUser } = useUser();
-  const { addTransaction, transactions } = useWallet();
   
   useEffect(() => {
     const loadSiteVisits = async () => {
@@ -524,36 +522,6 @@ export const SiteVisitProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         console.warn('Failed to persist completed status:', persistErr);
       }
 
-      const newTransaction = {
-        id: `tx${Math.floor(Math.random() * 10000)}`,
-        userId: currentUser.id,
-        amount: Number(siteVisit.fees?.total || 0),
-        currency: siteVisit.fees?.currency || currentUser.wallet?.currency || 'SDG',
-        type: 'credit',
-        status: 'completed',
-        description: `Payment for completing Site Visit: ${siteVisit.siteName}`,
-        siteVisitId,
-        createdAt: now,
-        method: 'Wallet',
-        reference: `PAY-${siteVisitId}-${Math.floor(Math.random() * 1000000)}`,
-      } as const;
-
-      // Persist wallet credit transaction (DB-backed via WalletContext)
-      try {
-        await addTransaction({
-          userId: newTransaction.userId,
-          amount: newTransaction.amount,
-          currency: newTransaction.currency,
-          type: newTransaction.type,
-          status: newTransaction.status,
-          description: newTransaction.description,
-          siteVisitId: newTransaction.siteVisitId,
-          method: newTransaction.method,
-          reference: newTransaction.reference,
-        });
-      } catch (txErr) {
-        console.warn('Failed to persist credit transaction, continuing:', txErr);
-      }
 
       const assignedUserId = siteVisit.assignedTo;
       const user = users.find(u => u.id === assignedUserId);
@@ -589,16 +557,15 @@ export const SiteVisitProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       addNotification({
         userId: currentUser.id,
         title: "Payment Received",
-        message: `You have received ${siteVisit.fees.total} ${siteVisit.fees.currency} for completing the site visit at ${siteVisit.siteName}.`,
+        message: `You have completed the site visit at ${siteVisit.siteName}.`,
         type: "success",
-        link: `/wallet`,
-        relatedEntityId: newTransaction.id,
-        relatedEntityType: "transaction",
+        relatedEntityId: siteVisitId,
+        relatedEntityType: "siteVisit",
       });
 
       toast({
         title: "Site visit completed",
-        description: `You have successfully completed the site visit and received ${siteVisit.fees.total} ${siteVisit.fees.currency}.`,
+        description: `You have successfully completed the site visit.`,
       });
       return true;
     } catch (error) {
@@ -680,43 +647,7 @@ export const SiteVisitProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   };
 
-  useEffect(() => {
-    if (!currentUser?.id) return;
-    const eligible = appSiteVisits.filter(v => v.status === 'completed' && v.assignedTo === currentUser.id && Number(v.fees?.total || 0) > 0);
-    if (eligible.length === 0) return;
-    (async () => {
-      try {
-        const ids = eligible.map(v => v.id);
-        const localCredited = new Set(
-          (transactions || [])
-            .filter(t => t.userId === currentUser.id && t.type === 'credit' && t.status === 'completed' && t.siteVisitId)
-            .map(t => t.siteVisitId as string)
-        );
-        const { data: existing } = await supabase
-          .from('wallet_transactions')
-          .select('site_visit_id')
-          .eq('user_id', currentUser.id)
-          .eq('type', 'credit')
-          .in('site_visit_id', ids);
-        const credited = new Set((existing || []).map((r: any) => r.site_visit_id));
-        for (const v of eligible) {
-          if (!credited.has(v.id) && !localCredited.has(v.id)) {
-            await addTransaction({
-              userId: currentUser.id,
-              amount: Number(v.fees?.total || 0),
-              currency: v.fees?.currency || currentUser.wallet?.currency || 'SDG',
-              type: 'credit',
-              status: 'completed',
-              description: `Payment for completing Site Visit: ${v.siteName}`,
-              siteVisitId: v.id,
-              method: 'Wallet',
-              reference: `PAY-${v.id}-${Math.floor(Math.random() * 1000000)}`
-            });
-          }
-        }
-      } catch {}
-    })();
-  }, [appSiteVisits, currentUser?.id, transactions]);
+  
 
   const getNearbyDataCollectors = (siteVisitId: string): User[] => {
     const siteVisit = appSiteVisits.find(v => v.id === siteVisitId);

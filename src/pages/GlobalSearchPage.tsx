@@ -27,7 +27,6 @@ const GlobalSearchPage = () => {
     { name: 'Notifications', path: '/notifications' },
     { name: 'Chat', path: '/chat' },
     { name: 'Settings', path: '/settings' },
-    { name: 'Wallet', path: '/wallet' },
     { name: 'Field Team', path: '/field-team' },
     { name: 'Data Visibility', path: '/data-visibility' },
     { name: 'Pending Approvals', path: '/users?tab=pending-approvals' },

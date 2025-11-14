@@ -499,19 +499,6 @@ create table if not exists public.feedback (
 alter table public.feedback enable row level security;
 create policy "feedback_all_auth" on public.feedback for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
 
-create table if not exists public.wallet_settings (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid references public.profiles(id) on delete cascade,
-  notification_prefs jsonb,
-  auto_withdraw boolean default false,
-  last_updated timestamptz default now()
-);
-
-alter table public.wallet_settings enable row level security;
-create policy "wallet_settings_select_own" on public.wallet_settings for select using (user_id = auth.uid());
-create policy "wallet_settings_insert_own" on public.wallet_settings for insert with check (user_id = auth.uid());
-create policy "wallet_settings_update_own" on public.wallet_settings for update using (user_id = auth.uid()) with check (user_id = auth.uid());
-create policy "wallet_settings_delete_own" on public.wallet_settings for delete using (user_id = auth.uid());
 
 create table if not exists public.data_visibility_settings (
   id uuid primary key default gen_random_uuid(),

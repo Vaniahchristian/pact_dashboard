@@ -5,7 +5,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, MapPin, Mail, Phone, Award, Wallet, Calendar, Edit, UserCheck, UserX } from "lucide-react";
+import { ArrowLeft, MapPin, Mail, Phone, Award, Calendar, Edit, UserCheck, UserX } from "lucide-react";
 import { BankakAccountForm, BankakAccountFormValues } from "@/components/BankakAccountForm";
 import { User } from "@/types";
 import { sudanStates, getLocalitiesByState } from "@/data/sudanStates";
@@ -34,7 +34,6 @@ const UserDetail: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [bankAccountFormOpen, setBankAccountFormOpen] = useState(false);
-  const { walletSettings, updateWalletSettings } = useSettings();
 
   const canEditBankAccount = currentUser?.role === "admin" || currentUser?.role === "ict";
   const isAdmin = currentUser?.role === "admin" || (currentUser?.roles && currentUser.roles.includes("admin"));
@@ -85,21 +84,6 @@ const UserDetail: React.FC = () => {
         .then((success) => {
           if (success) {
             setUser(updatedUser);
-            // Persist bank account into wallet_settings.notification_prefs
-            try {
-              updateWalletSettings({
-                notification_prefs: {
-                  ...(walletSettings?.notification_prefs || {}),
-                  bank_account: {
-                    accountName: values.accountName,
-                    accountNumber: values.accountNumber,
-                    branch: values.branch,
-                  },
-                },
-              });
-            } catch (e) {
-              console.warn('Failed to persist bank account to wallet_settings:', e);
-            }
             toast({
               title: "Bank Account Updated",
               description: `Bank account details updated for ${user.name}`,
@@ -191,7 +175,6 @@ const UserDetail: React.FC = () => {
             location: (typeof profile.location === 'string')
               ? (() => { try { return JSON.parse(profile.location); } catch { return updatedUser.location; } })()
               : (profile.location || updatedUser.location),
-            wallet: updatedUser.wallet || { balance: 0, currency: 'USD' },
             performance: updatedUser.performance,
           };
           setUser(mappedUser);
@@ -368,10 +351,6 @@ const UserDetail: React.FC = () => {
               <div className="flex items-center gap-2">
                 <Award className="h-4 w-4 text-muted-foreground" />
                 <span>Rating: {user.performance?.rating ?? "-"}/5</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Wallet className="h-4 w-4 text-muted-foreground" />
-                <span>{user.wallet?.balance} {user.wallet?.currency}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-muted-foreground" />

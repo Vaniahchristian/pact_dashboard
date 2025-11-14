@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Settings as SettingsIcon, Bell, Palette, User, Shield, Database, Wallet, MapPin } from "lucide-react";
+import { Settings as SettingsIcon, Bell, Palette, User, Shield, Database, MapPin } from "lucide-react";
 import { useSettings } from "@/context/settings/SettingsContext";
 import { Input } from "@/components/ui/input";
 import { useUser } from "@/context/user/UserContext";
@@ -24,7 +24,6 @@ const Settings = () => {
     updateNotificationSettings,
     updateAppearanceSettings,
     updateDataVisibilitySettings,
-    updateWalletSettings,
     loading
   } = useSettings();
 
@@ -129,11 +128,6 @@ const Settings = () => {
     });
   };
 
-  const handleAutoWithdrawalToggle = (checked: boolean) => {
-    updateWalletSettings({
-      auto_withdraw: checked
-    });
-  };
 
   const handleChangePassword = async () => {
     if (!oldPassword || !newPassword || !confirmPassword) {
@@ -249,10 +243,6 @@ const Settings = () => {
           <TabsTrigger value="dataVisibility">
             <Database className="h-4 w-4 mr-2" />
             Data Visibility
-          </TabsTrigger>
-          <TabsTrigger value="wallet">
-            <Wallet className="h-4 w-4 mr-2" />
-            Wallet
           </TabsTrigger>
         </TabsList>
         
@@ -479,77 +469,6 @@ const Settings = () => {
           </Card>
         </TabsContent>
         
-        <TabsContent value="wallet" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Wallet Settings</CardTitle>
-              <CardDescription>
-                Configure your wallet and payment preferences
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center space-x-2">
-                <Switch 
-                  id="auto-withdraw" 
-                  checked={!!userSettings?.settings?.autoWithdraw}
-                  onCheckedChange={handleAutoWithdrawalToggle}
-                />
-                <Label htmlFor="auto-withdraw">Auto-withdraw when balance exceeds threshold</Label>
-              </div>
-              
-              {userSettings?.settings?.autoWithdraw && (
-                <div className="grid gap-2 pl-8">
-                  <Label htmlFor="withdraw-threshold">Withdrawal threshold ({currentUser?.wallet?.currency || "SDG"})</Label>
-                  <Input 
-                    id="withdraw-threshold"
-                    type="number"
-                    value={userSettings?.settings?.withdrawThreshold || 500}
-                    onChange={(e) => {
-                      updateWalletSettings({
-                        notification_prefs: {
-                          withdrawThreshold: parseInt(e.target.value)
-                        }
-                      });
-                    }}
-                  />
-                </div>
-              )}
-              
-              <div className="flex items-center space-x-2">
-                <Switch 
-                  id="payment-notifications" 
-                  checked={!!userSettings?.settings?.paymentNotifications}
-                  onCheckedChange={(checked) => {
-                    updateWalletSettings({
-                      notification_prefs: { 
-                        onPayment: checked
-                      }
-                    });
-                  }}
-                />
-                <Label htmlFor="payment-notifications">Receive notifications for new payments</Label>
-              </div>
-              
-              <div className="pt-4">
-                <Button onClick={() => {
-                  updateWalletSettings({
-                    notification_prefs: {
-                      onPayment: !!userSettings?.settings?.paymentNotifications,
-                      withdrawThreshold: userSettings?.settings?.withdrawThreshold || 500
-                    },
-                    auto_withdraw: !!userSettings?.settings?.autoWithdraw
-                  });
-                  
-                  toast({
-                    title: "Settings saved",
-                    description: "Your wallet settings have been updated.",
-                    variant: "success",
-                  });
-                }}>Save Changes</Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
       </Tabs>
 
       <Dialog open={showChangePassword} onOpenChange={setShowChangePassword}>

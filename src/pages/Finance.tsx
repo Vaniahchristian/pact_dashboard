@@ -13,9 +13,7 @@ import {
   CreditCard, ArrowUpDown, FileBarChart, AlertTriangle, FileText,
   DatabaseBackup, ChevronDown, ArrowLeft
 } from "lucide-react";
-import { PaymentRiskAssessment } from "@/components/PaymentRiskAssessment";
 import { FraudDetection } from "@/components/FraudDetection";
-import { TransactionMonitoring } from "@/components/TransactionMonitoring";
 import { ApprovalTierAnalytics } from "@/components/ApprovalTierAnalytics";
 import { BudgetForecast } from "@/components/BudgetForecast";
 import { FraudPreventionDashboard } from "@/components/FraudPreventionDashboard";
@@ -324,26 +322,8 @@ const Finance: React.FC = () => {
           
             <FraudPreventionDashboard 
               suspiciousTransactionsCount={8}
-              blockedTransactionsCount={3}
-              highRiskAccountsCount={2}
             />
-          
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <PaymentRiskAssessment 
-                amount={1000}
-                frequency={3}
-                userRole="datacollector"
-              />
-              <FraudDetection
-                recentTransactions={5}
-                unusualPatterns={true}
-                highValueTransactions={false}
-              />
-              <TransactionMonitoring
-                recentTransactions={mockRecentTransactions}
-              />
-            </div>
-
+            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Card className="border-t-4 border-t-green-500 overflow-hidden transition-all hover:shadow-md">
                 <CardHeader className="bg-slate-50 pb-2">

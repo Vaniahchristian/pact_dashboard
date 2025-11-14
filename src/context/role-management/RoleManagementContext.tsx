@@ -77,20 +77,38 @@ export const RoleManagementProvider: React.FC<{ children: React.ReactNode }> = (
         // Self-heal: guarantee admin role has all permissions
         const admin = formattedRoles.find(r => r.name === 'admin');
         if (admin) {
-          const desired = new Set(
-            RESOURCES.flatMap(rsrc => ACTIONS.map(act => `${rsrc}:${act}`))
-          );
-          const existing = new Set(
-            (admin.permissions || []).map(p => `${p.resource}:${p.action}`)
-          );
-          const missing = Array.from(desired)
-            .filter(key => !existing.has(key))
-            .map(key => {
-              const [resource, action] = key.split(':') as [ResourceType, ActionType];
-              return { role_id: admin.id, resource, action, conditions: null as any };
-            });
-          if (missing.length > 0) {
-            await supabase.from('permissions').upsert(missing, { onConflict: 'role_id,resource,action' });
+          let isPrivileged = false;
+          try {
+            const { data: authUser } = await supabase.auth.getUser();
+            const uid = authUser?.user?.id;
+            if (uid) {
+              const { data: prof } = await supabase
+                .from('profiles')
+                .select('role')
+                .eq('id', uid)
+                .single();
+              if (prof?.role === 'admin' || prof?.role === 'ict') {
+                isPrivileged = true;
+              }
+            }
+          } catch {}
+
+          if (isPrivileged) {
+            const desired = new Set(
+              RESOURCES.flatMap(rsrc => ACTIONS.map(act => `${rsrc}:${act}`))
+            );
+            const existing = new Set(
+              (admin.permissions || []).map(p => `${p.resource}:${p.action}`)
+            );
+            const missing = Array.from(desired)
+              .filter(key => !existing.has(key))
+              .map(key => {
+                const [resource, action] = key.split(':') as [ResourceType, ActionType];
+                return { role_id: admin.id, resource, action, conditions: null as any };
+              });
+            if (missing.length > 0) {
+              await supabase.from('permissions').upsert(missing, { onConflict: 'role_id,resource,action' });
+            }
           }
         }
       }

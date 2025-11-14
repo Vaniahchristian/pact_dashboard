@@ -29,11 +29,6 @@ export interface User {
     onTimeCompletion: number;
     currentWorkload?: number;
   };
-  wallet: {
-    balance: number;
-    currency: string;
-    transactions?: any[];
-  };
   location?: {
     latitude?: number;
     longitude?: number;
@@ -51,18 +46,8 @@ export interface User {
     };
     theme?: 'light' | 'dark' | 'system';
     defaultPage?: string;
-    autoWithdraw?: boolean;
-    withdrawThreshold?: number;
-    paymentNotifications?: boolean;
     shareLocationWithTeam?: boolean;
     displayPersonalMetrics?: boolean;
-  };
-  bankAccount?: {
-    accountName?: string;
-    accountNumber?: string;
-    bankName?: string;
-    branch?: string;
-    swiftCode?: string;
   };
   availability: string;  // Changed from optional to required
   roles?: AppRole[];

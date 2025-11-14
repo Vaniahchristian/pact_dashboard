@@ -28,18 +28,6 @@ export type AppearanceSettings = {
   theme: string;
 };
 
-export type WalletSettings = {
-  id?: string;
-  user_id?: string;
-  notification_prefs?: {
-    onPayment?: boolean;
-    onWithdrawal?: boolean;
-    lowBalance?: boolean;
-    [key: string]: any;
-  };
-  auto_withdraw?: boolean;
-  last_updated?: string;
-};
 
 export type DataVisibilitySettings = {
   id?: string;
@@ -65,7 +53,6 @@ export type DashboardSettings = {
 
 type SettingsContextType = {
   userSettings: UserSettings | null;
-  walletSettings: WalletSettings | null;
   dataVisibilitySettings: DataVisibilitySettings | null;
   dashboardSettings: DashboardSettings | null;
   notificationSettings: NotificationSettings;
@@ -73,7 +60,6 @@ type SettingsContextType = {
   updateUserSettings: (settings: Partial<UserSettings['settings']>) => Promise<void>;
   updateNotificationSettings: (settings: NotificationSettings) => Promise<void>;
   updateAppearanceSettings: (settings: AppearanceSettings) => Promise<void>;
-  updateWalletSettings: (settings: Partial<WalletSettings>) => Promise<void>;
   updateDataVisibilitySettings: (settings: Partial<DataVisibilitySettings>) => Promise<void>;
   updateDashboardSettings: (settings: Partial<DashboardSettings>) => Promise<void>;
   loading: boolean;
@@ -89,7 +75,6 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
   const [error, setError] = useState<string | null>(null);
   
   const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
-  const [walletSettings, setWalletSettings] = useState<WalletSettings | null>(null);
   const [dataVisibilitySettings, setDataVisibilitySettings] = useState<DataVisibilitySettings | null>(null);
   const [dashboardSettings, setDashboardSettings] = useState<DashboardSettings | null>(null);
   
@@ -134,16 +119,6 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
           }
         }
 
-        // wallet_settings
-        const { data: walletData, error: walletError } = await supabase
-          .from('wallet_settings')
-          .select('*')
-          .eq('user_id', currentUser.id)
-          .maybeSingle();
-        if (walletError) {
-          console.error('Error fetching wallet settings:', walletError);
-        }
-        if (walletData) setWalletSettings(walletData);
 
         // data_visibility_settings
         const { data: visibilityData, error: visibilityError } = await supabase
@@ -234,57 +209,6 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     await updateUserSettings({ theme });
   };
   
-  // Update wallet settings
-  const updateWalletSettings = async (settings: Partial<WalletSettings>) => {
-    if (!currentUser?.id) return;
-    
-    try {
-      // First check if the user already has wallet settings
-      if (walletSettings?.id) {
-        // Update existing settings
-        const { error } = await supabase
-          .from('wallet_settings')
-          .update({
-            notification_prefs: settings.notification_prefs || walletSettings.notification_prefs,
-            auto_withdraw: settings.auto_withdraw !== undefined ? settings.auto_withdraw : walletSettings.auto_withdraw
-          })
-          .eq('id', walletSettings.id);
-        
-        if (error) throw error;
-      } else {
-        // Create new wallet settings
-        const { error } = await supabase
-          .from('wallet_settings')
-          .insert([{ 
-            user_id: currentUser.id, 
-            notification_prefs: settings.notification_prefs || {},
-            auto_withdraw: settings.auto_withdraw || false
-          }]);
-        
-        if (error) throw error;
-      }
-      
-      // Update local state
-      setWalletSettings(prev => ({
-        ...prev,
-        ...settings,
-        user_id: currentUser.id
-      }));
-      
-      toast({
-        title: "Wallet settings updated",
-        description: "Your wallet settings have been saved successfully",
-        variant: "success",
-      });
-    } catch (err: any) {
-      console.error('Error updating wallet settings:', err);
-      toast({
-        title: "Settings update failed",
-        description: err.message || "There was a problem saving your wallet settings",
-        variant: "destructive",
-      });
-    }
-  };
   
   // Update data visibility settings
   const updateDataVisibilitySettings = async (settings: Partial<DataVisibilitySettings>) => {
@@ -398,7 +322,6 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     <SettingsContext.Provider
       value={{
         userSettings,
-        walletSettings,
         dataVisibilitySettings,
         dashboardSettings,
         notificationSettings,
@@ -406,7 +329,6 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
         updateUserSettings,
         updateNotificationSettings,
         updateAppearanceSettings,
-        updateWalletSettings,
         updateDataVisibilitySettings,
         updateDashboardSettings,
         loading,

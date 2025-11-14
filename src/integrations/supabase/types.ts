@@ -927,38 +927,6 @@ export type Database = {
           },
         ]
       }
-      wallet_settings: {
-        Row: {
-          auto_withdraw: boolean | null
-          id: string
-          last_updated: string | null
-          notification_prefs: Json | null
-          user_id: string
-        }
-        Insert: {
-          auto_withdraw?: boolean | null
-          id?: string
-          last_updated?: string | null
-          notification_prefs?: Json | null
-          user_id: string
-        }
-        Update: {
-          auto_withdraw?: boolean | null
-          id?: string
-          last_updated?: string | null
-          notification_prefs?: Json | null
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "wallet_settings_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
     }
     Views: {
       [_ in never]: never

@@ -35,7 +35,6 @@ const MainLayoutContent: React.FC<MainLayoutContentProps> = ({ children }) => {
     if (path === '/site-visits') return 'Site Visits';
     if (path === '/mmp') return 'MMP Files';
     if (path === '/users') return 'Team Members';
-    if (path === '/wallet') return 'Wallet';
     if (path.startsWith('/projects')) return 'Projects';
     if (path === '/archive') return 'Archives';
     return 'PACT Platform';

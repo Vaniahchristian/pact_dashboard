@@ -40,10 +40,6 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const parsedUser = JSON.parse(storedUser) as User;
         return {
           ...parsedUser,
-          wallet: parsedUser.wallet || {
-            balance: 0,
-            currency: 'USD'
-          },
           availability: parsedUser.availability || 'online',
           lastActive: parsedUser.lastActive || new Date().toISOString()
         };
@@ -93,10 +89,6 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
           role: storedUser.role || 'dataCollector',
           lastActive: storedUser.lastActive || new Date().toISOString(),
           availability: storedUser.availability || 'offline',
-          wallet: storedUser.wallet || {
-            balance: 0,
-            currency: 'USD'
-          },
           ...storedUser,
         };
         mergedUsers.push(completeUser);
@@ -228,16 +220,11 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
             fullName: profile.full_name || existingUser.fullName,
             phone: profile.phone || existingUser.phone,
             employeeId: profile.employee_id || existingUser.employeeId,
-            bankAccount: (profile as any).bank_account || (existingUser as any).bankAccount,
             lastActive: existingUser.lastActive || new Date().toISOString(),
             isApproved: profile.status === 'approved' || false,
             availability: profile.availability || existingUser.availability || 'offline',
             createdAt: profile.created_at || existingUser.createdAt || new Date().toISOString(),
             location: locationData,
-            wallet: existingUser.wallet || {
-              balance: 0,
-              currency: 'USD'
-            },
             performance: existingUser.performance || {
               rating: 0,
               totalCompletedTasks: 0,
@@ -387,15 +374,10 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         fullName: (userProfile as any).full_name,
         phone: (userProfile as any).phone,
         employeeId: (userProfile as any).employee_id,
-        bankAccount: (userProfile as any).bank_account,
         lastActive: new Date().toISOString(),
         isApproved: true,
         availability: profileData?.availability || 'online',
         location: locationData,
-        wallet: {
-          balance: 0,
-          currency: 'USD',
-        },
         performance: {
           rating: 0,
           totalCompletedTasks: 0,
@@ -588,15 +570,10 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
           fullName: userProfile.full_name,
           phone: userProfile.phone,
           employeeId: userProfile.employee_id,
-          bankAccount: userProfile.bank_account,
           lastActive: new Date().toISOString(),
           isApproved,
           availability: profileData?.availability || 'online',
           location: locationData,
-          wallet: {
-            balance: 0,
-            currency: 'USD',
-          },
           performance: {
             rating: 0,
             totalCompletedTasks: 0,

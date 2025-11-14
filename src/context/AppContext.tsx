@@ -3,7 +3,6 @@ import { UserProvider, useUser } from './user/UserContext';
 import { MMPProvider, useMMP } from './mmp/MMPContext';
 import { NotificationProvider, useNotifications } from './notifications/NotificationContext';
 import { SiteVisitProvider, useSiteVisitContext } from './siteVisit/SiteVisitContext';
-import { WalletProvider, useWallet } from './wallet/WalletContext';
 import { AppRole, ResourceType, ActionType } from '@/types/roles';
 import { ProjectProvider } from './project/ProjectContext';
 import { ChatProvider } from './chat/ChatContextSupabase';
@@ -52,9 +51,6 @@ interface CompositeContextType {
   completeSiteVisit: ReturnType<typeof useSiteVisitContext>['completeSiteVisit'];
   rateSiteVisit: ReturnType<typeof useSiteVisitContext>['rateSiteVisit'];
   
-  transactions: ReturnType<typeof useWallet>['transactions'];
-  withdrawFunds: ReturnType<typeof useWallet>['withdrawFunds'];
-  addTransaction: ReturnType<typeof useWallet>['addTransaction'];
   
   notifications: ReturnType<typeof useNotifications>['notifications'];
   addNotification: ReturnType<typeof useNotifications>['addNotification'];
@@ -75,7 +71,6 @@ const CompositeContextProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const userContext = useUser();
   const mmpContext = useMMP();
   const siteVisitContext = useSiteVisitContext();
-  const walletContext = useWallet();
   const notificationContext = useNotifications();
   const roleManagement = useRoleManagement();
   
@@ -101,7 +96,6 @@ const CompositeContextProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     ...userContext,
     ...mmpContext,
     ...siteVisitContext,
-    ...walletContext,
     ...notificationContext,
     hasGranularPermission,
     calculateDistanceFee,
@@ -129,8 +123,7 @@ export const AppProviders: React.FC<{ children: React.ReactNode }> = ({ children
     <ViewModeProvider>
       <NotificationProvider>
         <UserProvider>
-          <WalletProvider>
-            <SiteVisitProvider>
+          <SiteVisitProvider>
               <MMPProvider>
                 <ProjectProvider>
                   <SettingsProvider>
@@ -149,7 +142,6 @@ export const AppProviders: React.FC<{ children: React.ReactNode }> = ({ children
                 </ProjectProvider>
               </MMPProvider>
             </SiteVisitProvider>
-          </WalletProvider>
         </UserProvider>
       </NotificationProvider>
     </ViewModeProvider>

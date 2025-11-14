@@ -17,9 +17,9 @@ export const EnhancedRiskManagement = () => {
           <div className="flex items-start gap-3">
             <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5" />
             <div>
-              <p className="font-medium">Wallet module still in development</p>
+              <p className="font-medium">Risk management features</p>
               <p className="text-sm text-muted-foreground">
-                Transaction, fraud detection, prevention, and monitoring features will be available soon.
+                Advanced risk detection, prevention, and monitoring features are available.
               </p>
             </div>
           </div>

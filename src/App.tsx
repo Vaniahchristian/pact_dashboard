@@ -44,7 +44,6 @@ import AdvancedMap from './pages/AdvancedMap';
 import DataVisibility from './pages/DataVisibility';
 import Users from './pages/Users';
 import UserDetail from './pages/UserDetail';
-import Wallet from './pages/Wallet';
 import AuditCompliance from './pages/AuditCompliance';
 import Archive from './pages/Archive';
 import Calendar from './pages/Calendar';
@@ -52,7 +51,6 @@ import RoleManagement from './pages/RoleManagement';
 import MonitoringPlanPage from './pages/MonitoringPlanPage';
 import FieldOperationManagerPage from './pages/FieldOperationManager';
 import GlobalSearchPage from './pages/GlobalSearchPage';
-import AdminTransactions from './pages/AdminTransactions';
 
 // Components
 import MainLayout from './components/MainLayout';
@@ -150,9 +148,6 @@ const AppRoutes = () => {
         <Route path="/users/:id" element={<UserDetail />} />
         <Route path="/map" element={<AdvancedMap />} />
         <Route path="/advanced-map" element={<Navigate to="/map" replace />} />
-        <Route path="/wallet" element={<Wallet />} />
-        <Route path="/admin/transactions" element={<AdminTransactions />} />
-        <Route path="/admin/transactions/:id" element={<AdminTransactions />} />
         <Route path="/audit-compliance" element={<AuditCompliance />} />
         <Route path="/archive" element={<Archive />} />
         <Route path="/calendar" element={<Calendar />} />

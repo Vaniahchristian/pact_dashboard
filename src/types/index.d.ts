@@ -29,10 +29,6 @@ export interface User {
     lastUpdated?: string;
     isSharing?: boolean;
   };
-  wallet: {
-    balance: number;
-    currency: string;
-  };
   lastActive: string;
   availability: 'online' | 'offline' | 'busy';
   performance?: {
