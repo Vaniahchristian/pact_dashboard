@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect, useRef } from "react";
 import { useAppContext } from "@/context/AppContext";
 import { SiteVisit } from "@/types";
 import { useToast } from "./toast";
-import { addDays, format, isPast, isWithinInterval, parseISO } from "date-fns";
+import { addDays, format, isPast, isWithinInterval, parseISO, isValid } from "date-fns";
 import { useNotificationManager } from "./use-notification-manager";
 
 export const useSiteVisitReminders = () => {
@@ -12,6 +12,21 @@ export const useSiteVisitReminders = () => {
   const [showRemindersModal, setShowRemindersModal] = useState(false);
   const remindersShown = useRef(false);
   const dueSoonNotificationsShown = useRef<Set<string>>(new Set());
+  
+  const toValidDate = (value: any): Date | null => {
+    if (!value) return null;
+    if (value instanceof Date) return isValid(value) ? value : null;
+    if (typeof value === 'string') {
+      try {
+        const d = parseISO(value);
+        if (isValid(d)) return d;
+      } catch {}
+      const d2 = new Date(value);
+      return isValid(d2) ? d2 : null;
+    }
+    const d3 = new Date(value);
+    return isValid(d3) ? d3 : null;
+  };
   
   const userSiteVisits = useMemo(() => {
     if (!currentUser || !siteVisits) return [];
@@ -30,7 +45,8 @@ export const useSiteVisitReminders = () => {
     const threeDaysLater = addDays(now, 3);
     
     return userSiteVisits.filter(visit => {
-      const dueDate = parseISO(visit.dueDate);
+      const dueDate = toValidDate((visit as any).dueDate);
+      if (!dueDate) return false;
       return isWithinInterval(dueDate, { start: now, end: threeDaysLater });
     });
   }, [userSiteVisits]);
@@ -41,7 +57,8 @@ export const useSiteVisitReminders = () => {
     const now = new Date();
     
     return userSiteVisits.filter(visit => {
-      const dueDate = parseISO(visit.dueDate);
+      const dueDate = toValidDate((visit as any).dueDate);
+      if (!dueDate) return false;
       return isPast(dueDate);
     });
   }, [userSiteVisits]);
@@ -71,7 +88,8 @@ export const useSiteVisitReminders = () => {
       // Skip if notification for this visit was already shown
       if (dueSoonNotificationsShown.current.has(visit.id)) return;
       
-      const dueDate = parseISO(visit.dueDate);
+      const dueDate = toValidDate((visit as any).dueDate);
+      if (!dueDate) return;
       const daysUntilDue = Math.ceil((dueDate.getTime() - new Date().getTime()) / (1000 * 3600 * 24));
       
       if (daysUntilDue === 3) {
