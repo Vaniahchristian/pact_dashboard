@@ -14,6 +14,7 @@ import {
   Shield,
   Calendar,
   Archive,
+  CreditCard,
 } from "lucide-react";
 import { useSiteVisitReminders } from "@/hooks/use-site-visit-reminders";
 import Logo from "../assets/logo.png";
@@ -60,9 +61,12 @@ const getMenuGroups = (
 ): MenuGroup[] => {
   const isAdmin = roles.includes('admin' as AppRole) || defaultRole === 'admin';
   const isICT = roles.includes('ict' as AppRole) || defaultRole === 'ict';
+  const isFinancialAdmin = roles.includes('financialAdmin' as AppRole) || defaultRole === 'financialAdmin';
   // Build items per permission, allowing admin bypass
   const mainItems = [] as MenuGroup['items'];
   if (isAdmin || isICT || perms.dashboard) mainItems.push({ title: "Dashboard", url: "/dashboard", icon: LayoutDashboard });
+  // Everyone sees My Wallet
+  mainItems.push({ title: "My Wallet", url: "/wallet", icon: CreditCard });
 
   const projectItems = [] as MenuGroup['items'];
   if (isAdmin || isICT || perms.projects) projectItems.push({ title: "Projects", url: "/projects", icon: FolderKanban });
@@ -83,6 +87,7 @@ const getMenuGroups = (
   if (isAdmin || isICT || perms.users) adminItems.push({ title: "User Management", url: "/users", icon: Users });
   if (isAdmin || perms.roleManagement) adminItems.push({ title: "Role Management", url: "/role-management", icon: Shield });
   if (isAdmin || perms.settings) adminItems.push({ title: "Settings", url: "/settings", icon: Settings });
+  if (isAdmin || isFinancialAdmin) adminItems.push({ title: "Wallets", url: "/admin/wallets", icon: CreditCard });
 
   // Compose groups only if they have items
   const groups: MenuGroup[] = [];

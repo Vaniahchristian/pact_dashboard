@@ -11,6 +11,7 @@ import { ViewModeProvider } from './ViewModeContext';
 import { ArchiveProvider } from './archive/ArchiveContext';
 import { SettingsProvider } from './settings/SettingsContext';
 import { RoleManagementProvider, useRoleManagement } from './role-management/RoleManagementContext';
+import { WalletProvider } from './wallet/WalletContext';
 
 
 
@@ -130,11 +131,13 @@ export const AppProviders: React.FC<{ children: React.ReactNode }> = ({ children
                     <ArchiveProvider>
                       <RoleManagementProvider>
                         <CompositeContextProvider>
-                          <ChatProvider>
-                            <CommunicationProvider>
-                              {children}
-                            </CommunicationProvider>
-                          </ChatProvider>
+                          <WalletProvider>
+                            <ChatProvider>
+                              <CommunicationProvider>
+                                {children}
+                              </CommunicationProvider>
+                            </ChatProvider>
+                          </WalletProvider>
                         </CompositeContextProvider>
                       </RoleManagementProvider>
                     </ArchiveProvider>

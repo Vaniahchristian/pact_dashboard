@@ -51,6 +51,9 @@ import RoleManagement from './pages/RoleManagement';
 import MonitoringPlanPage from './pages/MonitoringPlanPage';
 import FieldOperationManagerPage from './pages/FieldOperationManager';
 import GlobalSearchPage from './pages/GlobalSearchPage';
+import WalletPage from './pages/Wallet';
+import AdminWallets from './pages/AdminWallets';
+import AdminWalletDetail from './pages/AdminWalletDetail';
 
 // Components
 import MainLayout from './components/MainLayout';
@@ -138,6 +141,9 @@ const AppRoutes = () => {
         <Route path="/projects/:id/team" element={<ProjectTeamManagement />} />
         <Route path="/reports" element={<Reports />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/wallet" element={<WalletPage />} />
+        <Route path="/admin/wallets" element={<AdminWallets />} />
+        <Route path="/admin/wallets/:userId" element={<AdminWalletDetail />} />
         <Route path="/site-visits" element={<SiteVisits />} />
         <Route path="/site-visits/create" element={<CreateSiteVisit />} />
         <Route path="/site-visits/create/mmp" element={<CreateSiteVisitMMP />} />
