@@ -8,11 +8,9 @@ import { QuickActionButtons } from './QuickActionButtons';
 import { EnhancedMoDaCountdown } from './EnhancedMoDaCountdown';
 import { CalendarAndVisits } from './CalendarAndVisits';
 import { EnhancedActivityFeed } from './EnhancedActivityFeed';
-import { TeamCommunication } from './TeamCommunication';
-import { EnhancedRiskManagement } from './EnhancedRiskManagement';
 import { AchievementTracker } from './AchievementTracker';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ChevronDown, ChevronUp, Activity, MapPin, BarChart, Target } from 'lucide-react';
+import { ChevronDown, ChevronUp, Activity, MapPin, Target } from 'lucide-react';
 import { containerVariants, itemVariants } from './DashboardOptimization';
 import LiveTeamMapWidget from './LiveTeamMapWidget';
 import { useAppContext } from '@/context/AppContext';
@@ -101,30 +99,12 @@ export const DashboardDesktopView = () => {
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_380px] items-start">
         {/* Left Column */}
         <div className="space-y-6">
-          <SectionCollapsible 
-            id="monitoring" 
-            icon={<BarChart className="h-5 w-5 text-primary" />}
-            title="Monitoring & Analytics"
-            description="Real-time monitoring of field operations and risk management"
-          >
-            <div className="grid grid-cols-1 gap-6">
-              <motion.div variants={itemVariants}>
-                <LazyLoadingCard>
-                  <EnhancedRiskManagement />
-                </LazyLoadingCard>
-              </motion.div>
-            </div>
-          </SectionCollapsible>
         </div>
         
         {/* Right Column */}
         <motion.div variants={itemVariants} className="space-y-6 lg:sticky lg:top-4">
           <LazyLoadingCard>
             <EnhancedMoDaCountdown />
-          </LazyLoadingCard>
-          
-          <LazyLoadingCard>
-            <TeamCommunication />
           </LazyLoadingCard>
         </motion.div>
 
@@ -167,7 +147,7 @@ export const DashboardDesktopView = () => {
         </motion.div>
 
         {/* Full-width Progress & Achievements */}
-        <motion.div variants={itemVariants} className="lg:col-span-2">
+        {/* <motion.div variants={itemVariants} className="lg:col-span-2">
           <SectionCollapsible 
             id="achievements" 
             icon={<Target className="h-5 w-5 text-primary" />}
@@ -180,7 +160,7 @@ export const DashboardDesktopView = () => {
               </LazyLoadingCard>
             </motion.div>
           </SectionCollapsible>
-        </motion.div>
+        </motion.div> */}
       </div>
     </motion.div>
   );

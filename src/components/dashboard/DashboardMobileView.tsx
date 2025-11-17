@@ -156,11 +156,6 @@ export const DashboardMobileView = () => {
                   </CardContent>
                 </Card>
               </Suspense>
-              
-              <Suspense fallback={<LoadingCard />}>
-                <EnhancedRiskManagement />
-              </Suspense>
-              
               <Suspense fallback={<LoadingCard />}>
                 <Card className="border-t-4 border-t-violet-500">
                   <CardHeader className="bg-gradient-to-r from-violet-50 to-transparent">
@@ -197,7 +192,7 @@ export const DashboardMobileView = () => {
                 <DashboardLocationSharingCard />
               </Suspense>
               
-              <Suspense fallback={<LoadingCard />}>
+              {/* <Suspense fallback={<LoadingCard />}>
                 <Card className="border-t-4 border-t-violet-500">
                   <CardHeader className="bg-gradient-to-r from-violet-50 to-transparent">
                     <CardTitle>Team Communication</CardTitle>
@@ -206,11 +201,11 @@ export const DashboardMobileView = () => {
                     <ChatIndicatorWidget />
                   </CardContent>
                 </Card>
-              </Suspense>
+              </Suspense> */}
             </motion.div>
           </TabsContent>
           
-          <TabsContent value="progress" className="space-y-4 min-h-[200px] mt-0">
+          {/* <TabsContent value="progress" className="space-y-4 min-h-[200px] mt-0">
             <motion.div
               key="progress-content"
               variants={tabContentVariants}
@@ -222,7 +217,7 @@ export const DashboardMobileView = () => {
                 <AchievementTracker />
               </Suspense>
             </motion.div>
-          </TabsContent>
+          </TabsContent> */}
         </div>
       </Tabs>
     </div>
