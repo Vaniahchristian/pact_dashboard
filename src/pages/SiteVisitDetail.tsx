@@ -10,11 +10,22 @@ import AssignCollectorButton from "@/components/site-visit/AssignCollectorButton
 import { useSiteVisitContext } from "@/context/siteVisit/SiteVisitContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MapPin, Users, Navigation, ArrowRight, BarChart3 } from "lucide-react";
+import { MapPin, Users, Navigation, ArrowRight, BarChart3, Trash2 } from "lucide-react";
 import { useUser } from "@/context/user/UserContext";
 import { Badge } from "@/components/ui/badge";
 import { calculateDistance } from "@/utils/collectorUtils";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { 
+  AlertDialog, 
+  AlertDialogAction, 
+  AlertDialogCancel, 
+  AlertDialogContent, 
+  AlertDialogFooter, 
+  AlertDialogHeader, 
+  AlertDialogTitle, 
+  AlertDialogDescription, 
+  AlertDialogTrigger 
+} from "@/components/ui/alert-dialog";
 
 const SiteVisitDetail = () => {
   const navigate = useNavigate();
@@ -22,9 +33,10 @@ const SiteVisitDetail = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [siteVisit, setSiteVisit] = useState<SiteVisit | null>(null);
-  const { siteVisits } = useSiteVisitContext();
+  const { siteVisits, deleteSiteVisit } = useSiteVisitContext();
   const { users } = useUser();
   const [showMap, setShowMap] = useState(true);
+  const [isDeleting, setIsDeleting] = useState(false);
   
   useEffect(() => {
     const fetchSiteVisit = () => {
@@ -124,6 +136,19 @@ const SiteVisitDetail = () => {
     }
   };
 
+  const handleConfirmDelete = async () => {
+    if (!siteVisit) return;
+    try {
+      setIsDeleting(true);
+      const ok = await deleteSiteVisit(siteVisit.id);
+      if (ok) {
+        navigate('/site-visits');
+      }
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   // Get all data collectors
   const getNearbyCollectors = () => {
     if (!siteVisit) return [];
@@ -164,6 +189,33 @@ const SiteVisitDetail = () => {
                 onSuccess={handleAssignSuccess} 
               />
             ) : null}
+
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button 
+                  variant="destructive" 
+                  size="sm"
+                  className="gap-2"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete this site visit?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This action cannot be undone. The site visit and its related data will be permanently removed.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleConfirmDelete} disabled={isDeleting}>
+                    {isDeleting ? 'Deleting...' : 'Delete'}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

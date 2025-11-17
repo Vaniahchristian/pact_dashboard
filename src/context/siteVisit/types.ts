@@ -16,4 +16,5 @@ export interface SiteVisitContextType {
   ) => Promise<boolean>;
   getNearbyDataCollectors: (siteVisitId: string) => User[];
   createSiteVisit: (siteVisitData: Partial<SiteVisit>) => Promise<string | undefined>;
+  deleteSiteVisit: (siteVisitId: string) => Promise<boolean>;
 }

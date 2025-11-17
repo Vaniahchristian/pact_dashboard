@@ -5,7 +5,7 @@ import { useUser } from '../user/UserContext';
 import { SiteVisitContextType } from './types';
 import { calculateOnTimeRate, calculateUserRating } from './utils';
 import { isUserNearSite, calculateUserWorkload, calculateDistance } from '@/utils/collectorUtils';
-import { fetchSiteVisits, createSiteVisitInDb, updateSiteVisitInDb } from './supabase';
+import { fetchSiteVisits, createSiteVisitInDb, updateSiteVisitInDb, deleteSiteVisitInDb } from './supabase';
 import { useNotifications } from '../notifications/NotificationContext';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -647,7 +647,25 @@ export const SiteVisitProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   };
 
-  
+  const deleteSiteVisit = async (siteVisitId: string): Promise<boolean> => {
+    try {
+      await deleteSiteVisitInDb(siteVisitId);
+      setAppSiteVisits(prev => prev.filter(v => v.id !== siteVisitId));
+      toast({
+        title: "Site visit deleted",
+        description: `The site visit has been removed.`,
+      });
+      return true;
+    } catch (error) {
+      console.error("Delete site visit error:", error);
+      toast({
+        title: "Deletion error",
+        description: "An unexpected error occurred while deleting the site visit.",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
 
   const getNearbyDataCollectors = (siteVisitId: string): User[] => {
     const siteVisit = appSiteVisits.find(v => v.id === siteVisitId);
@@ -672,6 +690,7 @@ export const SiteVisitProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         rateSiteVisit,
         getNearbyDataCollectors,
         createSiteVisit,
+        deleteSiteVisit,
       }}
     >
       {children}

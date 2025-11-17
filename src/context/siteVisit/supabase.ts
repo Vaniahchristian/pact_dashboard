@@ -203,6 +203,18 @@ export const createSiteVisitInDb = async (siteVisit: Partial<SiteVisit>) => {
   } as SiteVisit;
 };
 
+export const deleteSiteVisitInDb = async (id: string) => {
+  const { error } = await supabase
+    .from('site_visits')
+    .delete()
+    .eq('id', id);
+  if (error) {
+    console.error('Error deleting site visit:', error);
+    throw error;
+  }
+  return true;
+};
+
 export const updateSiteVisitInDb = async (id: string, updates: Partial<SiteVisit>) => {
   // Transform camelCase to snake_case for the database
   const dbUpdates: any = {};
