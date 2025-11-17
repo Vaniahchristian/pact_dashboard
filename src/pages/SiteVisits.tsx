@@ -48,6 +48,8 @@ const SiteVisits = () => {
   const [selectedVisit, setSelectedVisit] = useState<SiteVisit | null>(null);
   const countryParam = (searchParams.get("country") || "").toUpperCase();
   const regionParam = searchParams.get("region") || "";
+  const hubParam = searchParams.get("hub") || "";
+  const monthParam = searchParams.get("month") || "";
   const countryCenters: Record<string, { center: [number, number]; zoom: number }> = {
     SD: { center: [15.5007, 32.5599], zoom: 5 },
     SS: { center: [6.8769, 31.3069], zoom: 5 },
@@ -99,6 +101,15 @@ const SiteVisits = () => {
   }, []);
 
   useEffect(() => {
+    // Keep status filter in sync with URL query param
+    const urlStatus = searchParams.get("status") || "all";
+    if (urlStatus !== statusFilter) {
+      setStatusFilter(urlStatus);
+      setActiveFilters(prev => ({ ...prev, status: urlStatus }));
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
     const canViewAll = canViewAllSiteVisits();
     let filtered = canViewAll
       ? siteVisits
@@ -110,6 +121,20 @@ const SiteVisits = () => {
       } else {
         filtered = filtered.filter(visit => visit.status === statusFilter);
       }
+    }
+
+    // Apply dashboard query filters if present
+    if (hubParam) {
+      filtered = filtered.filter(v => (v.hub || "").toLowerCase() === hubParam.toLowerCase());
+    }
+    if (regionParam) {
+      filtered = filtered.filter(v => {
+        const r = (v.location?.region || v.region || v.state || "").toString().toLowerCase();
+        return r === regionParam.toLowerCase();
+      });
+    }
+    if (monthParam) {
+      filtered = filtered.filter(v => (v.dueDate || "").startsWith(monthParam));
     }
 
     if (searchTerm) {
@@ -145,7 +170,7 @@ const SiteVisits = () => {
       const pendingVisit = filtered.find(v => v.status === 'pending');
       setSelectedVisit(pendingVisit || null);
     }
-  }, [currentUser, siteVisits, statusFilter, searchTerm, sortBy, view]);
+  }, [currentUser, siteVisits, statusFilter, searchTerm, sortBy, view, hubParam, regionParam, monthParam]);
 
   const handleRemoveFilter = (filterType: string) => {
     setActiveFilters(prev => ({

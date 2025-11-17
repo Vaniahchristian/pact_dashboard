@@ -259,7 +259,18 @@ export const DashboardStatsOverview = () => {
           <div className="bg-white dark:bg-gray-900 border border-blue-100 dark:border-blue-900 rounded-xl shadow-sm p-5 space-y-5 flex flex-col flex-1">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold">Site Visits</h3>
-              <button className="text-sm text-primary font-medium hover:underline" onClick={() => navigate('/site-visits')}>Details</button>
+              <button
+                className="text-sm text-primary font-medium hover:underline"
+                onClick={() => {
+                  const params = new URLSearchParams();
+                  if (hubFilter) params.set('hub', hubFilter);
+                  if (regionFilter) params.set('region', regionFilter);
+                  if (monthFilter) params.set('month', monthFilter);
+                  navigate(`/site-visits${params.toString() ? `?${params.toString()}` : ''}`);
+                }}
+              >
+                Details
+              </button>
             </div>
 
             {/* Filters */}
@@ -270,6 +281,22 @@ export const DashboardStatsOverview = () => {
                   placeholder="Hub"
                   value={hubFilter}
                   onChange={e => setHubFilter(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      const params = new URLSearchParams();
+                      if (hubFilter) params.set('hub', hubFilter);
+                      if (regionFilter) params.set('region', regionFilter);
+                      if (monthFilter) params.set('month', monthFilter);
+                      navigate(`/site-visits${params.toString() ? `?${params.toString()}` : ''}`);
+                    }
+                  }}
+                  onBlur={() => {
+                    const params = new URLSearchParams();
+                    if (hubFilter) params.set('hub', hubFilter);
+                    if (regionFilter) params.set('region', regionFilter);
+                    if (monthFilter) params.set('month', monthFilter);
+                    navigate(`/site-visits${params.toString() ? `?${params.toString()}` : ''}`);
+                  }}
                   className="input input-sm w-full pl-8 rounded-lg border border-neutral-200 focus:ring-primary/30"
                   aria-label="Search for Hub"
                 />
@@ -280,6 +307,22 @@ export const DashboardStatsOverview = () => {
                   placeholder="Region"
                   value={regionFilter}
                   onChange={e => setRegionFilter(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      const params = new URLSearchParams();
+                      if (hubFilter) params.set('hub', hubFilter);
+                      if (regionFilter) params.set('region', regionFilter);
+                      if (monthFilter) params.set('month', monthFilter);
+                      navigate(`/site-visits${params.toString() ? `?${params.toString()}` : ''}`);
+                    }
+                  }}
+                  onBlur={() => {
+                    const params = new URLSearchParams();
+                    if (hubFilter) params.set('hub', hubFilter);
+                    if (regionFilter) params.set('region', regionFilter);
+                    if (monthFilter) params.set('month', monthFilter);
+                    navigate(`/site-visits${params.toString() ? `?${params.toString()}` : ''}`);
+                  }}
                   className="input input-sm w-full pl-8 rounded-lg border border-neutral-200 focus:ring-primary/30"
                   aria-label="Search for Region"
                 />
@@ -287,7 +330,15 @@ export const DashboardStatsOverview = () => {
               <div className="relative w-full sm:w-1/3">
                 <select
                   value={monthFilter}
-                  onChange={e => setMonthFilter(e.target.value)}
+                  onChange={e => {
+                    const value = e.target.value;
+                    setMonthFilter(value);
+                    const params = new URLSearchParams();
+                    if (hubFilter) params.set('hub', hubFilter);
+                    if (regionFilter) params.set('region', regionFilter);
+                    if (value) params.set('month', value);
+                    navigate(`/site-visits${params.toString() ? `?${params.toString()}` : ''}`);
+                  }}
                   className="input input-sm w-full rounded-lg border border-neutral-200 focus:ring-primary/30"
                   aria-label="Filter by Month"
                 >
@@ -303,19 +354,59 @@ export const DashboardStatsOverview = () => {
 
             {/* Stats Grid */}
             <div className="grid grid-cols-2 gap-4 text-center">
-              <div>
+              <div
+                className="cursor-pointer"
+                onClick={() => {
+                  // Total with filters
+                  const params = new URLSearchParams();
+                  if (hubFilter) params.set('hub', hubFilter);
+                  if (regionFilter) params.set('region', regionFilter);
+                  if (monthFilter) params.set('month', monthFilter);
+                  navigate(`/site-visits${params.toString() ? `?${params.toString()}` : ''}`);
+                }}
+              >
                 <div className="text-2xl font-bold">{totalVisits}</div>
                 <div className="text-xs text-muted-foreground">Total</div>
               </div>
-              <div>
+              <div
+                className="cursor-pointer"
+                onClick={() => {
+                  const params = new URLSearchParams();
+                  if (hubFilter) params.set('hub', hubFilter);
+                  if (regionFilter) params.set('region', regionFilter);
+                  if (monthFilter) params.set('month', monthFilter);
+                  params.set('status', 'completed');
+                  navigate(`/site-visits?${params.toString()}`);
+                }}
+              >
                 <div className="text-2xl font-bold text-green-700">{completedCount}</div>
                 <div className="text-xs text-green-700">Completed</div>
               </div>
-              <div>
+              <div
+                className="cursor-pointer"
+                onClick={() => {
+                  const params = new URLSearchParams();
+                  if (hubFilter) params.set('hub', hubFilter);
+                  if (regionFilter) params.set('region', regionFilter);
+                  if (monthFilter) params.set('month', monthFilter);
+                  params.set('status', 'inProgress');
+                  navigate(`/site-visits?${params.toString()}`);
+                }}
+              >
                 <div className="text-2xl font-bold text-blue-700">{ongoingCount}</div>
                 <div className="text-xs text-blue-700">Ongoing</div>
               </div>
-              <div>
+              <div
+                className="cursor-pointer"
+                onClick={() => {
+                  const params = new URLSearchParams();
+                  if (hubFilter) params.set('hub', hubFilter);
+                  if (regionFilter) params.set('region', regionFilter);
+                  if (monthFilter) params.set('month', monthFilter);
+                  params.set('status', 'assigned');
+                  navigate(`/site-visits?${params.toString()}`);
+                }}
+              >
                 <div className="text-2xl font-bold text-amber-700">{scheduledCount}</div>
                 <div className="text-xs text-amber-700">Scheduled</div>
               </div>
