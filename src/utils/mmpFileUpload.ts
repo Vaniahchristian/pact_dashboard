@@ -5,6 +5,34 @@ import { validateCSV } from '@/utils/csvValidator';
 
 // Transform database record (snake_case) to MMPFile interface (camelCase)
 const transformDBToMMPFile = (dbRecord: any): MMPFile => {
+  // Transform site entries from the joined table
+  let siteEntries: MMPSiteEntry[] = [];
+  if (dbRecord.mmp_site_entries) {
+    siteEntries = dbRecord.mmp_site_entries.map((entry: any) => ({
+      id: entry.id,
+      siteCode: entry.site_code,
+      hubOffice: entry.hub_office,
+      state: entry.state,
+      locality: entry.locality,
+      siteName: entry.site_name,
+      cpName: entry.cp_name,
+      visitType: entry.visit_type,
+      visitDate: entry.visit_date,
+      mainActivity: entry.main_activity,
+      siteActivity: entry.activity_at_site,
+      monitoringBy: entry.monitoring_by,
+      surveyTool: entry.survey_tool,
+      useMarketDiversion: entry.use_market_diversion,
+      useWarehouseMonitoring: entry.use_warehouse_monitoring,
+      comments: entry.comments,
+      additionalData: entry.additional_data || {},
+      status: entry.status
+    }));
+  } else if (dbRecord.site_entries) {
+    // Fallback for old format
+    siteEntries = dbRecord.site_entries;
+  }
+
   return {
     id: dbRecord.id,
     name: dbRecord.name,
@@ -36,7 +64,7 @@ const transformDBToMMPFile = (dbRecord: any): MMPFile => {
     fileUrl: dbRecord.file_url,
     projectId: dbRecord.project_id,
     projectName: dbRecord.project?.name || dbRecord.project_name,
-    siteEntries: dbRecord.site_entries || [],
+    siteEntries: siteEntries,
     workflow: dbRecord.workflow,
     approvalWorkflow: dbRecord.approval_workflow,
     location: dbRecord.location,
@@ -114,12 +142,8 @@ async function parseAndCountEntries(file: File): Promise<{ entries: MMPSiteEntry
     const timestamp = Date.now();
 
     result.data.forEach((record: Record<string, any>, index: number) => {
-      // Skip empty rows (where all key fields are empty)
-      const hasData = record['Site Name'] || record['siteName'] || record['Site Name:'] || 
-                     record['Hub Office'] || record['hubOffice'] || record['Hub Office:'] ||
-                     record['State'] || record['state'] || record['State:'] ||
-                     record['Locality'] || record['locality'] || record['Locality:'];
-      
+      // Skip rows that are truly empty (allow flexible header names)
+      const hasData = Object.values(record).some(v => String(v ?? '').trim() !== '');
       if (!hasData) {
         return; // Skip this empty row
       }
@@ -176,36 +200,42 @@ async function parseAndCountEntries(file: File): Promise<{ entries: MMPSiteEntry
 }
 
 export async function uploadMMPFile(
-  file: File, 
-  metadata?: { name?: string; hub?: string; month?: string; projectId?: string }
+  file: File,
+  metadata?: { name?: string; hub?: string; month?: string; projectId?: string },
+  onProgress?: (progress: { current: number; total: number; stage: string }) => void
 ): Promise<{ success: boolean; mmpData?: MMPFile; error?: string }> {
   try {
     console.log('Starting MMP file upload:', file.name);
-    
+    onProgress?.({ current: 0, total: 100, stage: 'Starting upload process' });
+
     // Check file size (10MB limit)
     const maxSize = 10 * 1024 * 1024; // 10MB
     if (file.size > maxSize) {
-      return { 
-        success: false, 
-        error: `File size (${(file.size / 1024 / 1024).toFixed(2)}MB) exceeds the 10MB limit` 
+      return {
+        success: false,
+        error: `File size (${(file.size / 1024 / 1024).toFixed(2)}MB) exceeds the 10MB limit`
       };
     }
-    
+
+    onProgress?.({ current: 5, total: 100, stage: 'File size validated' });
+
     // Generate a unique file path for storage
     const timestamp = Date.now();
     const fileExt = file.name.split('.').pop();
     const filePath = `${timestamp}_${Math.random().toString(36).substring(2)}.${fileExt}`;
-    
+
+    onProgress?.({ current: 10, total: 100, stage: 'Uploading file to storage' });
+
     // Upload file to Supabase Storage with timeout
     const uploadPromise = supabase
       .storage
       .from('mmp-files')
       .upload(filePath, file);
-    
-    const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Storage upload timeout after 30 seconds')), 30000)
+
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Storage upload timeout after 5 minutes')), 300000)
     );
-    
+
     const { data: storageData, error: storageError } = await Promise.race([
       uploadPromise,
       timeoutPromise
@@ -218,6 +248,8 @@ export async function uploadMMPFile(
       return { success: false, error: 'Failed to upload file to storage: ' + storageErrMsg };
     }
 
+    onProgress?.({ current: 30, total: 100, stage: 'File uploaded to storage' });
+
     // Get the public URL for the uploaded file
     const { data: { publicUrl } } = supabase
       .storage
@@ -226,13 +258,15 @@ export async function uploadMMPFile(
 
     console.log('File uploaded successfully. Public URL:', publicUrl);
 
-    // Parse and validate the Excel file
+    onProgress?.({ current: 35, total: 100, stage: 'Parsing file and extracting entries' });
+
+    // Parse the file once to extract entries (combines validation and parsing)
     const { entries, count, errors } = await parseAndCountEntries(file);
 
-    // Show validation errors if any
+    // Show validation errors if any (but don't block upload)
     if (errors.length > 0) {
-      console.warn('File validation errors:', errors);
-      toast.warning(`File uploaded with ${errors.length} validation issues. Check console for details.`);
+      console.warn('File validation warnings:', errors);
+      toast.warning(`File has ${errors.length} validation issues but will proceed with upload.`);
     }
 
     // Prepare uploader info (name and role) for persistence
@@ -251,7 +285,7 @@ export async function uploadMMPFile(
       }
     } catch {}
 
-    // Create database entry with parsed data
+    // Create database entry with parsed data (without site_entries initially)
     const dbData = {
       name: metadata?.name || file.name.replace(/\.[^/.]+$/, ""),
       hub: metadata?.hub,
@@ -267,7 +301,7 @@ export async function uploadMMPFile(
         minor: 0,
         updatedAt: new Date().toISOString()
       },
-      site_entries: entries,
+      site_entries: [], // Start with empty array, will populate in batches
       workflow: {
         currentStage: 'notStarted',
         lastUpdated: new Date().toISOString()
@@ -280,17 +314,17 @@ export async function uploadMMPFile(
 
     console.log('Inserting MMP record into database:', dbData);
 
-  // Insert the record into Supabase with timeout
+    // Insert the record into Supabase with timeout
     const insertPromise = supabase
       .from('mmp_files')
       .insert(dbData)
       .select('*')
       .single();
-    
-    const insertTimeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Database insert timeout after 15 seconds')), 15000)
+
+    const insertTimeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Database insert timeout after 5 minutes')), 300000)
     );
-    
+
     const { data: insertedData, error: insertError } = await Promise.race([
       insertPromise,
       insertTimeoutPromise
@@ -328,13 +362,104 @@ export async function uploadMMPFile(
     }
 
     console.log('MMP file record created successfully:', insertedRow);
+
+    // Now insert site entries in batches to avoid database limits
+    const BATCH_SIZE = 50;
+    const mmpId = insertedRow.id;
+    const totalBatches = Math.ceil(entries.length / BATCH_SIZE);
+
+    onProgress?.({ current: 50, total: 100, stage: 'Saving site entries to database' });
+
+    for (let i = 0; i < entries.length; i += BATCH_SIZE) {
+      const batch = entries.slice(i, i + BATCH_SIZE);
+      const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
+
+      const siteEntriesData = batch.map(entry => ({
+        mmp_file_id: mmpId,
+        site_code: entry.siteCode,
+        hub_office: entry.hubOffice,
+        state: entry.state,
+        locality: entry.locality,
+        site_name: entry.siteName,
+        cp_name: entry.cpName,
+        visit_type: entry.visitType,
+        visit_date: entry.visitDate,
+        main_activity: entry.mainActivity,
+        activity_at_site: entry.siteActivity,
+        monitoring_by: entry.monitoringBy,
+        survey_tool: entry.surveyTool,
+        use_market_diversion: entry.useMarketDiversion,
+        use_warehouse_monitoring: entry.useWarehouseMonitoring,
+        comments: entry.comments,
+        additional_data: entry.additionalData || {},
+        status: entry.status || 'Pending'
+      }));
+
+      const { error: batchError } = await supabase
+        .from('mmp_site_entries')
+        .insert(siteEntriesData);
+
+      if (batchError) {
+        console.error('Error inserting site entries batch:', batchError);
+        // Clean up the partially created MMP record
+        try {
+          await supabase.from('mmp_files').delete().eq('id', mmpId);
+          await supabase.storage.from('mmp-files').remove([filePath]);
+        } catch (cleanupError) {
+          console.error('Error cleaning up after batch insert failure:', cleanupError);
+        }
+        return { success: false, error: 'Failed to insert site entries: ' + batchError.message };
+      }
+
+      // Update progress
+      const progressPercent = 50 + Math.round((batchNumber / totalBatches) * 40); // 50-90%
+      onProgress?.({
+        current: progressPercent,
+        total: 100,
+        stage: `Saving site entries (${batchNumber}/${totalBatches})`
+      });
+
+      console.log(`Inserted batch ${batchNumber} of ${totalBatches}`);
+    }
+
+    // Update the MMP record with the correct processed_entries count
+    const { error: updateError } = await supabase
+      .from('mmp_files')
+      .update({ processed_entries: count })
+      .eq('id', mmpId);
+
+    if (updateError) {
+      console.error('Error updating processed entries count:', updateError);
+      // Don't fail the upload for this, just log it
+    }
+
     toast.success(`MMP file uploaded successfully with ${count} entries`);
 
-    // Transform the inserted data to match the MMPFile interface
-    const mmpData = transformDBToMMPFile(insertedRow);
-    
-    return { 
-      success: true, 
+    // Fetch the final record with site entries
+    const { data: finalRecord, error: fetchError } = await supabase
+      .from('mmp_files')
+      .select(`
+        *,
+        mmp_site_entries (*)
+      `)
+      .eq('id', mmpId)
+      .single();
+
+    if (fetchError) {
+      console.error('Error fetching final MMP record:', fetchError);
+      // Return the basic record without site entries
+      const mmpData = transformDBToMMPFile(insertedRow);
+      return {
+        success: true,
+        mmpData: mmpData
+      };
+    }
+
+    // Transform the final data to match the MMPFile interface
+    const mmpData = transformDBToMMPFile(finalRecord);
+
+    return {
+      success: true,
       mmpData: mmpData
     };
   } catch (error) {

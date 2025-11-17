@@ -28,7 +28,8 @@ export interface MMPContextType {
   rejectMMP: (id: string, rejectionReason: string) => Promise<void>;
   uploadMMP: (
     file: File,
-    metadata?: string | { name?: string; hub?: string; month?: string; projectId?: string }
+    metadata?: string | { name?: string; hub?: string; month?: string; projectId?: string },
+    onProgress?: (progress: { current: number; total: number; stage: string }) => void
   ) => Promise<{ success: boolean; id?: string; mmp?: MMPFile; error?: string }>;
   updateMMP: (id: string, updatedMMP: Partial<MMPFile>) => void;
   updateMMPVersion: (id: string, changes: string) => Promise<boolean>;

@@ -47,45 +47,98 @@ const DATE_PATTERNS = [
   /^\d{2}-\d{2}-\d{4}$/  // DD-MM-YYYY
 ];
 
-export const validateCSV = async (file: File): Promise<CSVParseResult> => {
+export const validateCSV = async (
+  file: File,
+  onProgress?: (progress: { current: number; total: number; stage: string }) => void
+): Promise<CSVParseResult> => {
   const errors: CSVValidationError[] = [];
   const warnings: CSVValidationError[] = [];
   const data: any[] = [];
   const hubOffices: string[] = []; // Track hub offices found in the file
-  
+
   try {
     // Detect file extension and parse accordingly (Excel or CSV)
     const ext = file.name.split('.').pop()?.toLowerCase();
     let headers: string[] = [];
     let rows: string[][] = [];
-    
+
     if (ext === 'xlsx' || ext === 'xls') {
-      // Parse Excel workbook
+      // Parse Excel workbook with memory optimization
+      onProgress?.({ current: 0, total: 100, stage: 'Reading Excel file' });
       const buffer = await file.arrayBuffer();
-      const wb = XLSX.read(buffer, { type: 'array', cellDates: true });
-      const sheetName = wb.SheetNames[0];
-      const ws = wb.Sheets[sheetName];
-      const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true }) as any[][];
-      
-      if (!aoa || aoa.length < 2) {
+      const wb = XLSX.read(buffer, { type: 'array', cellDates: true, dense: false });
+
+      // Choose the worksheet that best matches required headers (fallback to first sheet)
+      const norm = (s: string) => String(s || '').toLowerCase().trim();
+      const requiredSet = new Set(REQUIRED_HEADERS.map(h => norm(h)));
+
+      const scoreSheet = (ws: XLSX.WorkSheet): number => {
+        const hdr = (XLSX.utils.sheet_to_json(ws, { header: 1, range: 'A1:ZZ1' })[0] as any[] | undefined) || [];
+        const normalized = hdr.map(h => norm(String(h)));
+        // score by number of required headers present
+        return normalized.reduce((acc, h) => acc + (requiredSet.has(h) ? 1 : 0), 0);
+      };
+
+      let bestSheetName = wb.SheetNames[0];
+      let bestScore = -1;
+      for (const name of wb.SheetNames) {
+        const wsCandidate = wb.Sheets[name];
+        const s = scoreSheet(wsCandidate);
+        if (s > bestScore) {
+          bestScore = s;
+          bestSheetName = name;
+        }
+      }
+
+      const ws = wb.Sheets[bestSheetName];
+
+      // Use streaming approach for large files
+      const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+      const totalRows = range.e.r - range.s.r;
+
+      if (totalRows < 2) {
         errors.push({
           type: 'error',
           message: 'File is empty or contains only headers',
           category: 'file_structure'
         });
-        return { 
-          isValid: false, 
-          errors, 
-          warnings, 
-          data, 
-          hubOffices, 
+        return {
+          isValid: false,
+          errors,
+          warnings,
+          data,
+          hubOffices,
           errorSummary: summarizeIssues(errors),
           warningSummary: summarizeIssues(warnings)
         };
       }
-      
-      headers = (aoa[0] || []).map(h => String(h ?? '').trim());
-      rows = aoa.slice(1).map(r => headers.map((h, idx) => {
+
+      // Process headers
+      const headerRow = XLSX.utils.sheet_to_json(ws, { header: 1, range: 'A1:ZZ1' })[0] as any[];
+      headers = (headerRow || []).map(h => String(h ?? '').trim());
+
+      // Process rows in chunks to avoid memory issues
+      const CHUNK_SIZE = 100;
+      const chunks = [];
+      for (let startRow = 1; startRow <= totalRows; startRow += CHUNK_SIZE) {
+        const endRow = Math.min(startRow + CHUNK_SIZE - 1, totalRows);
+        const chunkRange = { s: { r: startRow, c: 0 }, e: { r: endRow, c: range.e.c } };
+        const chunk = XLSX.utils.sheet_to_json(ws, {
+          header: 1,
+          range: XLSX.utils.encode_range(chunkRange),
+          raw: true
+        }) as any[][];
+        chunks.push(chunk);
+
+        onProgress?.({
+          current: Math.min(startRow + CHUNK_SIZE, totalRows),
+          total: totalRows,
+          stage: `Reading rows ${startRow}-${endRow}`
+        });
+      }
+
+      // Combine chunks
+      rows = chunks.flat().map(r => headers.map((h, idx) => {
         const v = (r || [])[idx];
         if (v === undefined || v === null) return '';
         // Normalize Excel date cells or serials specifically for Visit Date
@@ -101,28 +154,32 @@ export const validateCSV = async (file: File): Promise<CSVParseResult> => {
         }
         return String(v).trim();
       }));
+
+      // Clean up memory
+      chunks.length = 0;
     } else {
       // Parse as CSV text
+      onProgress?.({ current: 0, total: 100, stage: 'Reading CSV file' });
       const content = await file.text();
       const lines = content.split(/\r?\n/);
-      
+
       if (lines.length < 2) {
         errors.push({
           type: 'error',
           message: 'File is empty or contains only headers',
           category: 'file_structure'
         });
-        return { 
-          isValid: false, 
-          errors, 
-          warnings, 
-          data, 
-          hubOffices, 
+        return {
+          isValid: false,
+          errors,
+          warnings,
+          data,
+          hubOffices,
           errorSummary: summarizeIssues(errors),
           warningSummary: summarizeIssues(warnings)
         };
       }
-      
+
       // Validate headers
       headers = lines[0].trim().split(',').map(h => h.trim());
       rows = lines.slice(1)
@@ -131,10 +188,10 @@ export const validateCSV = async (file: File): Promise<CSVParseResult> => {
     }
     
     // Validate headers
-    const missingHeaders = REQUIRED_HEADERS.filter(required => 
+    const missingHeaders = REQUIRED_HEADERS.filter(required =>
       !headers.find(h => h === required)
     );
-    
+
     if (missingHeaders.length > 0) {
       warnings.push({
         type: 'warning',
@@ -142,192 +199,220 @@ export const validateCSV = async (file: File): Promise<CSVParseResult> => {
         category: 'missing_headers'
       });
     }
-    
+
     // Track site codes to check for duplicates
     const siteCodes = new Set<string>();
-    
-    // Validate each row
-    for (let i = 0; i < rows.length; i++) {
-      const values = rows[i];
-      const row = i + 2; // Account for header row
-      
-      // Create record object - preserve ALL fields from the original CSV
-      const record: any = {};
-      headers.forEach((header, index) => {
-        record[header] = values[index] || '';
-      });
-      
-      // Track Hub Offices for hub validation
-      if (record['Hub Office'] && !hubOffices.includes(record['Hub Office'])) {
-        hubOffices.push(record['Hub Office']);
-      }
-      
-      // Handle Visit Date - use today's date if not provided
-      if (!record['Visit Date'] || record['Visit Date'].trim() === '') {
-        const today = new Date();
-        // Use DD-MM-YYYY format for display consistency
-        record['Visit Date'] = format(today, 'dd-MM-yyyy');
-        record['OriginalDate'] = format(today, 'yyyy-MM-dd'); // Keep internal format for processing
-        warnings.push({
-          type: 'warning',
-          message: 'No visit date provided, using today\'s date',
-          row,
-          column: 'Visit Date',
-          category: 'missing_date'
+
+    // Process rows in chunks to avoid blocking the UI and reduce memory pressure
+    const VALIDATION_CHUNK_SIZE = 50;
+    const totalRows = rows.length;
+
+    onProgress?.({ current: 0, total: totalRows, stage: 'Validating data' });
+
+    for (let chunkStart = 0; chunkStart < totalRows; chunkStart += VALIDATION_CHUNK_SIZE) {
+      const chunkEnd = Math.min(chunkStart + VALIDATION_CHUNK_SIZE, totalRows);
+
+      // Process chunk
+      for (let i = chunkStart; i < chunkEnd; i++) {
+        const values = rows[i];
+        const row = i + 2; // Account for header row
+
+        // Create record object - preserve ALL fields from the original CSV
+        const record: any = {};
+        headers.forEach((header, index) => {
+          record[header] = values[index] || '';
         });
-      } else {
-        // Try parsing the date in different formats
-        let parsedDate: Date | null = null;
-        
-        // Try DD-MM-YYYY format first
-        parsedDate = parse(record['Visit Date'], 'dd-MM-yyyy', new Date());
-        
-        // If DD-MM-YYYY fails, try YYYY-MM-DD
-        if (!isValid(parsedDate)) {
-          parsedDate = parse(record['Visit Date'], 'yyyy-MM-dd', new Date());
+
+        // Track Hub Offices for hub validation
+        if (record['Hub Office'] && !hubOffices.includes(record['Hub Office'])) {
+          hubOffices.push(record['Hub Office']);
         }
-        
-        // Validate parsed date
-        if (!isValid(parsedDate)) {
-          // Fallback to today's date but report as warning
+
+        // Handle Visit Date - use today's date if not provided
+        if (!record['Visit Date'] || record['Visit Date'].trim() === '') {
           const today = new Date();
-          record['OriginalDate'] = format(today, 'yyyy-MM-dd');
+          // Use DD-MM-YYYY format for display consistency
           record['Visit Date'] = format(today, 'dd-MM-yyyy');
+          record['OriginalDate'] = format(today, 'yyyy-MM-dd'); // Keep internal format for processing
           warnings.push({
             type: 'warning',
-            message: 'Invalid Visit Date format, using today\'s date',
+            message: 'No visit date provided, using today\'s date',
             row,
             column: 'Visit Date',
-            category: 'invalid_date_format'
+            category: 'missing_date'
           });
         } else {
-          // Store the original format for processing
-          record['OriginalDate'] = format(parsedDate, 'yyyy-MM-dd');
-          
-          // Keep the display format as DD-MM-YYYY for consistency
-          record['Visit Date'] = format(parsedDate, 'dd-MM-yyyy');
+          // Try parsing the date in different formats
+          let parsedDate: Date | null = null;
+
+          // Try DD-MM-YYYY format first
+          parsedDate = parse(record['Visit Date'], 'dd-MM-yyyy', new Date());
+
+          // If DD-MM-YYYY fails, try YYYY-MM-DD
+          if (!isValid(parsedDate)) {
+            parsedDate = parse(record['Visit Date'], 'yyyy-MM-dd', new Date());
+          }
+
+          // Validate parsed date
+          if (!isValid(parsedDate)) {
+            // Fallback to today's date but report as warning
+            const today = new Date();
+            record['OriginalDate'] = format(today, 'yyyy-MM-dd');
+            record['Visit Date'] = format(today, 'dd-MM-yyyy');
+            warnings.push({
+              type: 'warning',
+              message: 'Invalid Visit Date format, using today\'s date',
+              row,
+              column: 'Visit Date',
+              category: 'invalid_date_format'
+            });
+          } else {
+            // Store the original format for processing
+            record['OriginalDate'] = format(parsedDate, 'yyyy-MM-dd');
+
+            // Keep the display format as DD-MM-YYYY for consistency
+            record['Visit Date'] = format(parsedDate, 'dd-MM-yyyy');
+          }
         }
-      }
-      
-      // Validate site code if present
-      if (record['Site Code']) {
-        if (!validateSiteCode(record['Site Code'])) {
+
+        // Validate site code if present
+        if (record['Site Code']) {
+          if (!validateSiteCode(record['Site Code'])) {
+            warnings.push({
+              type: 'warning',
+              message: 'Site Code must follow pattern [HH][SS][YYMMDD]-[0001] (e.g., KOKH230524-0001)',
+              row,
+              column: 'Site Code',
+              category: 'invalid_site_code'
+            });
+          } else if (siteCodes.has(record['Site Code'])) {
+            warnings.push({
+              type: 'warning',
+              message: `Duplicate Site Code: ${record['Site Code']}`,
+              row,
+              column: 'Site Code',
+              category: 'duplicate_site_code'
+            });
+          } else {
+            siteCodes.add(record['Site Code']);
+          }
+        }
+
+        // Check for missing required fields
+        if (!record['Hub Office']) {
           warnings.push({
             type: 'warning',
-            message: 'Site Code must follow pattern [HH][SS][YYMMDD]-[0001] (e.g., KOKH230524-0001)',
+            message: 'Missing Hub Office',
             row,
-            column: 'Site Code',
-            category: 'invalid_site_code'
-          });
-        } else if (siteCodes.has(record['Site Code'])) {
-          warnings.push({
-            type: 'warning',
-            message: `Duplicate Site Code: ${record['Site Code']}`,
-            row,
-            column: 'Site Code',
-            category: 'duplicate_site_code'
-          });
-        } else {
-          siteCodes.add(record['Site Code']);
-        }
-      }
-      
-      // Check for missing required fields
-      if (!record['Hub Office']) {
-        warnings.push({
-          type: 'warning',
-          message: 'Missing Hub Office',
-          row,
-          column: 'Hub Office',
-          category: 'missing_field'
-        });
-      }
-      
-      if (!record['State']) {
-        warnings.push({
-          type: 'warning',
-          message: 'Missing State',
-          row,
-          column: 'State',
-          category: 'missing_field'
-        });
-      }
-      
-      if (!record['Site Name']) {
-        warnings.push({
-          type: 'warning',
-          message: 'Missing Site Name',
-          row,
-          column: 'Site Name',
-          category: 'missing_field'
-        });
-      }
-      
-      // Check for monitoring plan specific fields
-      if (!record['Activity at Site']) {
-        warnings.push({
-          type: 'warning',
-          message: 'Missing Activity at Site',
-          row,
-          column: 'Activity at Site',
-          category: 'missing_field'
-        });
-      }
-      
-      if (!record['Monitoring By']) {
-        warnings.push({
-          type: 'warning',
-          message: 'Missing Monitoring By',
-          row,
-          column: 'Monitoring By',
-          category: 'missing_field'
-        });
-      }
-      
-      if (!record['Survey under Master tool']) {
-        warnings.push({
-          type: 'warning',
-          message: 'Missing Survey under Master tool',
-          row,
-          column: 'Survey under Master tool',
-          category: 'missing_field'
-        });
-      }
-      
-      // Validate boolean fields for monitoring plan
-      if (record['Use Market Diversion Monitoring']) {
-        const value = String(record['Use Market Diversion Monitoring']).toLowerCase().trim();
-        if (!['yes', 'no', 'true', 'false', '1', '0', ''].includes(value)) {
-          warnings.push({
-            type: 'warning',
-            message: 'Use Market Diversion Monitoring should be Yes/No',
-            row,
-            column: 'Use Market Diversion Monitoring',
-            category: 'invalid_boolean'
+            column: 'Hub Office',
+            category: 'missing_field'
           });
         }
-      }
-      
-      if (record['Use Warehouse Monitoring']) {
-        const value = String(record['Use Warehouse Monitoring']).toLowerCase().trim();
-        if (!['yes', 'no', 'true', 'false', '1', '0', ''].includes(value)) {
+
+        if (!record['State']) {
           warnings.push({
             type: 'warning',
-            message: 'Use Warehouse Monitoring should be Yes/No',
+            message: 'Missing State',
             row,
-            column: 'Use Warehouse Monitoring',
-            category: 'invalid_boolean'
+            column: 'State',
+            category: 'missing_field'
           });
         }
+
+        if (!record['Site Name']) {
+          warnings.push({
+            type: 'warning',
+            message: 'Missing Site Name',
+            row,
+            column: 'Site Name',
+            category: 'missing_field'
+          });
+        }
+
+        // Check for monitoring plan specific fields
+        if (!record['Activity at Site']) {
+          warnings.push({
+            type: 'warning',
+            message: 'Missing Activity at Site',
+            row,
+            column: 'Activity at Site',
+            category: 'missing_field'
+          });
+        }
+
+        if (!record['Monitoring By']) {
+          warnings.push({
+            type: 'warning',
+            message: 'Missing Monitoring By',
+            row,
+            column: 'Monitoring By',
+            category: 'missing_field'
+          });
+        }
+
+        if (!record['Survey under Master tool']) {
+          warnings.push({
+            type: 'warning',
+            message: 'Missing Survey under Master tool',
+            row,
+            column: 'Survey under Master tool',
+            category: 'missing_field'
+          });
+        }
+
+        // Validate boolean fields for monitoring plan
+        if (record['Use Market Diversion Monitoring']) {
+          const value = String(record['Use Market Diversion Monitoring']).toLowerCase().trim();
+          if (!['yes', 'no', 'true', 'false', '1', '0', ''].includes(value)) {
+            warnings.push({
+              type: 'warning',
+              message: 'Use Market Diversion Monitoring should be Yes/No',
+              row,
+              column: 'Use Market Diversion Monitoring',
+              category: 'invalid_boolean'
+            });
+          }
+        }
+
+        if (record['Use Warehouse Monitoring']) {
+          const value = String(record['Use Warehouse Monitoring']).toLowerCase().trim();
+          if (!['yes', 'no', 'true', 'false', '1', '0', ''].includes(value)) {
+            warnings.push({
+              type: 'warning',
+              message: 'Use Warehouse Monitoring should be Yes/No',
+              row,
+              column: 'Use Warehouse Monitoring',
+              category: 'invalid_boolean'
+            });
+          }
+        }
+
+        data.push(record);
       }
-      
-      data.push(record);
+
+      // Update progress after each chunk
+      onProgress?.({
+        current: chunkEnd,
+        total: totalRows,
+        stage: `Validated ${chunkEnd} of ${totalRows} rows`
+      });
+
+      // Allow UI to update between chunks
+      await new Promise(resolve => setTimeout(resolve, 0));
     }
     
     // Create summaries of issues by category
     const errorSummary = summarizeIssues(errors);
     const warningSummary = summarizeIssues(warnings);
-    
+
+    // Memory cleanup - clear large arrays that are no longer needed
+    rows.length = 0;
+
+    // Force garbage collection if available (development mode)
+    if (typeof window !== 'undefined' && (window as any).gc) {
+      (window as any).gc();
+    }
+
     // Limit the number of warnings to display to prevent UI issues
     if (warnings.length > 15) {
       const extraWarnings = warnings.length - 15;
@@ -337,7 +422,7 @@ export const validateCSV = async (file: File): Promise<CSVParseResult> => {
         message: `...and ${extraWarnings} more warnings. See validation results for details.`,
         category: 'summary'
       });
-      
+
       return {
         isValid: errors.length === 0,
         errors,
@@ -348,7 +433,7 @@ export const validateCSV = async (file: File): Promise<CSVParseResult> => {
         warningSummary
       };
     }
-    
+
     return {
       isValid: errors.length === 0,
       errors,
