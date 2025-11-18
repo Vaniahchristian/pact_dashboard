@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { 
   Search, ArrowLeft, CheckCircle, XCircle, Download, 
   FileSpreadsheet as FileSpreadsheetIcon, Upload, Calendar, Wrench, AlertTriangle,
-  Archive, Trash2, History, Shield, Eye, RefreshCw, FileCheck, Edit
+  Archive, Trash2, History, Shield, Eye, RefreshCw, FileCheck, Edit, Send
 } from "lucide-react";
 import { format } from "date-fns";
 import { useAppContext } from "@/context/AppContext";
@@ -35,6 +35,7 @@ import MMPOverviewCard from "@/components/mmp/MMPOverviewCard";
 import MMPSiteEntriesTable from "@/components/mmp/MMPSiteEntriesTable";
 import MMPFileManagement from "@/components/mmp/MMPFileManagement";
 import { useAuthorization } from "@/hooks/use-authorization";
+import ForwardToFOMDialog from "@/components/mmp/ForwardToFOMDialog";
 
 const MMPDetailView = () => {
   const { id } = useParams<{ id: string }>();
@@ -50,6 +51,7 @@ const MMPDetailView = () => {
   const [selectedSite, setSelectedSite] = useState<any>(null);
   const [siteDetailOpen, setSiteDetailOpen] = useState(false);
   const [siteEntriesDB, setSiteEntriesDB] = useState<any[]>([]);
+  const [forwardOpen, setForwardOpen] = useState(false);
   
   const mmpFile = id ? getMmpById(id) : undefined;
   
@@ -79,6 +81,7 @@ const MMPDetailView = () => {
   const canDelete = (checkPermission('mmp', 'delete') || isAdmin) ? true : false;
   const canArchive = (checkPermission('mmp', 'archive') || isAdmin) ? true : false;
   const canApprove = (checkPermission('mmp', 'approve') || isAdmin) && mmpFile?.status === 'pending';
+  const canForward = hasAnyRole(['admin','ict']);
 
   // Prefer entries from context; if missing, fetch from mmp_site_entries
   const siteEntries = (mmpFile?.siteEntries && Array.isArray(mmpFile.siteEntries) && mmpFile.siteEntries.length > 0)
@@ -284,6 +287,15 @@ const MMPDetailView = () => {
             onVerificationClick={handleProceedToVerification}
             onEditClick={handleEditMMP}
           />
+          {canForward && (
+            <div>
+              <Button onClick={() => setForwardOpen(true)} className="bg-blue-600 hover:bg-blue-700">
+                <Send className="mr-2 h-4 w-4" />
+                Forward to FOMs
+              </Button>
+            </div>
+          )}
+          <ForwardToFOMDialog open={forwardOpen} onOpenChange={setForwardOpen} mmpId={mmpFile.id} mmpName={mmpFile.name} />
           
           <MMPSiteInformation 
             mmpFile={mmpFile} 

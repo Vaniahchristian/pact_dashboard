@@ -11,6 +11,7 @@ import { Upload, FileCheck } from 'lucide-react';
 import { useMMP } from '@/context/mmp/MMPContext';
 import { useAppContext } from '@/context/AppContext';
 import { supabase } from '@/integrations/supabase/client';
+import { sudanStates } from '@/data/sudanStates';
 
 interface MMPPermitVerificationProps {
   mmpFile: any;
@@ -196,6 +197,96 @@ const MMPPermitVerification: React.FC<MMPPermitVerificationProps> = ({
       title: "Permit Uploaded",
       description: `${newPermit.fileName} has been uploaded successfully.`,
     });
+
+    // Notify stakeholders and share entries to coordinators
+    (async () => {
+      try {
+        const mmpId = mmpFile?.id || mmpFile?.mmpId;
+        if (!mmpId) return;
+
+        // 1) Notify FOMs and Supervisors that a permit was uploaded
+        const { data: recipients } = await supabase
+          .from('profiles')
+          .select('id, role, hub_id')
+          .in('role', ['fom', 'supervisor']);
+        const rows = (recipients || []).map(r => ({
+          user_id: r.id,
+          title: 'Permit uploaded',
+          message: `${mmpFile?.name || 'MMP'} has a new permit uploaded`,
+          type: 'info',
+          link: `/mmp/${mmpId}`,
+          related_entity_id: mmpId,
+          related_entity_type: 'mmpFile'
+        }));
+        if (rows.length) await supabase.from('notifications').insert(rows);
+
+        // 2) Share entries to State Coordinators for CP review
+        // Fetch entries if not present
+        let entries = Array.isArray(mmpFile?.siteEntries) && mmpFile.siteEntries.length > 0
+          ? mmpFile.siteEntries
+          : [];
+        if (!entries.length && mmpFile?.id) {
+          const { data: dbEntries } = await supabase
+            .from('mmp_site_entries')
+            .select('state, locality')
+            .eq('mmp_file_id', mmpFile.id);
+          entries = dbEntries || [];
+        }
+
+        if (!entries.length) return;
+
+        // Map entry state/locality names to ids defined in sudanStates
+        const stateNameToId = new Map<string, string>();
+        for (const s of sudanStates) stateNameToId.set(s.name.toLowerCase(), s.id);
+
+        const localitiesByState = new Map<string, Map<string, string>>();
+        for (const s of sudanStates) {
+          const map = new Map<string, string>();
+          s.localities.forEach(l => map.set(l.name.toLowerCase(), l.id));
+          localitiesByState.set(s.id, map);
+        }
+
+        const targetPairs = new Set<string>(); // state_id|locality_id?
+        entries.forEach((e: any) => {
+          const sName = String(e.state || '').trim().toLowerCase();
+          const stateId = stateNameToId.get(sName);
+          if (!stateId) return;
+          const locName = String(e.locality || '').trim().toLowerCase();
+          const locMap = localitiesByState.get(stateId);
+          const localityId = locName && locMap ? (locMap.get(locName) || '') : '';
+          targetPairs.add(`${stateId}|${localityId}`);
+        });
+
+        if (targetPairs.size === 0) return;
+
+        // Build filters and fetch coordinators
+        const allStates = Array.from(new Set(Array.from(targetPairs).map(k => k.split('|')[0])));
+        const { data: coords } = await supabase
+          .from('profiles')
+          .select('id, state_id, locality_id, role')
+          .eq('role', 'coordinator')
+          .in('state_id', allStates);
+
+        const coordRows = (coords || []).filter(c => {
+          // If we matched a specific locality, ensure locality match; otherwise state match is enough
+          const key1 = `${c.state_id}|${c.locality_id || ''}`;
+          const key2 = `${c.state_id}|`;
+          return targetPairs.has(key1) || targetPairs.has(key2);
+        }).map(c => ({
+          user_id: c.id,
+          title: 'Sites shared for CP review',
+          message: `${mmpFile?.name || 'MMP'} sites have been shared for your review`,
+          type: 'info',
+          link: `/mmp/${mmpId}`,
+          related_entity_id: mmpId,
+          related_entity_type: 'mmpFile'
+        }));
+
+        if (coordRows.length) await supabase.from('notifications').insert(coordRows);
+      } catch (e) {
+        console.warn('Permit upload notifications/share failed:', e);
+      }
+    })();
   };
 
   const handleVerifyPermit = (permitId: string, status: 'verified' | 'rejected', notes?: string) => {

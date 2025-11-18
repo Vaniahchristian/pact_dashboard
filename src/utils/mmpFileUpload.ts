@@ -78,6 +78,48 @@ const transformDBToMMPFile = (dbRecord: any): MMPFile => {
   };
 };
 
+// Notify FOMs/Supervisors that a new MMP has been uploaded
+async function notifyStakeholdersOnUpload(mmp: { id: string; name: string; hub?: string }) {
+  try {
+    const { data: recipients } = await supabase
+      .from('profiles')
+      .select('id, role, hub_id')
+      .in('role', ['fom', 'supervisor']);
+
+    const userIds = (recipients || [])
+      .filter(r => !mmp.hub || r.hub_id === mmp.hub)
+      .map(r => r.id);
+
+    if (userIds.length === 0) return;
+
+    const rows = userIds.map(uid => ({
+      user_id: uid,
+      title: 'New MMP uploaded',
+      message: `${mmp.name} has been uploaded and is ready for verification`,
+      type: 'info',
+      link: `/mmp/${mmp.id}`,
+      related_entity_id: mmp.id,
+      related_entity_type: 'mmpFile'
+    }));
+    await supabase.from('notifications').insert(rows);
+  } catch {}
+}
+
+// Update workflow to awaitingPermits after initial upload and sharing
+async function setWorkflowStageAwaitingPermits(mmpId: string) {
+  try {
+    const { data: row } = await supabase
+      .from('mmp_files')
+      .select('workflow')
+      .eq('id', mmpId)
+      .single();
+    const now = new Date().toISOString();
+    const wf = row?.workflow || {};
+    const next = { ...wf, currentStage: 'awaitingPermits', lastUpdated: now };
+    await supabase.from('mmp_files').update({ workflow: next }).eq('id', mmpId);
+  } catch {}
+}
+
 // Parse file through validateCSV and map rows to MMPSiteEntry while preserving unmapped columns
 async function parseAndCountEntries(file: File): Promise<{ entries: MMPSiteEntry[]; count: number; errors: string[]; warnings: string[]; rawErrors: CSVValidationError[]; rawWarnings: CSVValidationError[] }> {
   const issues: string[] = [];
@@ -555,6 +597,9 @@ export async function uploadMMPFile(
       console.error('Error fetching final MMP record:', fetchError);
       // Return the basic record without site entries
       const mmpData = transformDBToMMPFile(insertedRow);
+      // Fire notifications (best-effort)
+      await notifyStakeholdersOnUpload({ id: mmpData.id, name: mmpData.name, hub: mmpData.hub });
+      await setWorkflowStageAwaitingPermits(mmpData.id);
       return {
         success: true,
         mmpData: mmpData
@@ -563,6 +608,10 @@ export async function uploadMMPFile(
 
     // Transform the final data to match the MMPFile interface
     const mmpData = transformDBToMMPFile(finalRecord);
+
+    // Fire notifications (best-effort)
+    await notifyStakeholdersOnUpload({ id: mmpData.id, name: mmpData.name, hub: mmpData.hub });
+    await setWorkflowStageAwaitingPermits(mmpData.id);
 
     return {
       success: true,
