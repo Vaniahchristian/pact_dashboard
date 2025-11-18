@@ -25,12 +25,16 @@ const CATEGORY_LABELS = [
 // 5. Log errors and data for debugging.
 
 import { supabase } from '@/integrations/supabase/client'; // Use your shared client, not createClient()
+import { useUser } from '@/context/user/UserContext';
 
 const FieldOperationManagerPage = () => {
   const { roles } = useAppContext();
+  const { currentUser } = useUser();
   const navigate = useNavigate();
   const [mmpFiles, setMmpFiles] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [forwardedLoading, setForwardedLoading] = useState(false);
+  const [forwardedMmpFiles, setForwardedMmpFiles] = useState<any[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<'all' | 'approved' | 'pending' | 'archived'>('all');
   const [search, setSearch] = useState('');
   const [selectedMonths, setSelectedMonths] = useState<string[]>([]);
@@ -87,7 +91,7 @@ const FieldOperationManagerPage = () => {
     return false;
   };
 
-  const allowed = roles?.includes('admin') || roles?.includes(FIELD_OP_ROLE as any);
+  const allowed = roles?.includes('admin') || roles?.includes(FIELD_OP_ROLE as any) || roles?.includes('fom' as any);
   if (!allowed) {
     return (
       <div className="max-w-xl mx-auto mt-20 p-8 bg-white rounded-xl shadow text-center">
@@ -894,6 +898,78 @@ const FieldOperationManagerPage = () => {
     // add dependencies if you want to refetch on filter changes
   ]);
 
+  // Load MMPs explicitly forwarded to the current FOM
+  React.useEffect(() => {
+    const loadForwarded = async () => {
+      if (!currentUser?.id) {
+        setForwardedMmpFiles([]);
+        return;
+      }
+      setForwardedLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('mmp_files')
+          .select(`
+            *,
+            project:projects(
+              id,
+              name,
+              project_code
+            )
+          `)
+          .contains('workflow', { forwardedToFomIds: [currentUser.id] })
+          .order('created_at', { ascending: false });
+        if (error) {
+          console.warn('Failed to fetch forwarded MMPs with join:', error);
+          const { data: fbData, error: fbErr } = await supabase
+            .from('mmp_files')
+            .select('*')
+            .contains('workflow', { forwardedToFomIds: [currentUser.id] })
+            .order('created_at', { ascending: false });
+          if (fbErr) {
+            console.warn('Fallback forwarded fetch failed:', fbErr);
+            setForwardedMmpFiles([]);
+          } else {
+            const mappedFb = (fbData || []).map((mmp: any) => ({
+              ...mmp,
+              sites: Array.isArray(mmp.site_entries) ? mmp.site_entries : [],
+              uploadedAt: mmp.uploaded_at,
+              uploadedBy: mmp.uploaded_by || 'Unknown',
+              hub: mmp.hub,
+              month: mmp.month,
+              projectId: mmp.project_id,
+              projectName: mmp.project_name || undefined,
+              mmpId: mmp.mmp_id || mmp.id,
+              status: mmp.status,
+              siteCount: typeof mmp.entries === 'number' ? mmp.entries : (Array.isArray(mmp.site_entries) ? mmp.site_entries.length : 0),
+              logs: mmp.workflow?.logs || [],
+            }));
+            setForwardedMmpFiles(mappedFb);
+          }
+        } else {
+          const mapped = (data || []).map((mmp: any) => ({
+            ...mmp,
+            sites: Array.isArray(mmp.site_entries) ? mmp.site_entries : [],
+            uploadedAt: mmp.uploaded_at,
+            uploadedBy: mmp.uploaded_by || 'Unknown',
+            hub: mmp.hub,
+            month: mmp.month,
+            projectId: mmp.project_id,
+            projectName: mmp.project?.name || mmp.project_name,
+            mmpId: mmp.mmp_id || mmp.id,
+            status: mmp.status,
+            siteCount: typeof mmp.entries === 'number' ? mmp.entries : (Array.isArray(mmp.site_entries) ? mmp.site_entries.length : 0),
+            logs: mmp.workflow?.logs || [],
+          }));
+          setForwardedMmpFiles(mapped);
+        }
+      } finally {
+        setForwardedLoading(false);
+      }
+    };
+    loadForwarded();
+  }, [currentUser?.id]);
+
   return (
     <div className="min-h-screen py-10 px-2 md:px-8 bg-gradient-to-br from-slate-50 via-blue-50 to-blue-100 dark:from-gray-900 dark:via-gray-950 dark:to-gray-900 space-y-10">
       <div className="max-w-5xl mx-auto">
@@ -909,6 +985,61 @@ const FieldOperationManagerPage = () => {
         </div>
       </div>
       <div className="max-w-5xl mx-auto">
+        {/* Forwarded to me */}
+        <Card className="mb-10 p-8 bg-white/90 dark:bg-gray-900/90 rounded-2xl shadow-lg border border-emerald-200 dark:border-emerald-900">
+          <h2 className="text-2xl font-semibold mb-6 text-emerald-800 dark:text-emerald-200">Forwarded to You</h2>
+          <div className="overflow-x-auto rounded-lg">
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr className="bg-emerald-50 dark:bg-emerald-950 text-emerald-900 dark:text-emerald-100">
+                  <th className="px-4 py-3 text-left font-semibold">MMP</th>
+                  <th className="px-4 py-3 text-left font-semibold">Project</th>
+                  <th className="px-4 py-3 text-left font-semibold">Forwarded</th>
+                  <th className="px-4 py-3 text-left font-semibold">Status</th>
+                  <th className="px-4 py-3"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {(forwardedMmpFiles || []).map(mmp => {
+                  const project = (mmp as any).projectName || (mmp as any).project?.name || '-';
+                  const forwardedAt = (mmp as any).workflow?.forwardedAt
+                    ? new Date((mmp as any).workflow.forwardedAt).toLocaleString()
+                    : '-';
+                  const status: MMPStatus | undefined = mmp.status;
+                  return (
+                    <tr key={`fwd-${mmp.id}`} className="border-b last:border-0 hover:bg-emerald-50/40 dark:hover:bg-emerald-900/40 transition">
+                      <td className="px-4 py-3 font-medium">{mmp.name || mmp.mmpId || mmp.id}</td>
+                      <td className="px-4 py-3">{project}</td>
+                      <td className="px-4 py-3">{forwardedAt}</td>
+                      <td className="px-4 py-3">
+                        <Badge variant={
+                          status && (status as any).toLowerCase?.() === 'approved' ? 'success' : 'outline'
+                        }>
+                          {status || ''}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <button
+                          className="text-emerald-700 dark:text-emerald-300 hover:underline text-xs font-semibold"
+                          onClick={() => navigate(`/mmp/${mmp.id}`)}
+                        >
+                          Open
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {(!forwardedMmpFiles || forwardedMmpFiles.length === 0) && (
+                  <tr>
+                    <td colSpan={5} className="text-center py-8 text-muted-foreground">
+                      {forwardedLoading ? 'Loading forwarded MMPs…' : 'No MMPs forwarded to you yet.'}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </Card>
         <Card className="mb-10 p-8 bg-white/90 dark:bg-gray-900/90 rounded-2xl shadow-lg border border-blue-100 dark:border-blue-900">
           <h2 className="text-2xl font-semibold mb-6 text-blue-800 dark:text-blue-200">Uploaded MMPs</h2>
           <div className="overflow-x-auto rounded-lg">

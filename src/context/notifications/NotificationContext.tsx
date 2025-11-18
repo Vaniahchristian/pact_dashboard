@@ -1,12 +1,9 @@
 
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { Notification } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 
-// Remove direct dependency on useUser
-// import { useUser } from '../user/UserContext';
 
-// Start with empty notifications array instead of mock data
 const initialNotifications: Notification[] = [];
 
 interface NotificationContextType {
@@ -64,6 +61,98 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     };
   }, []);
 
+  // Resolve current user id directly from Supabase auth as primary source
+  useEffect(() => {
+    let unsub: { unsubscribe: () => void } | undefined;
+    (async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user?.id) setCurrentUserId(user.id);
+      } catch {}
+      try {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+          const uid = session?.user?.id || null;
+          setCurrentUserId(uid);
+        });
+        unsub = subscription;
+      } catch {}
+    })();
+    return () => { try { unsub?.unsubscribe(); } catch {} };
+  }, []);
+
+  // Helper to map DB row to UI Notification
+  const mapDbToNotification = useCallback((row: any): Notification => ({
+    id: row.id,
+    userId: row.user_id,
+    title: row.title,
+    message: row.message,
+    type: row.type,
+    isRead: !!row.is_read,
+    createdAt: row.created_at,
+    link: row.link || undefined,
+    relatedEntityId: row.related_entity_id || undefined,
+    relatedEntityType: row.related_entity_type || undefined,
+  }), []);
+
+  // Load notifications for current user from Supabase and subscribe for realtime inserts
+  useEffect(() => {
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    let cancelled = false;
+    const fetchNotifications = async () => {
+      if (!currentUserId) {
+        setAppNotifications([]);
+        return;
+      }
+      try {
+        const { data, error } = await supabase
+          .from('notifications')
+          .select('*')
+          .eq('user_id', currentUserId)
+          .order('created_at', { ascending: false })
+          .limit(50);
+        if (!cancelled) {
+          if (error) {
+            console.warn('Failed to fetch notifications:', error);
+          } else if (data) {
+            setAppNotifications(data.map(mapDbToNotification));
+          }
+        }
+      } catch (err) {
+        console.warn('Fetch notifications threw:', err);
+      }
+    };
+
+    const subscribeRealtime = () => {
+      if (!currentUserId) return;
+      try {
+        channel = supabase
+          .channel(`notifications-${currentUserId}`)
+          .on('postgres_changes', {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'notifications',
+            filter: `user_id=eq.${currentUserId}`,
+          }, (payload) => {
+            const n = mapDbToNotification((payload as any).new);
+            setAppNotifications(prev => [n, ...prev].slice(0, 50));
+          })
+          .subscribe();
+      } catch (err) {
+        console.warn('Realtime subscription failed:', err);
+      }
+    };
+
+    fetchNotifications();
+    subscribeRealtime();
+
+    const interval = setInterval(fetchNotifications, 60000);
+    return () => {
+      cancelled = true;
+      try { if (channel) supabase.removeChannel(channel); } catch {}
+      clearInterval(interval);
+    };
+  }, [currentUserId, mapDbToNotification]);
+
   // Enhanced duplicate detection that checks content and creation time
   const isDuplicateNotification = useCallback((newNotification: Omit<Notification, 'id' | 'isRead' | 'createdAt'>) => {
     const now = Date.now();
@@ -116,12 +205,13 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     })();
   }, [isDuplicateNotification]);
 
-  const markNotificationAsRead = useCallback((notificationId: string) => {
-    setAppNotifications(prev => 
-      prev.map(n => 
-        n.id === notificationId ? { ...n, isRead: true } : n
-      )
-    );
+  const markNotificationAsRead = useCallback(async (notificationId: string) => {
+    setAppNotifications(prev => prev.map(n => n.id === notificationId ? { ...n, isRead: true } : n));
+    try {
+      await supabase.from('notifications').update({ is_read: true }).eq('id', notificationId);
+    } catch (err) {
+      console.warn('Failed to persist read state:', err);
+    }
   }, []);
 
   const clearAllNotifications = useCallback(() => {

@@ -94,6 +94,23 @@ export const ForwardToFOMDialog: React.FC<ForwardToFOMDialogProps> = ({ open, on
       const { error: nErr } = await supabase.from('notifications').insert(rows);
       if (nErr) throw nErr;
 
+      // Notify the forwarder themself
+      try {
+        const { data: auth } = await supabase.auth.getUser();
+        const forwarderId = auth?.user?.id;
+        if (forwarderId) {
+          await supabase.from('notifications').insert({
+            user_id: forwarderId,
+            title: 'MMP forwarded',
+            message: `You forwarded ${mmpName || 'MMP'} to ${ids.length} FOM(s)`,
+            type: 'success',
+            link: `/mmp/${mmpId}`,
+            related_entity_id: mmpId,
+            related_entity_type: 'mmpFile'
+          });
+        }
+      } catch {}
+
       // Update workflow field
       const { data: row } = await supabase
         .from('mmp_files')
