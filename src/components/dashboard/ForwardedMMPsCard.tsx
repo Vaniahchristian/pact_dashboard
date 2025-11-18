@@ -101,7 +101,7 @@ const ForwardedMMPsCard: React.FC = () => {
                         </Badge>
                       </td>
                       <td className="px-2 py-2 text-right">
-                        <Button size="sm" variant="outline" onClick={() => window.location.assign(`/mmp/${m.id}`)}>
+                        <Button size="sm" variant="outline" onClick={() => window.location.assign(`/mmp/${m.id}/verification`)}>
                           Open
                         </Button>
                       </td>

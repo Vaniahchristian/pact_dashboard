@@ -18,14 +18,16 @@ const MMPVerificationPage: React.FC = () => {
   const mmpFile = id ? getMmpById(id) : null;
 
   const isAdmin = hasAnyRole(['admin']);
+  const isFOM = hasAnyRole(['fom', 'fieldOpManager']);
+  const hasVerificationAccess = isAdmin || isFOM || checkPermission('mmp', 'approve');
   const canApprove = checkPermission('mmp', 'approve') || isAdmin;
-  if (!canApprove) {
+  if (!hasVerificationAccess) {
     return (
       <div className="container mx-auto px-4 py-8">
         <Card className="max-w-md mx-auto">
           <CardHeader>
             <CardTitle className="text-destructive">Access Denied</CardTitle>
-            <CardDescription>You don't have permission to verify or approve MMPs.</CardDescription>
+            <CardDescription>You don't have permission to access verification for this MMP.</CardDescription>
           </CardHeader>
           <CardContent>
             <Button variant="outline" onClick={() => navigate('/mmp')} className="w-full">Back to MMP</Button>

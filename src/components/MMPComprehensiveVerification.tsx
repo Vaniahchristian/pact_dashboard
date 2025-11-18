@@ -16,6 +16,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import MMPCPVerification from './MMPCPVerification';
 import MMPPermitVerification from './MMPPermitVerification';
+import { useAppContext } from '@/context/AppContext';
 
 interface MMPComprehensiveVerificationProps {
   mmpFile: MMPFile;
@@ -29,6 +30,8 @@ export const MMPComprehensiveVerificationComponent: React.FC<MMPComprehensiveVer
   onVerificationComplete
 }) => {
   const { toast } = useToast();
+  const { roles } = useAppContext();
+  const isFOM = (roles?.includes('fom' as any) || roles?.includes('fieldOpManager' as any)) ?? false;
   const [comprehensiveVerification, setComprehensiveVerification] = useState<MMPComprehensiveVerification>(
     mmpFile.comprehensiveVerification || {
       overallStatus: 'pending',
@@ -108,13 +111,19 @@ export const MMPComprehensiveVerificationComponent: React.FC<MMPComprehensiveVer
   };
 
   const handlePermitVerificationUpdate = (permitData: any) => {
+    const permits = Array.isArray(permitData?.documents) ? permitData.documents : [];
+    const total = permits.length;
+    const decided = permits.filter((p: any) => p?.status === 'verified' || p?.status === 'rejected').length;
+    const completionPercentage = total > 0 ? Math.round((decided / total) * 100) : 0;
+    const status: VerificationStatus = total > 0 && decided === total ? 'complete' : (decided > 0 ? 'in-progress' : 'pending');
+
     const permitVerification = {
-      status: 'complete' as VerificationStatus,
+      status,
       verifiedBy: 'Current User',
       verifiedAt: new Date().toISOString(),
-      completionPercentage: 100,
-      permits: permitData.documents || []
-    };
+      completionPercentage,
+      permits,
+    } as const;
 
     updateVerificationStatus({ permitVerification });
   };
@@ -200,128 +209,132 @@ export const MMPComprehensiveVerificationComponent: React.FC<MMPComprehensiveVer
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Overall Progress */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-medium">Overall Verification Progress</h3>
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium">{overallProgress}%</span>
-                <Badge className={getStatusColor(comprehensiveVerification.overallStatus)}>
-                  {comprehensiveVerification.overallStatus}
-                </Badge>
+          {/* Overall Progress (hidden for FOM) */}
+          {!isFOM && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-medium">Overall Verification Progress</h3>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium">{overallProgress}%</span>
+                  <Badge className={getStatusColor(comprehensiveVerification.overallStatus)}>
+                    {comprehensiveVerification.overallStatus}
+                  </Badge>
+                </div>
               </div>
+              <Progress value={overallProgress} className="h-2" />
             </div>
-            <Progress value={overallProgress} className="h-2" />
-          </div>
+          )}
 
           <Separator />
 
           {/* Verification Steps */}
           <div className="space-y-4">
-            {/* System Validation */}
-            <div className={`p-4 border rounded-md ${
-              comprehensiveVerification.systemValidation?.status === 'complete' 
-                ? 'border-green-300 bg-green-50' 
-                : 'border-gray-300 bg-gray-50'
-            }`}>
-              <div className="flex justify-between items-center">
-                <div className="flex gap-2 items-center">
-                  {getStatusIcon(comprehensiveVerification.systemValidation?.status || 'pending')}
-                  <span className="font-medium">Step 1: System Validation</span>
+            {!isFOM && (
+              <div className={`p-4 border rounded-md ${
+                comprehensiveVerification.systemValidation?.status === 'complete' 
+                  ? 'border-green-300 bg-green-50' 
+                  : 'border-gray-300 bg-gray-50'
+              }`}>
+                <div className="flex justify-between items-center">
+                  <div className="flex gap-2 items-center">
+                    {getStatusIcon(comprehensiveVerification.systemValidation?.status || 'pending')}
+                    <span className="font-medium">Step 1: System Validation</span>
+                  </div>
+                  <Badge className={getStatusColor(comprehensiveVerification.systemValidation?.status || 'pending')}>
+                    {comprehensiveVerification.systemValidation?.status || 'pending'}
+                  </Badge>
                 </div>
-                <Badge className={getStatusColor(comprehensiveVerification.systemValidation?.status || 'pending')}>
-                  {comprehensiveVerification.systemValidation?.status || 'pending'}
-                </Badge>
-              </div>
-              <div className="mt-2 space-y-1">
-                <div className="flex items-center gap-2 text-sm">
-                  <CheckCircle2 className="h-3 w-3 text-green-600" />
-                  <span>File integrity verified</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <CheckCircle2 className="h-3 w-3 text-green-600" />
-                  <span>No duplicates detected</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <CheckCircle2 className="h-3 w-3 text-green-600" />
-                  <span>Compliant with system requirements</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm">
-                  {comprehensiveVerification.systemValidation?.entryProcessingComplete ? (
+                <div className="mt-2 space-y-1">
+                  <div className="flex items-center gap-2 text-sm">
                     <CheckCircle2 className="h-3 w-3 text-green-600" />
-                  ) : (
-                    <AlertCircle className="h-3 w-3 text-amber-600" />
-                  )}
-                  <span>
-                    {comprehensiveVerification.systemValidation?.entryProcessingComplete
-                      ? `${mmpFile.processedEntries} of ${mmpFile.entries} entries processed`
-                      : "Entry processing incomplete"}
-                  </span>
+                    <span>File integrity verified</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <CheckCircle2 className="h-3 w-3 text-green-600" />
+                    <span>No duplicates detected</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <CheckCircle2 className="h-3 w-3 text-green-600" />
+                    <span>Compliant with system requirements</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    {comprehensiveVerification.systemValidation?.entryProcessingComplete ? (
+                      <CheckCircle2 className="h-3 w-3 text-green-600" />
+                    ) : (
+                      <AlertCircle className="h-3 w-3 text-amber-600" />
+                    )}
+                    <span>
+                      {comprehensiveVerification.systemValidation?.entryProcessingComplete
+                        ? `${mmpFile.processedEntries} of ${mmpFile.entries} entries processed`
+                        : "Entry processing incomplete"}
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
-            {/* Content Verification */}
-            <div className={`p-4 border rounded-md ${
-              comprehensiveVerification.contentVerification?.status === 'complete' 
-                ? 'border-green-300 bg-green-50' 
-                : 'border-gray-300 bg-gray-50'
-            }`}>
-              <div className="flex justify-between items-center">
-                <div className="flex gap-2 items-center">
-                  {getStatusIcon(comprehensiveVerification.contentVerification?.status || 'pending')}
-                  <span className="font-medium">Step 2: Content Verification</span>
+            {!isFOM && (
+              <div className={`p-4 border rounded-md ${
+                comprehensiveVerification.contentVerification?.status === 'complete' 
+                  ? 'border-green-300 bg-green-50' 
+                  : 'border-gray-300 bg-gray-50'
+              }`}>
+                <div className="flex justify-between items-center">
+                  <div className="flex gap-2 items-center">
+                    {getStatusIcon(comprehensiveVerification.contentVerification?.status || 'pending')}
+                    <span className="font-medium">Step 2: Content Verification</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={handleFileView}
+                      className="flex items-center gap-2"
+                    >
+                      <FileText className="h-4 w-4" />
+                      {fileViewed ? 'View Again' : 'View Details'}
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={handleContentVerification}
+                      disabled={!fileViewed || comprehensiveVerification.contentVerification?.status === 'complete'}
+                    >
+                      {comprehensiveVerification.contentVerification?.status === 'complete' ? 'Verified' : 'Verify Content'}
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={handleFileView}
-                    className="flex items-center gap-2"
-                  >
-                    <FileText className="h-4 w-4" />
-                    {fileViewed ? 'View Again' : 'View Details'}
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={handleContentVerification}
-                    disabled={!fileViewed || comprehensiveVerification.contentVerification?.status === 'complete'}
-                  >
-                    {comprehensiveVerification.contentVerification?.status === 'complete' ? 'Verified' : 'Verify Content'}
-                  </Button>
-                </div>
+                <p className="text-sm mt-2">
+                  {!fileViewed 
+                    ? "You must review the MMP file details before proceeding."
+                    : comprehensiveVerification.contentVerification?.status === 'complete' 
+                    ? "Content has been verified successfully." 
+                    : "Verify that all information in the MMP file is correct."}
+                </p>
               </div>
-              <p className="text-sm mt-2">
-                {!fileViewed 
-                  ? "You must review the MMP file details before proceeding."
-                  : comprehensiveVerification.contentVerification?.status === 'complete' 
-                  ? "Content has been verified successfully." 
-                  : "Verify that all information in the MMP file is correct."}
-              </p>
-            </div>
+            )}
 
-            {/* CP Verification */}
-            <div className={`p-4 border rounded-md ${
-              comprehensiveVerification.cpVerification?.verificationStatus === 'complete' 
-                ? 'border-green-300 bg-green-50' 
-                : 'border-gray-300 bg-gray-50'
-            }`}>
-              <div className="flex justify-between items-center">
-                <div className="flex gap-2 items-center">
-                  {getStatusIcon(comprehensiveVerification.cpVerification?.verificationStatus || 'pending')}
-                  <span className="font-medium">Step 3: Cooperating Partner Verification</span>
+            {!isFOM && (
+              <div className={`p-4 border rounded-md ${
+                comprehensiveVerification.cpVerification?.verificationStatus === 'complete' 
+                  ? 'border-green-300 bg-green-50' 
+                  : 'border-gray-300 bg-gray-50'
+              }`}>
+                <div className="flex justify-between items-center">
+                  <div className="flex gap-2 items-center">
+                    {getStatusIcon(comprehensiveVerification.cpVerification?.verificationStatus || 'pending')}
+                    <span className="font-medium">Step 3: Cooperating Partner Verification</span>
+                  </div>
+                  <Badge className={getStatusColor(comprehensiveVerification.cpVerification?.verificationStatus || 'pending')}>
+                    {comprehensiveVerification.cpVerification?.verificationStatus || 'pending'}
+                  </Badge>
                 </div>
-                <Badge className={getStatusColor(comprehensiveVerification.cpVerification?.verificationStatus || 'pending')}>
-                  {comprehensiveVerification.cpVerification?.verificationStatus || 'pending'}
-                </Badge>
+                <p className="text-sm mt-2">
+                  Verify site entries and cooperating partner information.
+                </p>
               </div>
-              <p className="text-sm mt-2">
-                Verify site entries and cooperating partner information.
-              </p>
-            </div>
+            )}
 
-            {/* Permit Verification */}
             <div className={`p-4 border rounded-md ${
               comprehensiveVerification.permitVerification?.status === 'complete' 
                 ? 'border-green-300 bg-green-50' 
@@ -342,8 +355,8 @@ export const MMPComprehensiveVerificationComponent: React.FC<MMPComprehensiveVer
             </div>
           </div>
 
-          {/* Verification Complete Status */}
-          {comprehensiveVerification.canProceedToApproval && (
+          {/* Verification Complete Status (hidden for FOM) */}
+          {!isFOM && comprehensiveVerification.canProceedToApproval && (
             <div className="p-4 border border-green-300 bg-green-50 rounded-md">
               <div className="flex items-center gap-2 mb-2">
                 <CheckCircle2 className="h-5 w-5 text-green-600" />
@@ -358,18 +371,20 @@ export const MMPComprehensiveVerificationComponent: React.FC<MMPComprehensiveVer
       </Card>
 
       {/* Detailed Verification Tabs */}
-      <Tabs defaultValue="cp-verification" className="w-full">
-        <TabsList className="grid grid-cols-2">
-          <TabsTrigger value="cp-verification">CP Verification</TabsTrigger>
+      <Tabs defaultValue={isFOM ? 'permit-verification' : 'cp-verification'} className="w-full">
+        <TabsList className={`grid ${isFOM ? 'grid-cols-1' : 'grid-cols-2'}`}>
+          {!isFOM && (<TabsTrigger value="cp-verification">CP Verification</TabsTrigger>)}
           <TabsTrigger value="permit-verification">Permit Verification</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="cp-verification" className="mt-6">
-          <MMPCPVerification 
-            mmpFile={mmpFile}
-            onVerificationComplete={handleCPVerificationUpdate}
-          />
-        </TabsContent>
+        {!isFOM && (
+          <TabsContent value="cp-verification" className="mt-6">
+            <MMPCPVerification 
+              mmpFile={mmpFile}
+              onVerificationComplete={handleCPVerificationUpdate}
+            />
+          </TabsContent>
+        )}
 
         <TabsContent value="permit-verification" className="mt-6">
           <MMPPermitVerification 
