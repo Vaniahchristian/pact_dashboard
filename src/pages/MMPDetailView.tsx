@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileSpreadsheet } from "lucide-react";
@@ -52,6 +52,8 @@ const MMPDetailView = () => {
   const [siteDetailOpen, setSiteDetailOpen] = useState(false);
   const [siteEntriesDB, setSiteEntriesDB] = useState<any[]>([]);
   const [forwardOpen, setForwardOpen] = useState(false);
+  const [forwardedLocal, setForwardedLocal] = useState(false);
+  const [forwardedCount, setForwardedCount] = useState<number | null>(null);
   
   const mmpFile = id ? getMmpById(id) : undefined;
   
@@ -82,6 +84,12 @@ const MMPDetailView = () => {
   const canArchive = (checkPermission('mmp', 'archive') || isAdmin) ? true : false;
   const canApprove = (checkPermission('mmp', 'approve') || isAdmin) && mmpFile?.status === 'pending';
   const canForward = hasAnyRole(['admin','ict']);
+
+  const isForwarded = useMemo(() => {
+    if (forwardedLocal) return true;
+    const ids = (mmpFile as any)?.workflow?.forwardedToFomIds;
+    return Array.isArray(ids) && ids.length > 0;
+  }, [forwardedLocal, mmpFile]);
 
   // Prefer entries from context; if missing, fetch from mmp_site_entries
   const siteEntries = (mmpFile?.siteEntries && Array.isArray(mmpFile.siteEntries) && mmpFile.siteEntries.length > 0)
@@ -289,13 +297,26 @@ const MMPDetailView = () => {
           />
           {canForward && (
             <div>
-              <Button onClick={() => setForwardOpen(true)} className="bg-blue-600 hover:bg-blue-700">
+              <Button 
+                onClick={() => setForwardOpen(true)} 
+                className="bg-blue-600 hover:bg-blue-700 disabled:opacity-80 disabled:cursor-not-allowed"
+                disabled={isForwarded}
+              >
                 <Send className="mr-2 h-4 w-4" />
-                Forward to FOMs
+                {isForwarded ? 'Forwarded' : 'Forward to FOMs'}
               </Button>
+              {isForwarded && forwardedCount !== null && (
+                <span className="ml-3 text-sm text-muted-foreground">to {forwardedCount} FOM(s)</span>
+              )}
             </div>
           )}
-          <ForwardToFOMDialog open={forwardOpen} onOpenChange={setForwardOpen} mmpId={mmpFile.id} mmpName={mmpFile.name} />
+          <ForwardToFOMDialog 
+            open={forwardOpen} 
+            onOpenChange={setForwardOpen} 
+            mmpId={mmpFile.id} 
+            mmpName={mmpFile.name}
+            onForwarded={(ids) => { setForwardedLocal(true); setForwardedCount(ids.length); }}
+          />
           
           <MMPSiteInformation 
             mmpFile={mmpFile} 

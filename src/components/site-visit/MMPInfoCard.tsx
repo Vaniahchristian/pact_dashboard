@@ -13,7 +13,7 @@ interface MMPInfoCardProps {
     status?: string;
     approvedAt?: string;
     mmpId?: string;
-    month?: number;
+    month?: number | string;
     year?: number;
     entries?: number;
     siteEntries?: any[];
@@ -97,9 +97,11 @@ export const MMPInfoCard = ({
   };
 
   // Format month name
-  const getMonthName = (month?: number) => {
-    if (!month || month < 1 || month > 12) return 'N/A';
-    return new Date(2000, month - 1, 1).toLocaleString('default', { month: 'long' });
+  const getMonthName = (month?: number | string) => {
+    if (month === undefined || month === null || month === '') return 'N/A';
+    const n = typeof month === 'string' ? parseInt(month as string, 10) : month;
+    if (!n || isNaN(n) || n < 1 || n > 12) return 'N/A';
+    return new Date(2000, n - 1, 1).toLocaleString('default', { month: 'long' });
   };
 
   // Handle verification button click

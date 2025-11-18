@@ -599,7 +599,6 @@ export async function uploadMMPFile(
       const mmpData = transformDBToMMPFile(insertedRow);
       // Fire notifications (best-effort)
       await notifyStakeholdersOnUpload({ id: mmpData.id, name: mmpData.name, hub: mmpData.hub });
-      await setWorkflowStageAwaitingPermits(mmpData.id);
       return {
         success: true,
         mmpData: mmpData
@@ -611,7 +610,6 @@ export async function uploadMMPFile(
 
     // Fire notifications (best-effort)
     await notifyStakeholdersOnUpload({ id: mmpData.id, name: mmpData.name, hub: mmpData.hub });
-    await setWorkflowStageAwaitingPermits(mmpData.id);
 
     return {
       success: true,

@@ -3,7 +3,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -12,6 +11,7 @@ interface ForwardToFOMDialogProps {
   onOpenChange: (open: boolean) => void;
   mmpId: string;
   mmpName?: string;
+  onForwarded?: (userIds: string[]) => void;
 }
 
 interface FOMUser {
@@ -24,7 +24,7 @@ interface FOMUser {
   locality_id?: string | null;
 }
 
-export const ForwardToFOMDialog: React.FC<ForwardToFOMDialogProps> = ({ open, onOpenChange, mmpId, mmpName }) => {
+export const ForwardToFOMDialog: React.FC<ForwardToFOMDialogProps> = ({ open, onOpenChange, mmpId, mmpName, onForwarded }) => {
   const [loading, setLoading] = React.useState(false);
   const [foms, setFoms] = React.useState<FOMUser[]>([]);
   const [search, setSearch] = React.useState('');
@@ -108,6 +108,7 @@ export const ForwardToFOMDialog: React.FC<ForwardToFOMDialogProps> = ({ open, on
       await supabase.from('mmp_files').update({ workflow: next }).eq('id', mmpId);
 
       toast({ title: 'MMP forwarded', description: `Forwarded to ${ids.length} FOM(s)` });
+      try { onForwarded?.(ids); } catch {}
       onOpenChange(false);
       setSelected(new Set());
     } catch (e: any) {
