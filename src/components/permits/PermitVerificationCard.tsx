@@ -131,6 +131,24 @@ export const PermitVerificationCard: React.FC<PermitVerificationCardProps> = ({
             </div>
           )}
 
+          {permit.status && (
+            <div className={`mt-2 text-sm rounded-md p-3 ${permit.status === 'rejected' ? 'bg-destructive/10 text-destructive' : 'bg-green-50 text-green-700'}`}>
+              <div className="flex items-center gap-2 mb-1">
+                {permit.status === 'rejected' ? (
+                  <XCircle className="h-4 w-4" />
+                ) : (
+                  <CheckCircle className="h-4 w-4" />
+                )}
+                <span className="font-medium capitalize">{permit.status}</span>
+              </div>
+              {permit.verificationNotes ? (
+                <p className="pl-6">{permit.verificationNotes}</p>
+              ) : (
+                permit.status === 'rejected' && <p className="pl-6 italic">No reason provided</p>
+              )}
+            </div>
+          )}
+
           {/* File URL Debug (only in development) */}
           {process.env.NODE_ENV === 'development' && (
             <div className="text-xs text-muted-foreground bg-muted/30 p-2 rounded">

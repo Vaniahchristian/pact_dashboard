@@ -49,6 +49,31 @@ const MMPPermitVerification: React.FC<MMPPermitVerificationProps> = ({
       return [];
     };
 
+  const notifyAdminsAndICT = async (doc: MMPStatePermitDocument, decision: 'verified' | 'rejected') => {
+    try {
+      const mmpId = mmpFile?.id || mmpFile?.mmpId;
+      if (!mmpId) return;
+      const { data: recipients } = await supabase
+        .from('profiles')
+        .select('id, role')
+        .in('role', ['admin', 'ict']);
+      const rows = (recipients || []).map(r => ({
+        user_id: r.id,
+        title: decision === 'verified' ? 'Permit accepted' : 'Permit rejected',
+        message: `${mmpFile?.name || 'MMP'} • ${doc.fileName} ${decision}. ${doc.state ? `State: ${doc.state}. ` : ''}${doc.locality ? `Locality: ${doc.locality}. ` : ''}${doc.verificationNotes ? `Reason: ${doc.verificationNotes}` : ''}`.trim(),
+        type: decision === 'verified' ? 'success' : 'warning',
+        link: `/mmp/${mmpId}/verification`,
+        related_entity_id: mmpId,
+        related_entity_type: 'mmpFile'
+      }));
+      if (rows.length) await supabase.from('notifications').insert(rows);
+    } catch (e) {
+      console.warn('Failed to notify admins/ICT about permit decision:', e);
+    }
+  };
+
+    
+
     const fetchFromStorage = async (): Promise<MMPStatePermitDocument[]> => {
       const bucket = 'mmp-files';
       const id = mmpFile?.id || mmpFile?.mmpId;
@@ -139,18 +164,51 @@ const MMPPermitVerification: React.FC<MMPPermitVerificationProps> = ({
 
     const load = async () => {
       const storageDocs = await fetchFromStorage();
-      if (!cancelled && storageDocs.length > 0) {
-        setPermits(storageDocs.filter(d => d.permitType === 'federal' || d.permitType === 'state'));
-        setLocalPermits(storageDocs.filter(d => d.permitType === 'local'));
-        return;
+
+      // Normalize DB-persisted documents
+      const persistedRaw = mmpFile?.permits;
+      const persistedDocs = normalizeDocs(persistedRaw);
+
+      // Helper: merge by id or fileName
+      const mergeLists = (a: MMPStatePermitDocument[], b: MMPStatePermitDocument[]) => {
+        const aByKey = new Map<string, MMPStatePermitDocument>();
+        const keyOf = (d: MMPStatePermitDocument) => (d.id || d.fileName || '').toString();
+        a.forEach(d => aByKey.set(keyOf(d), d));
+        const out: MMPStatePermitDocument[] = [];
+        // start with storage list (has correct URLs/paths)
+        a.forEach(sd => {
+          const key = keyOf(sd);
+          const pd = b.find(x => keyOf(x) === key) || undefined;
+          out.push({
+            ...sd,
+            // prefer persisted decision/notes
+            status: pd?.status ?? sd.status,
+            verificationNotes: pd?.verificationNotes ?? sd.verificationNotes,
+            verifiedAt: pd?.verifiedAt ?? sd.verifiedAt,
+            verifiedBy: pd?.verifiedBy ?? sd.verifiedBy,
+            // ensure geo fields remain
+            state: sd.state ?? pd?.state,
+            locality: sd.locality ?? pd?.locality,
+          });
+        });
+        // include any persisted docs that aren't in storage (edge cases)
+        b.forEach(pd => {
+          const key = keyOf(pd);
+          if (!aByKey.has(key)) out.push(pd);
+        });
+        return out;
+      };
+
+      let finalDocs: MMPStatePermitDocument[] = [];
+      if (storageDocs.length > 0) {
+        finalDocs = mergeLists(storageDocs, persistedDocs);
+      } else {
+        finalDocs = persistedDocs;
       }
 
-      // Fallback to value on the MMP record
-      const raw = mmpFile?.permits;
-      const docs = normalizeDocs(raw);
       if (!cancelled) {
-        setPermits(docs.filter(d => d.permitType === 'federal' || d.permitType === 'state'));
-        setLocalPermits(docs.filter(d => d.permitType === 'local'));
+        setPermits(finalDocs.filter(d => d.permitType === 'federal' || d.permitType === 'state'));
+        setLocalPermits(finalDocs.filter(d => d.permitType === 'local'));
       }
     };
 
@@ -174,8 +232,37 @@ const MMPPermitVerification: React.FC<MMPPermitVerificationProps> = ({
       documents: allDocs as unknown as any,
     };
 
+    if (mmpFile?.id) {
+      updateMMP(mmpFile.id, { permits: permitsData } as any);
+    }
     if (onVerificationComplete) {
       onVerificationComplete(permitsData);
+      // Also persist directly with retry to ensure DB state is updated even on transient failures
+      (async () => {
+        if (!mmpFile?.id) return;
+        let attempt = 0;
+        let delay = 500;
+        while (attempt < 3) {
+          try {
+            const { error } = await supabase
+              .from('mmp_files')
+              .update({ permits: permitsData, updated_at: new Date().toISOString() })
+              .eq('id', mmpFile.id);
+            if (!error) return;
+            console.warn('Persist permits attempt failed:', error?.message || error);
+          } catch (e) {
+            console.warn('Persist permits transport error:', e);
+          }
+          await new Promise(res => setTimeout(res, delay));
+          delay *= 2;
+          attempt++;
+        }
+        toast({
+          title: 'Sync delayed',
+          description: 'Could not sync permit changes to server. They remain locally and will retry shortly.',
+          variant: 'destructive',
+        });
+      })();
     } else if (mmpFile?.id) {
       // Directly persist if no callback provided
       updateMMP(mmpFile.id, { permits: permitsData } as any);
@@ -290,38 +377,49 @@ const MMPPermitVerification: React.FC<MMPPermitVerificationProps> = ({
   };
 
   const handleVerifyPermit = (permitId: string, status: 'verified' | 'rejected', notes?: string) => {
+    let decidedDoc: MMPStatePermitDocument | undefined;
     // Check if it's a local permit
     const localPermitIndex = localPermits.findIndex(p => p.id === permitId);
     if (localPermitIndex !== -1) {
       const updatedLocalPermits = localPermits.map(permit => {
         if (permit.id === permitId) {
-          return {
+          const updated = {
             ...permit,
             status,
             verificationNotes: notes,
             verifiedAt: new Date().toISOString(),
             verifiedBy: currentUser?.username || currentUser?.fullName || currentUser?.email || 'System'
-          };
+          } as MMPStatePermitDocument;
+          decidedDoc = updated;
+          return updated;
         }
         return permit;
       });
       setLocalPermits(updatedLocalPermits);
       persistPermits(permits, updatedLocalPermits);
+      if (decidedDoc) {
+        (async () => { await notifyAdminsAndICT(decidedDoc!, status); })();
+      }
     } else {
       const updatedPermits = permits.map(permit => {
         if (permit.id === permitId) {
-          return {
+          const updated = {
             ...permit,
             status,
             verificationNotes: notes,
             verifiedAt: new Date().toISOString(),
             verifiedBy: currentUser?.username || currentUser?.fullName || currentUser?.email || 'System'
-          };
+          } as MMPStatePermitDocument;
+          decidedDoc = updated;
+          return updated;
         }
         return permit;
       });
       setPermits(updatedPermits);
       persistPermits(updatedPermits, localPermits);
+      if (decidedDoc) {
+        (async () => { await notifyAdminsAndICT(decidedDoc!, status); })();
+      }
     }
   };
 
