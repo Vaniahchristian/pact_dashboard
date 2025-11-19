@@ -147,7 +147,11 @@ const MMP = () => {
               MMP Management
             </h1>
             <p className="text-blue-100 dark:text-blue-200/80 font-medium">
-              Upload and manage your MMP files
+              {isAdmin || hasAnyRole(['ict'])
+                ? 'Upload MMPs and manage Site visits.'
+                : isFOM
+                  ? 'Manage your MMP files and site visits'
+                  : 'Upload and manage your MMP files'}
             </p>
           </div>
         </div>
@@ -179,12 +183,12 @@ const MMP = () => {
               )}
               {!isCoordinator && (
                 <TabsTrigger value="forwarded" className="flex items-center gap-2">
-                  Forwarded
+                  {isFOM ? 'Forwarded Sites' : 'Forwarded MMPs'}
                   <Badge variant="secondary">{categorizedMMPs.forwarded.length}</Badge>
                 </TabsTrigger>
               )}
               <TabsTrigger value={isCoordinator ? "verified" : "verified"} className="flex items-center gap-2">
-                {isCoordinator ? "Sites to Verify" : "Verified"}
+                {isCoordinator ? "Sites to Verify" : "Verified Sites"}
                 <Badge variant="secondary">{categorizedMMPs.verified.length}</Badge>
               </TabsTrigger>
             </TabsList>
