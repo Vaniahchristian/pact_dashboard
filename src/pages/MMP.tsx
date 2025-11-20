@@ -443,7 +443,7 @@ const MMP = () => {
                   <div className="mb-4 flex flex-wrap gap-2 items-center">
                     <div className="text-sm font-medium text-muted-foreground mr-2">Subcategory:</div>
                     <Button variant={forwardedSubTab === 'pending' ? 'default' : 'outline'} size="sm" onClick={() => setForwardedSubTab('pending')} className={forwardedSubTab === 'pending' ? 'bg-blue-100 hover:bg-blue-200 text-blue-800 border border-blue-300' : ''}>
-                      {isFOM ? 'Sites Pending' : 'MMPs Pending Verification'}
+                      {isFOM ? 'Sites Pending Verification' : 'MMPs Pending Verification'}
                       <Badge variant="secondary" className="ml-2">{forwardedSubcategories.pending.length}</Badge>
                     </Button>
                     <Button variant={forwardedSubTab === 'verified' ? 'default' : 'outline'} size="sm" onClick={() => setForwardedSubTab('verified')} className={forwardedSubTab === 'verified' ? 'bg-blue-100 hover:bg-blue-200 text-blue-800 border border-blue-300' : ''}>
