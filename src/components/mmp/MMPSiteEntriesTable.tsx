@@ -59,11 +59,13 @@ const MMPSiteEntriesTable = ({ siteEntries, onViewSiteDetail, editable = false, 
     }
 
     const comments = site.comments || site.notes || '—';
+    const fees = (site.fees || vd?.fees) || {};
+    const cost = site.cost ?? site.price ?? vd?.cost ?? vd?.price ?? fees.total ?? fees.amount ?? ad['Cost'] ?? ad['Price'] ?? ad['Amount'] ?? '—';
 
     return { 
       hubOffice, state, locality, siteName, cpName, siteActivity, 
       monitoringBy, surveyTool, useMarketDiversion, useWarehouseMonitoring,
-      mainActivity, visitType, visitDate, comments 
+      mainActivity, visitType, visitDate, comments, cost 
     };
   };
 
@@ -118,6 +120,10 @@ const MMPSiteEntriesTable = ({ siteEntries, onViewSiteDetail, editable = false, 
     updated.useWarehouseMonitoring = toBool(d.useWarehouseMonitoring);
     updated.visitDate = d.visitDate;
     updated.comments = d.comments;
+    if (typeof d.cost !== 'undefined') {
+      const n = d.cost === '—' || d.cost === '' ? undefined : Number(d.cost);
+      updated.cost = isNaN(n as number) ? d.cost : n;
+    }
 
     // Mirror into additionalData for compatibility
     const ad = { ...(site.additionalData || {}) };
@@ -133,6 +139,9 @@ const MMPSiteEntriesTable = ({ siteEntries, onViewSiteDetail, editable = false, 
     ad['Use Warehouse Monitoring'] = toBool(d.useWarehouseMonitoring) ? 'Yes' : 'No';
     ad['Visit Date'] = d.visitDate;
     ad['Comments'] = d.comments;
+    if (typeof d.cost !== 'undefined') {
+      ad['Cost'] = d.cost;
+    }
     updated.additionalData = ad;
     return updated;
   };
@@ -183,7 +192,7 @@ const MMPSiteEntriesTable = ({ siteEntries, onViewSiteDetail, editable = false, 
       </CardHeader>
       <CardContent>
         <div className="rounded-md border w-full overflow-x-auto">
-          <div className="min-w-[1600px]">
+          <div className="min-w-[1700px]">
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/50">
@@ -198,6 +207,7 @@ const MMPSiteEntriesTable = ({ siteEntries, onViewSiteDetail, editable = false, 
                 <TableHead>Market Diversion</TableHead>
                 <TableHead>Warehouse Monitoring</TableHead>
                 <TableHead>Visit Date</TableHead>
+                <TableHead>Cost</TableHead>
                 <TableHead>Comments</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
@@ -278,6 +288,20 @@ const MMPSiteEntriesTable = ({ siteEntries, onViewSiteDetail, editable = false, 
                       </TableCell>
                       <TableCell>
                         {isEditing ? (
+                          <Input
+                            type="number"
+                            value={draft?.cost ?? (Number.isFinite(Number(row.cost)) ? Number(row.cost) : '')}
+                            onChange={(e) => setDraft((d:any)=> ({...(d||{}), cost: e.target.value}))}
+                            className="h-8"
+                          />
+                        ) : (
+                          (row.cost !== '—' && row.cost !== undefined && row.cost !== null && String(row.cost) !== '')
+                            ? `${Number(row.cost).toLocaleString()}`
+                            : '—'
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {isEditing ? (
                           <Input value={draft?.comments ?? row.comments ?? ''} onChange={(e) => setDraft((d:any)=> ({...(d||{}), comments: e.target.value}))} className="h-8" />
                         ) : row.comments}
                       </TableCell>
@@ -328,7 +352,7 @@ const MMPSiteEntriesTable = ({ siteEntries, onViewSiteDetail, editable = false, 
                 })
               ) : (
                 <TableRow>
-                  <TableCell colSpan={13} className="h-24 text-center">
+                  <TableCell colSpan={14} className="h-24 text-center">
                     No results.
                   </TableCell>
                 </TableRow>

@@ -29,6 +29,7 @@ const transformDBToMMPFile = (dbRecord: any): MMPFile => {
       useMarketDiversion: entry.use_market_diversion,
       useWarehouseMonitoring: entry.use_warehouse_monitoring,
       comments: entry.comments,
+      cost: entry.cost,
       additionalData: entry.additional_data || {},
       status: entry.status,
     }));
@@ -291,6 +292,14 @@ export const useMMPProvider = () => {
           const s = String(v ?? '').toLowerCase();
           return s === 'yes' || s === 'true' || s === '1';
         };
+        const toNum = (v: any) => {
+          if (v === null || typeof v === 'undefined' || v === '') return null;
+          if (typeof v === 'number') return v;
+          const s = String(v).replace(/[^0-9.\-]/g, '');
+          if (!s) return null;
+          const n = parseFloat(s);
+          return isNaN(n) ? null : n;
+        };
 
         const mapRow = (e: any) => ({
           ...(e.id ? { id: e.id } : {}),
@@ -310,6 +319,7 @@ export const useMMPProvider = () => {
           use_market_diversion: toBool(e.useMarketDiversion ?? e.use_market_diversion),
           use_warehouse_monitoring: toBool(e.useWarehouseMonitoring ?? e.use_warehouse_monitoring),
           comments: e.comments ?? null,
+          cost: toNum(e.cost ?? e.price ?? e?.additionalData?.['Cost'] ?? e?.additionalData?.['Amount'] ?? e?.additionalData?.['Price']),
           additional_data: e.additionalData ?? {},
           status: e.status ?? 'Pending',
         });
@@ -367,6 +377,7 @@ export const useMMPProvider = () => {
             useMarketDiversion: entry.use_market_diversion,
             useWarehouseMonitoring: entry.use_warehouse_monitoring,
             comments: entry.comments,
+            cost: entry.cost,
             additionalData: entry.additional_data || {},
             status: entry.status,
           }));
