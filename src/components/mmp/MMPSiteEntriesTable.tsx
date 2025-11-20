@@ -5,19 +5,23 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Search, Eye } from 'lucide-react';
+import { Search, Eye, Pencil, Check, X } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface MMPSiteEntriesTableProps {
   siteEntries: any[];
   onViewSiteDetail?: (site: any) => void;
   editable?: boolean;
-  onUpdateSites?: (sites: any[]) => void;
+  onUpdateSites?: (sites: any[]) => Promise<boolean> | void;
 }
 
-const MMPSiteEntriesTable = ({ siteEntries, onViewSiteDetail }: MMPSiteEntriesTableProps) => {
+const MMPSiteEntriesTable = ({ siteEntries, onViewSiteDetail, editable = false, onUpdateSites }: MMPSiteEntriesTableProps) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [detailOpen, setDetailOpen] = useState(false);
   const [selectedSite, setSelectedSite] = useState<any | null>(null);
+  const [editingId, setEditingId] = useState<string | number | null>(null);
+  const [draft, setDraft] = useState<any | null>(null);
+  const [savingId, setSavingId] = useState<string | number | null>(null);
 
   // Normalize a row from either MMP siteEntries (camelCase) or site_visits (snake_case)
   const normalizeSite = (site: any) => {
@@ -82,6 +86,75 @@ const MMPSiteEntriesTable = ({ siteEntries, onViewSiteDetail }: MMPSiteEntriesTa
           .some((v) => String(v).toLowerCase().includes(q));
       });
 
+  const toBool = (v: any) => {
+    if (typeof v === 'boolean') return v;
+    const s = String(v || '').toLowerCase();
+    return s === 'yes' || s === 'true' || s === '1';
+  };
+
+  const startEdit = (site: any) => {
+    const row = normalizeSite(site);
+    setEditingId(site.id ?? site._key ?? site.siteCode ?? Math.random());
+    setDraft({ ...row });
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setDraft(null);
+  };
+
+  const applyDraftToSite = (site: any, d: any) => {
+    const updated = { ...site };
+    // Update top-level canonical fields if present or attach
+    updated.hubOffice = d.hubOffice;
+    updated.state = d.state;
+    updated.locality = d.locality;
+    updated.siteName = d.siteName;
+    updated.cpName = d.cpName;
+    updated.siteActivity = d.siteActivity;
+    updated.monitoringBy = d.monitoringBy;
+    updated.surveyTool = d.surveyTool;
+    updated.useMarketDiversion = toBool(d.useMarketDiversion);
+    updated.useWarehouseMonitoring = toBool(d.useWarehouseMonitoring);
+    updated.visitDate = d.visitDate;
+    updated.comments = d.comments;
+
+    // Mirror into additionalData for compatibility
+    const ad = { ...(site.additionalData || {}) };
+    ad['Hub Office'] = d.hubOffice;
+    ad['State'] = d.state;
+    ad['Locality'] = d.locality;
+    ad['Site Name'] = d.siteName;
+    ad['CP Name'] = d.cpName;
+    ad['Activity at Site'] = d.siteActivity;
+    ad['Monitoring By'] = d.monitoringBy;
+    ad['Survey Tool'] = d.surveyTool;
+    ad['Use Market Diversion Monitoring'] = toBool(d.useMarketDiversion) ? 'Yes' : 'No';
+    ad['Use Warehouse Monitoring'] = toBool(d.useWarehouseMonitoring) ? 'Yes' : 'No';
+    ad['Visit Date'] = d.visitDate;
+    ad['Comments'] = d.comments;
+    updated.additionalData = ad;
+    return updated;
+  };
+
+  const saveEdit = async (site: any) => {
+    if (!draft) return;
+    const next = (siteEntries || []).map(s => (s === site ? applyDraftToSite(s, draft) : s));
+    try {
+      setSavingId(site.id ?? site._key ?? 'saving');
+      const res = onUpdateSites?.(next);
+      const ok = typeof res === 'object' && typeof (res as Promise<boolean>).then === 'function'
+        ? await (res as Promise<boolean>)
+        : true;
+      if (ok) {
+        setEditingId(null);
+        setDraft(null);
+      }
+    } finally {
+      setSavingId(null);
+    }
+  };
+
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -131,31 +204,124 @@ const MMPSiteEntriesTable = ({ siteEntries, onViewSiteDetail }: MMPSiteEntriesTa
             </TableHeader>
             <TableBody>
               {filteredSites.length > 0 ? (
-                filteredSites.map((site) => {
+                filteredSites.map((site, idx) => {
                   const row = normalizeSite(site);
+                  const isEditing = editable && (editingId === (site.id ?? site._key ?? site.siteCode));
                   return (
-                    <TableRow key={site.id} className="hover:bg-muted/30">
-                      <TableCell className="font-mono text-xs">{row.hubOffice}</TableCell>
-                      <TableCell>{row.state}</TableCell>
-                      <TableCell>{row.locality}</TableCell>
-                      <TableCell>{row.siteName}</TableCell>
-                      <TableCell>{row.cpName}</TableCell>
-                      <TableCell>{row.siteActivity}</TableCell>
-                      <TableCell>{row.monitoringBy}</TableCell>
-                      <TableCell>{row.surveyTool}</TableCell>
-                      <TableCell>{row.useMarketDiversion ? 'Yes' : 'No'}</TableCell>
-                      <TableCell>{row.useWarehouseMonitoring ? 'Yes' : 'No'}</TableCell>
-                      <TableCell>{row.visitDate}</TableCell>
-                      <TableCell>{row.comments}</TableCell>
+                    <TableRow key={site.id ?? site.siteCode ?? site._key ?? idx} className="hover:bg-muted/30">
+                      <TableCell className="font-mono text-xs">
+                        {isEditing ? (
+                          <Input value={draft?.hubOffice ?? row.hubOffice ?? ''} onChange={(e) => setDraft((d:any)=> ({...(d||{}), hubOffice: e.target.value}))} className="h-8" />
+                        ) : row.hubOffice}
+                      </TableCell>
                       <TableCell>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          onClick={() => handleView(site)}
-                          className="hover:bg-muted inline-flex items-center gap-1">
-                          <Eye className="h-4 w-4" />
-                          View
-                        </Button>
+                        {isEditing ? (
+                          <Input value={draft?.state ?? row.state ?? ''} onChange={(e) => setDraft((d:any)=> ({...(d||{}), state: e.target.value}))} className="h-8" />
+                        ) : row.state}
+                      </TableCell>
+                      <TableCell>
+                        {isEditing ? (
+                          <Input value={draft?.locality ?? row.locality ?? ''} onChange={(e) => setDraft((d:any)=> ({...(d||{}), locality: e.target.value}))} className="h-8" />
+                        ) : row.locality}
+                      </TableCell>
+                      <TableCell>
+                        {isEditing ? (
+                          <Input value={draft?.siteName ?? row.siteName ?? ''} onChange={(e) => setDraft((d:any)=> ({...(d||{}), siteName: e.target.value}))} className="h-8" />
+                        ) : row.siteName}
+                      </TableCell>
+                      <TableCell>
+                        {isEditing ? (
+                          <Input value={draft?.cpName ?? row.cpName ?? ''} onChange={(e) => setDraft((d:any)=> ({...(d||{}), cpName: e.target.value}))} className="h-8" />
+                        ) : row.cpName}
+                      </TableCell>
+                      <TableCell>
+                        {isEditing ? (
+                          <Input value={draft?.siteActivity ?? row.siteActivity ?? ''} onChange={(e) => setDraft((d:any)=> ({...(d||{}), siteActivity: e.target.value}))} className="h-8" />
+                        ) : row.siteActivity}
+                      </TableCell>
+                      <TableCell>
+                        {isEditing ? (
+                          <Input value={draft?.monitoringBy ?? row.monitoringBy ?? ''} onChange={(e) => setDraft((d:any)=> ({...(d||{}), monitoringBy: e.target.value}))} className="h-8" />
+                        ) : row.monitoringBy}
+                      </TableCell>
+                      <TableCell>
+                        {isEditing ? (
+                          <Input value={draft?.surveyTool ?? row.surveyTool ?? ''} onChange={(e) => setDraft((d:any)=> ({...(d||{}), surveyTool: e.target.value}))} className="h-8" />
+                        ) : row.surveyTool}
+                      </TableCell>
+                      <TableCell>
+                        {isEditing ? (
+                          <div className="flex items-center gap-2">
+                            <Checkbox
+                              checked={toBool(draft?.useMarketDiversion ?? row.useMarketDiversion)}
+                              onCheckedChange={(v) => setDraft((d:any)=> ({...(d||{}), useMarketDiversion: Boolean(v)}))}
+                            />
+                            <span className="text-xs">Yes</span>
+                          </div>
+                        ) : (row.useMarketDiversion ? 'Yes' : 'No')}
+                      </TableCell>
+                      <TableCell>
+                        {isEditing ? (
+                          <div className="flex items-center gap-2">
+                            <Checkbox
+                              checked={toBool(draft?.useWarehouseMonitoring ?? row.useWarehouseMonitoring)}
+                              onCheckedChange={(v) => setDraft((d:any)=> ({...(d||{}), useWarehouseMonitoring: Boolean(v)}))}
+                            />
+                            <span className="text-xs">Yes</span>
+                          </div>
+                        ) : (row.useWarehouseMonitoring ? 'Yes' : 'No')}
+                      </TableCell>
+                      <TableCell>
+                        {isEditing ? (
+                          <Input value={draft?.visitDate ?? row.visitDate ?? ''} onChange={(e) => setDraft((d:any)=> ({...(d||{}), visitDate: e.target.value}))} className="h-8" />
+                        ) : row.visitDate}
+                      </TableCell>
+                      <TableCell>
+                        {isEditing ? (
+                          <Input value={draft?.comments ?? row.comments ?? ''} onChange={(e) => setDraft((d:any)=> ({...(d||{}), comments: e.target.value}))} className="h-8" />
+                        ) : row.comments}
+                      </TableCell>
+                      <TableCell>
+                        {editable ? (
+                          isEditing ? (
+                            <div className="flex items-center gap-2">
+                              <Button size="sm" onClick={() => saveEdit(site)} disabled={savingId === (site.id ?? site._key ?? 'saving')} className="inline-flex items-center gap-1">
+                                <Check className="h-4 w-4" /> {savingId === (site.id ?? site._key ?? 'saving') ? 'Saving...' : 'Save'}
+                              </Button>
+                              <Button size="sm" variant="outline" onClick={cancelEdit} className="inline-flex items-center gap-1">
+                                <X className="h-4 w-4" /> Cancel
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={() => startEdit(site)}
+                                className="inline-flex items-center gap-1">
+                                <Pencil className="h-4 w-4" />
+                                Edit
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                onClick={() => handleView(site)}
+                                className="hover:bg-muted inline-flex items-center gap-1">
+                                <Eye className="h-4 w-4" />
+                                View
+                              </Button>
+                            </div>
+                          )
+                        ) : (
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => handleView(site)}
+                            className="hover:bg-muted inline-flex items-center gap-1">
+                            <Eye className="h-4 w-4" />
+                            View
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   );

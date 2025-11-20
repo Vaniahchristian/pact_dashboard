@@ -100,7 +100,7 @@ const MMPContext = createContext<MMPContextType>({
   approveMMP: async () => {},
   rejectMMP: async () => {},
   uploadMMP: async () => ({ success: false }),
-  updateMMP: () => {},
+  updateMMP: async () => false,
   updateMMPVersion: async () => false,
   deleteMMP: () => {},
   restoreMMP: () => {},
@@ -211,7 +211,7 @@ export const useMMPProvider = () => {
     fetchMMPFiles();
   }, []);
 
-  const updateMMP = (id: string, updatedMMP: Partial<MMPFile>) => {
+  const updateMMP = async (id: string, updatedMMP: Partial<MMPFile>): Promise<boolean> => {
     setMMPFiles((prev: MMPFile[]) =>
       prev.map((mmp) => {
         if (mmp.id === id) {
@@ -265,11 +265,118 @@ export const useMMPProvider = () => {
 
     try {
       const dbUpdate = toDBPartial(updatedMMP);
-      supabase.from('mmp_files').update(dbUpdate).eq('id', id).then(({ error }) => {
-        if (error) console.error('Supabase updateMMP error:', error);
-      });
+      const { error: mfErr } = await supabase.from('mmp_files').update(dbUpdate).eq('id', id);
+      if (mfErr) {
+        console.error('Supabase updateMMP error:', mfErr);
+        return false;
+      }
+
+      if (typeof updatedMMP.siteEntries !== 'undefined') {
+        const entries = (updatedMMP.siteEntries as any[]) || [];
+        const { data: existingRows, error: selErr } = await supabase
+          .from('mmp_site_entries')
+          .select('id')
+          .eq('mmp_file_id', id);
+        if (selErr) {
+          console.error('Failed to load existing mmp_site_entries for sync:', selErr);
+          return false;
+        }
+
+        const existingIds = (existingRows || []).map((r: any) => r.id);
+        const updatedIds = entries.map((e: any) => e?.id).filter(Boolean);
+        const deleteIds = existingIds.filter((x: string) => !updatedIds.includes(x));
+
+        const toBool = (v: any) => {
+          if (typeof v === 'boolean') return v;
+          const s = String(v ?? '').toLowerCase();
+          return s === 'yes' || s === 'true' || s === '1';
+        };
+
+        const mapRow = (e: any) => ({
+          ...(e.id ? { id: e.id } : {}),
+          mmp_file_id: id,
+          site_code: e.siteCode ?? e.site_code ?? e?.additionalData?.['Site Code'] ?? null,
+          hub_office: e.hubOffice ?? e.hub_office ?? e?.additionalData?.['Hub Office'] ?? null,
+          state: e.state ?? e.state_name ?? e?.additionalData?.['State'] ?? null,
+          locality: e.locality ?? e.locality_name ?? e?.additionalData?.['Locality'] ?? null,
+          site_name: e.siteName ?? e.site_name ?? e?.additionalData?.['Site Name'] ?? null,
+          cp_name: e.cpName ?? e.cp_name ?? e?.additionalData?.['CP Name'] ?? null,
+          visit_type: e.visitType ?? e.visit_type ?? null,
+          visit_date: e.visitDate ?? e.visit_date ?? null,
+          main_activity: e.mainActivity ?? e.main_activity ?? null,
+          activity_at_site: e.siteActivity ?? e.activity_at_site ?? e.activity ?? null,
+          monitoring_by: e.monitoringBy ?? e.monitoring_by ?? null,
+          survey_tool: e.surveyTool ?? e.survey_tool ?? e?.additionalData?.['Survey Tool'] ?? e?.additionalData?.['Survey under Master tool'] ?? null,
+          use_market_diversion: toBool(e.useMarketDiversion ?? e.use_market_diversion),
+          use_warehouse_monitoring: toBool(e.useWarehouseMonitoring ?? e.use_warehouse_monitoring),
+          comments: e.comments ?? null,
+          additional_data: e.additionalData ?? {},
+          status: e.status ?? 'Pending',
+        });
+
+        const toUpsert = entries.filter((e: any) => !!e.id).map(mapRow);
+        const toInsert = entries.filter((e: any) => !e.id).map(mapRow);
+
+        if (deleteIds.length) {
+          const { error: delErr } = await supabase.from('mmp_site_entries').delete().in('id', deleteIds);
+          if (delErr) {
+            console.error('mmp_site_entries delete error:', delErr);
+            return false;
+          }
+        }
+
+        if (toUpsert.length) {
+          const { error: upErr } = await supabase.from('mmp_site_entries').upsert(toUpsert, { onConflict: 'id' as any });
+          if (upErr) {
+            console.error('mmp_site_entries upsert error:', upErr);
+            return false;
+          }
+        }
+
+        if (toInsert.length) {
+          const { error: insErr } = await supabase.from('mmp_site_entries').insert(toInsert);
+          if (insErr) {
+            console.error('mmp_site_entries insert error:', insErr);
+            return false;
+          }
+        }
+
+        // Re-fetch from DB and update local state to the authoritative rows
+        const { data: syncedRows, error: syncErr } = await supabase
+          .from('mmp_site_entries')
+          .select('*')
+          .eq('mmp_file_id', id)
+          .order('created_at', { ascending: true });
+        if (syncErr) {
+          console.error('Failed to re-fetch mmp_site_entries after save:', syncErr);
+        } else {
+          const normalized = (syncedRows || []).map((entry: any) => ({
+            id: entry.id,
+            siteCode: entry.site_code,
+            hubOffice: entry.hub_office,
+            state: entry.state,
+            locality: entry.locality,
+            siteName: entry.site_name,
+            cpName: entry.cp_name,
+            visitType: entry.visit_type,
+            visitDate: entry.visit_date,
+            mainActivity: entry.main_activity,
+            siteActivity: entry.activity_at_site,
+            monitoringBy: entry.monitoring_by,
+            surveyTool: entry.survey_tool,
+            useMarketDiversion: entry.use_market_diversion,
+            useWarehouseMonitoring: entry.use_warehouse_monitoring,
+            comments: entry.comments,
+            additionalData: entry.additional_data || {},
+            status: entry.status,
+          }));
+          setMMPFiles((prev: MMPFile[]) => prev.map(m => (m.id === id ? { ...m, siteEntries: normalized } : m)));
+        }
+      }
+      return true;
     } catch (e) {
       console.error('Failed to persist MMP update:', e);
+      return false;
     }
   };
 

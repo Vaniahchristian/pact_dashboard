@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,7 @@ import { useAuthorization } from '@/hooks/use-authorization';
 import MMPOverallInformation from '@/components/MMPOverallInformation';
 import MMPVersionHistory from '@/components/MMPVersionHistory';
 import MMPSiteInformation from '@/components/MMPSiteInformation';
+import MMPSiteEntriesTable from '@/components/mmp/MMPSiteEntriesTable';
 import { ActivityManager } from '@/components/project/activity/ActivityManager';
 import { useToast } from '@/hooks/use-toast';
 import FieldTeamMapPermissions from '@/components/map/FieldTeamMapPermissions';
@@ -17,11 +18,13 @@ import FieldTeamMapPermissions from '@/components/map/FieldTeamMapPermissions';
 const EditMMP: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { getMmpById, updateMMP } = useMMP();
   const { checkPermission, hasAnyRole } = useAuthorization();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [mmpFile, setMmpFile] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState<string>('details');
 
   const isAdmin = hasAnyRole(['admin']);
   const isFOM = hasAnyRole(['fom']);
@@ -51,6 +54,11 @@ const EditMMP: React.FC = () => {
   const handleGoBack = () => {
     navigate('/mmp');
   };
+
+  useEffect(() => {
+    const initialTab = searchParams.get('tab');
+    if (initialTab) setActiveTab(initialTab);
+  }, [searchParams]);
 
   useEffect(() => {
     if (id) {
@@ -98,6 +106,26 @@ const EditMMP: React.FC = () => {
     }
   };
 
+  const handleUpdateSites = async (sites: any[]) => {
+    if (mmpFile && updateMMP) {
+      const updatedMMP = { ...mmpFile, siteEntries: sites };
+      const ok = await updateMMP(id!, { siteEntries: sites });
+      if (ok) {
+        setMmpFile(updatedMMP);
+        toast({
+          title: 'Site Entries Updated',
+          description: 'Your changes have been saved.',
+        });
+      } else {
+        toast({
+          title: 'Save Failed',
+          description: 'We could not persist your changes. Please check your permissions or try again.',
+          variant: 'destructive',
+        });
+      }
+    }
+  };
+
   if (loading) {
     return (
       <div className="container mx-auto p-4">
@@ -136,7 +164,7 @@ const EditMMP: React.FC = () => {
             <CardDescription>Update details for MMP: {mmpFile?.mmpId}</CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="details" className="space-y-4">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
               <TabsList>
                 <TabsTrigger value="details">MMP Details</TabsTrigger>
                 <TabsTrigger value="sites">Sites</TabsTrigger>
@@ -157,6 +185,11 @@ const EditMMP: React.FC = () => {
                   mmpFile={mmpFile}
                   showVerificationButton={false}
                   onUpdateMMP={handleUpdate}
+                />
+                <MMPSiteEntriesTable 
+                  siteEntries={mmpFile?.siteEntries || []}
+                  editable={true}
+                  onUpdateSites={handleUpdateSites}
                 />
               </TabsContent>
 

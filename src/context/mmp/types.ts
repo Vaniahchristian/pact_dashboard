@@ -31,7 +31,7 @@ export interface MMPContextType {
     metadata?: string | { name?: string; hub?: string; month?: string; projectId?: string },
     onProgress?: (progress: { current: number; total: number; stage: string }) => void
   ) => Promise<{ success: boolean; id?: string; mmp?: MMPFile; error?: string }>;
-  updateMMP: (id: string, updatedMMP: Partial<MMPFile>) => void;
+  updateMMP: (id: string, updatedMMP: Partial<MMPFile>) => Promise<boolean>;
   updateMMPVersion: (id: string, changes: string) => Promise<boolean>;
   deleteMMP: (id: string) => void;
   restoreMMP: (id: string) => void;

@@ -160,8 +160,8 @@ export const MMPList = ({ mmpFiles, showActions = true }: MMPListProps) => {
                       </DropdownMenuItem>
                       
                       {canEditMMP && !isForwarded && (
-                        <DropdownMenuItem onClick={() => navigate(`/mmp/${mmp.id}/edit`)}>
-                          Edit MMP
+                        <DropdownMenuItem onClick={() => navigate(`/mmp/${mmp.id}/edit?tab=sites`)}>
+                          Edit Site Entries
                         </DropdownMenuItem>
                       )}
                       

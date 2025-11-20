@@ -82,7 +82,7 @@ export const MMPSiteInformation: React.FC<MMPSiteInformationProps> = ({
           <p className="text-sm text-muted-foreground">{mmpFile?.description || 'N/A'}</p>
         </div>
 
-        <Separator />
+        {/* <Separator />
 
         <div>
           <p className="text-sm font-medium">Location</p>
@@ -96,9 +96,9 @@ export const MMPSiteInformation: React.FC<MMPSiteInformationProps> = ({
               <p className="text-sm text-muted-foreground">{mmpFile?.location?.address || 'N/A'}</p>
             </div>
           </div>
-        </div>
+        </div> */}
 
-        <Separator />
+        {/* <Separator /> */}
 
         <div>
           <p className="text-sm font-medium">Permits</p>
