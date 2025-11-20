@@ -113,9 +113,9 @@ const MMP = () => {
         // For FOM: New MMPs are those forwarded to them that haven't been processed yet
         const workflow = mmp.workflow as any;
         const forwardedToFomIds = workflow?.forwardedToFomIds || [];
-        return forwardedToFomIds.includes(currentUser?.id || '') && 
-               !workflow?.permitsUploaded &&
-               workflow?.currentStage !== 'permitsVerified';
+        // Keep showing items forwarded to this FOM under "New MMPs" until they are forwarded to coordinators
+        return forwardedToFomIds.includes(currentUser?.id || '') &&
+               workflow?.forwardedToCoordinators !== true;
       } else if (isCoordinator) {
         // For Coordinator: They don't see "new" MMPs, only verified ones with sites to verify
         return false;
@@ -183,8 +183,8 @@ const MMP = () => {
   const newFomSubcategories = useMemo(() => {
     if (!isFOM) return { pending: [], verified: [], rejected: [] } as Record<string, typeof categorizedMMPs.new>;
     const base = categorizedMMPs.new || [];
-    const pending = base.filter(mmp => mmp.status !== 'approved' && mmp.status !== 'rejected');
-    const verified = base.filter(mmp => mmp.status === 'approved');
+    const pending = base.filter(mmp => mmp.status !== 'approved' && mmp.status !== 'rejected' && (mmp.workflow as any)?.currentStage !== 'permitsVerified');
+    const verified = base.filter(mmp => mmp.status === 'approved' || (mmp.workflow as any)?.currentStage === 'permitsVerified');
     const rejected = base.filter(mmp => mmp.status === 'rejected');
     return { pending, verified, rejected };
   }, [isFOM, categorizedMMPs.new]);
