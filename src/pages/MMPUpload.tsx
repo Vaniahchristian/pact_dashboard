@@ -1163,7 +1163,7 @@ const MMPUpload = () => {
                       className="text-red-600 hover:text-red-700"
                     >
                       <X className="mr-2 h-4 w-4" />
-                      Cancel Upload
+                      Cancel Validate
                     </Button>
                   )}
                   
@@ -1191,7 +1191,7 @@ const MMPUpload = () => {
                       ) : (
                         <>
                           <Upload className="mr-2 h-4 w-4" />
-                          Upload MMP
+                          Validate MMP
                         </>
                       )}
                     </Button>
