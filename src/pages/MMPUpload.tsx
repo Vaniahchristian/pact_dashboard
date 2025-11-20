@@ -40,14 +40,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { hubs } from "@/data/sudanStates";
 import { downloadMMPTemplate } from '@/utils/templateDownload';
 import { toast } from "@/components/ui/use-toast";
-import { generateSiteCode, validateSiteCode } from '@/utils/mmpIdGenerator';
 import { useAuthorization } from '@/hooks/use-authorization';
 import { useProjectContext } from '@/context/project/ProjectContext';
 import MMPFileManagement from '@/components/mmp/MMPFileManagement';
 import { useMMP } from '@/context/mmp/MMPContext';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { validateCSV, CSVValidationError } from "@/utils/csvValidator";
 
 const uploadSchema = z.object({
   name: z.string({
@@ -61,9 +61,7 @@ const uploadSchema = z.object({
   month: z.string({
     required_error: "Month selection is required",
   }),
-  hub: z.string({
-    required_error: "Hub selection is required",
-  }),
+  hub: z.string().optional(),
   file: z.instanceof(File, {
     message: "Please select a file",
   }),
@@ -99,6 +97,22 @@ const MMPUpload = () => {
   const isAdmin = hasAnyRole(['admin']);
   const canCreate = (checkPermission('mmp', 'create') || isAdmin) && hasAnyRole(['admin', 'ict']);
   const { getMMPById, archiveMMP, approveMMP, deleteMMP, resetMMP } = useMMP();
+
+  const [isParsing, setIsParsing] = useState(false);
+  const [previewData, setPreviewData] = useState<Record<string, string>[]>([]);
+  const [previewHeaders, setPreviewHeaders] = useState<string[]>([]);
+  const [previewErrors, setPreviewErrors] = useState<CSVValidationError[]>([]);
+  const [previewWarnings, setPreviewWarnings] = useState<CSVValidationError[]>([]);
+  const IMPORTANT_COLS = [
+    'Hub Office','State','Locality','Site Name','Site Code','CP Name','Activity at Site','Activity Details','Monitoring By','Survey Tool',
+    'Use Market Diversion Monitoring','Use Warehouse Monitoring','Visit Date','Comments'
+  ];
+  const buildHeaders = (rows: Record<string, string>[]) => {
+    const set = new Set<string>();
+    rows.forEach(r => Object.keys(r).forEach(k => { if (k !== 'OriginalDate') set.add(k); }));
+    const rest = Array.from(set).filter(h => !IMPORTANT_COLS.includes(h));
+    return IMPORTANT_COLS.filter(h => set.has(h)).concat(rest);
+  };
 
   if (!canCreate) {
     return (
@@ -157,6 +171,7 @@ const MMPUpload = () => {
       const file = files[0];
       if (file.type === 'text/csv' || file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
         form.setValue('file', file);
+        parseSelectedFile(file);
       } else {
         toast({
           title: "Invalid File Type",
@@ -169,6 +184,26 @@ const MMPUpload = () => {
 
   const handleFileSelect = () => {
     fileInputRef.current?.click();
+  };
+
+  const parseSelectedFile = async (file: File) => {
+    setIsParsing(true);
+    try {
+      const result = await validateCSV(file);
+      const rows = result.data as Record<string, string>[];
+      setPreviewData(rows);
+      setPreviewHeaders(buildHeaders(rows));
+      setPreviewErrors(result.errors || []);
+      setPreviewWarnings(result.warnings || []);
+    } catch (err) {
+      setPreviewData([]);
+      setPreviewHeaders([]);
+      setPreviewErrors([]);
+      setPreviewWarnings([]);
+      toast({ title: 'Failed to parse file', description: 'Please check the file format and try again.', variant: 'destructive' });
+    } finally {
+      setIsParsing(false);
+    }
   };
 
   const resetUploadState = () => {
@@ -233,9 +268,9 @@ const MMPUpload = () => {
         validationWarnings?: import("@/utils/csvValidator").CSVValidationError[];
       } = await uploadMMP(data.file, {
         name: data.name,
-        hub: data.hub,
         month: data.month,
-        projectId: data.project
+        projectId: data.project,
+        ...(data.hub ? { hub: data.hub } : {})
       }, (progress) => {
         setUploadProgress(progress.current);
         setUploadStage(progress.stage);
@@ -608,6 +643,7 @@ const MMPUpload = () => {
                                   const file = e.target.files?.[0];
                                   if (file) {
                                     onChange(file);
+                                    parseSelectedFile(file);
                                   }
                                 }}
                                 style={{ display: 'none' }}
@@ -670,144 +706,63 @@ const MMPUpload = () => {
                         <li>Maximum file size: 10MB</li>
                       </ul>
                     </div>
+
+                    {(isParsing || previewData.length > 0 || previewErrors.length > 0 || previewWarnings.length > 0) && (
+                      <div className="space-y-4 mt-4">
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-sm font-medium">Preview & Validation</h3>
+                          <div className="text-xs text-muted-foreground">
+                            {isParsing ? 'Parsing file…' : `${previewData.length} row(s)`}
+                          </div>
+                        </div>
+                        {(previewErrors.length > 0 || previewWarnings.length > 0) && (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div className="bg-red-50 border border-red-200 rounded p-3 text-red-800 text-sm">
+                              <div className="font-medium">{previewErrors.length} error(s)</div>
+                              <ul className="mt-1 list-disc list-inside space-y-1 max-h-40 overflow-auto">
+                                {previewErrors.slice(0, 10).map((e, idx) => (
+                                  <li key={`e-${idx}`}>{e.message}{e.row ? ` (Row ${e.row}${e.column ? `, ${e.column}` : ''})` : ''}</li>
+                                ))}
+                              </ul>
+                            </div>
+                            <div className="bg-amber-50 border border-amber-200 rounded p-3 text-amber-900 text-sm">
+                              <div className="font-medium">{previewWarnings.length} warning(s)</div>
+                              <ul className="mt-1 list-disc list-inside space-y-1 max-h-40 overflow-auto">
+                                {previewWarnings.slice(0, 10).map((w, idx) => (
+                                  <li key={`w-${idx}`}>{w.message}{w.row ? ` (Row ${w.row}${w.column ? `, ${w.column}` : ''})` : ''}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          </div>
+                        )}
+                        {previewData.length > 0 && (
+                          <div className="rounded-md border w-full">
+                            <Table className="min-w-[1200px]">
+                              <TableHeader>
+                                <TableRow className="bg-muted/50">
+                                  {previewHeaders.map((h) => (
+                                    <TableHead key={h}>{h}</TableHead>
+                                  ))}
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {previewData.map((row, rIdx) => (
+                                  <TableRow key={rIdx} className="hover:bg-muted/30">
+                                    {previewHeaders.map((h) => (
+                                      <TableCell key={`${rIdx}-${h}`} className="text-xs">
+                                        {row[h] ?? ''}
+                                      </TableCell>
+                                    ))}
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        )}
+                      </div>
+                    )}
                 
-                <div>
-                  <h3 className="text-sm font-medium mb-3">Data Fields to Include</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="includeDistributionByCP"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                          <FormControl>
-                            <Checkbox
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                          <div className="space-y-1 leading-none">
-                            <FormLabel>Distribution by CP</FormLabel>
-                            <FormDescription>Check if distribution is by CP</FormDescription>
-                          </div>
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="includeVisitStatus"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                          <FormControl>
-                            <Checkbox
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                          <div className="space-y-1 leading-none">
-                            <FormLabel>Site Visit Status</FormLabel>
-                            <FormDescription>Visited/Not Visited</FormDescription>
-                          </div>
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="includeSubmissionStatus"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                          <FormControl>
-                            <Checkbox
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                          <div className="space-y-1 leading-none">
-                            <FormLabel>Submitted to MoDa</FormLabel>
-                            <FormDescription>Submission status in MoDa</FormDescription>
-                          </div>
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="includeQuestions"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                          <FormControl>
-                            <Checkbox
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                          <div className="space-y-1 leading-none">
-                            <FormLabel>Total of Questionnaires Submitted</FormLabel>
-                            <FormDescription>Number of questionnaires submitted</FormDescription>
-                          </div>
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="includeFindings"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                          <FormControl>
-                            <Checkbox
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                          <div className="space-y-1 leading-none">
-                            <FormLabel>Findings/Issues</FormLabel>
-                            <FormDescription>Details of identified findings</FormDescription>
-                          </div>
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="includeFlagged"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                          <FormControl>
-                            <Checkbox
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                          <div className="space-y-1 leading-none">
-                            <FormLabel>Flagged Issues</FormLabel>
-                            <FormDescription>Critical issues to highlight</FormDescription>
-                          </div>
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="includeComments"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                          <FormControl>
-                            <Checkbox
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                          <div className="space-y-1 leading-none">
-                            <FormLabel>Additional Comments</FormLabel>
-                            <FormDescription>Other observations or notes</FormDescription>
-                          </div>
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </div>
+               
 
                 <div className="bg-amber-50 border border-amber-200 rounded p-3 flex items-start gap-2">
                   <HelpCircle className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
