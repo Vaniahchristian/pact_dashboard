@@ -401,18 +401,18 @@ const MMP = () => {
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className={`grid w-full mb-6 ${isCoordinator ? 'grid-cols-1' : 'grid-cols-3'}`}>
               {!isCoordinator && (
-                <TabsTrigger value="new" className="flex items-center gap-2 data-[state=active]:bg-blue-100 data-[state=active]:text-blue-900">
+                <TabsTrigger value="new" className="flex items-center gap-2 data-[state=active]:bg-blue-200 data-[state=active]:text-blue-900 data-[state=active]:shadow-none">
                   New MMPs
                   <Badge variant="secondary">{categorizedMMPs.new.length}</Badge>
                 </TabsTrigger>
               )}
               {!isCoordinator && (
-                <TabsTrigger value="forwarded" className="flex items-center gap-2 data-[state=active]:bg-blue-100 data-[state=active]:text-blue-900">
+                <TabsTrigger value="forwarded" className="flex items-center gap-2 data-[state=active]:bg-blue-200 data-[state=active]:text-blue-900 data-[state=active]:shadow-none">
                   {isFOM ? 'Forwarded Sites' : 'Forwarded MMPs'}
                   <Badge variant="secondary">{categorizedMMPs.forwarded.length}</Badge>
                 </TabsTrigger>
               )}
-              <TabsTrigger value="verified" className="flex items-center gap-2 data-[state=active]:bg-blue-100 data-[state=active]:text-blue-900">
+              <TabsTrigger value="verified" className="flex items-center gap-2 data-[state=active]:bg-blue-200 data-[state=active]:text-blue-900 data-[state=active]:shadow-none">
                 {isCoordinator ? 'MMPs to Review' : 'Verified Sites'}
                 <Badge variant="secondary">{categorizedMMPs.verified.length}</Badge>
               </TabsTrigger>
@@ -423,11 +423,11 @@ const MMP = () => {
                 {isFOM && (
                   <div className="mb-4 flex flex-wrap gap-2 items-center">
                     <div className="text-sm font-medium text-muted-foreground mr-2">Subcategory:</div>
-                    <Button variant={newFomSubTab === 'pending' ? 'default' : 'outline'} size="sm" onClick={() => setNewFomSubTab('pending')} className={newFomSubTab === 'pending' ? 'bg-blue-600 hover:bg-blue-700 text-white' : ''}>
+                    <Button variant={newFomSubTab === 'pending' ? 'default' : 'outline'} size="sm" onClick={() => setNewFomSubTab('pending')} className={newFomSubTab === 'pending' ? 'bg-blue-100 hover:bg-blue-200 text-blue-800 border border-blue-300' : ''}>
                       MMPs Pending Verification
                       <Badge variant="secondary" className="ml-2">{newFomSubcategories.pending.length}</Badge>
                     </Button>
-                    <Button variant={newFomSubTab === 'verified' ? 'default' : 'outline'} size="sm" onClick={() => setNewFomSubTab('verified')} className={newFomSubTab === 'verified' ? 'bg-blue-600 hover:bg-blue-700 text-white' : ''}>
+                    <Button variant={newFomSubTab === 'verified' ? 'default' : 'outline'} size="sm" onClick={() => setNewFomSubTab('verified')} className={newFomSubTab === 'verified' ? 'bg-blue-100 hover:bg-blue-200 text-blue-800 border border-blue-300' : ''}>
                       Verified MMPs
                       <Badge variant="secondary" className="ml-2">{newFomSubcategories.verified.length}</Badge>
                     </Button>
@@ -442,11 +442,11 @@ const MMP = () => {
                 {(isAdmin || isICT || isFOM) && (
                   <div className="mb-4 flex flex-wrap gap-2 items-center">
                     <div className="text-sm font-medium text-muted-foreground mr-2">Subcategory:</div>
-                    <Button variant={forwardedSubTab === 'pending' ? 'default' : 'outline'} size="sm" onClick={() => setForwardedSubTab('pending')} className={forwardedSubTab === 'pending' ? 'bg-blue-600 hover:bg-blue-700 text-white' : ''}>
-                      {isFOM ? 'Sites Pending Verification' : 'MMPs Pending Verification'}
+                    <Button variant={forwardedSubTab === 'pending' ? 'default' : 'outline'} size="sm" onClick={() => setForwardedSubTab('pending')} className={forwardedSubTab === 'pending' ? 'bg-blue-100 hover:bg-blue-200 text-blue-800 border border-blue-300' : ''}>
+                      {isFOM ? 'Sites Pending' : 'MMPs Pending Verification'}
                       <Badge variant="secondary" className="ml-2">{forwardedSubcategories.pending.length}</Badge>
                     </Button>
-                    <Button variant={forwardedSubTab === 'verified' ? 'default' : 'outline'} size="sm" onClick={() => setForwardedSubTab('verified')} className={forwardedSubTab === 'verified' ? 'bg-blue-600 hover:bg-blue-700 text-white' : ''}>
+                    <Button variant={forwardedSubTab === 'verified' ? 'default' : 'outline'} size="sm" onClick={() => setForwardedSubTab('verified')} className={forwardedSubTab === 'verified' ? 'bg-blue-100 hover:bg-blue-200 text-blue-800 border border-blue-300' : ''}>
                       {isFOM ? 'Verified Sites' : 'Verified MMPs'}
                       <Badge variant="secondary" className="ml-2">{forwardedSubcategories.verified.length}</Badge>
                     </Button>
@@ -474,19 +474,19 @@ const MMP = () => {
               {(isAdmin || isICT || isFOM || isCoordinator) && (
                 <div className="mb-4 flex flex-wrap gap-2 items-center">
                   <div className="text-sm font-medium text-muted-foreground mr-2">Subcategory:</div>
-                  <Button variant={verifiedSubTab === 'newSites' ? 'default' : 'outline'} size="sm" onClick={() => setVerifiedSubTab('newSites')} className={verifiedSubTab === 'newSites' ? 'bg-blue-600 hover:bg-blue-700 text-white' : ''}>
-                    New Sites
+                  <Button variant={verifiedSubTab === 'newSites' ? 'default' : 'outline'} size="sm" onClick={() => setVerifiedSubTab('newSites')} className={verifiedSubTab === 'newSites' ? 'bg-blue-100 hover:bg-blue-200 text-blue-800 border border-blue-300' : ''}>
+                    New Sites Verified by Coordinators
                     <Badge variant="secondary" className="ml-2">{verifiedSubcategories.newSites.length}</Badge>
                   </Button>
-                  <Button variant={verifiedSubTab === 'approvedCosted' ? 'default' : 'outline'} size="sm" onClick={() => setVerifiedSubTab('approvedCosted')} className={verifiedSubTab === 'approvedCosted' ? 'bg-blue-600 hover:bg-blue-700 text-white' : ''}>
+                  <Button variant={verifiedSubTab === 'approvedCosted' ? 'default' : 'outline'} size="sm" onClick={() => setVerifiedSubTab('approvedCosted')} className={verifiedSubTab === 'approvedCosted' ? 'bg-blue-100 hover:bg-blue-200 text-blue-800 border border-blue-300' : ''}>
                     Approved & Costed
                     <Badge variant="secondary" className="ml-2">{verifiedSubcategories.approvedCosted.length}</Badge>
                   </Button>
-                  <Button variant={verifiedSubTab === 'dispatched' ? 'default' : 'outline'} size="sm" onClick={() => setVerifiedSubTab('dispatched')} className={verifiedSubTab === 'dispatched' ? 'bg-blue-600 hover:bg-blue-700 text-white' : ''}>
+                  <Button variant={verifiedSubTab === 'dispatched' ? 'default' : 'outline'} size="sm" onClick={() => setVerifiedSubTab('dispatched')} className={verifiedSubTab === 'dispatched' ? 'bg-blue-100 hover:bg-blue-200 text-blue-800 border border-blue-300' : ''}>
                     Dispatched
                     <Badge variant="secondary" className="ml-2">{verifiedSubcategories.dispatched.length}</Badge>
                   </Button>
-                  <Button variant={verifiedSubTab === 'completed' ? 'default' : 'outline'} size="sm" onClick={() => setVerifiedSubTab('completed')} className={verifiedSubTab === 'completed' ? 'bg-blue-600 hover:bg-blue-700 text-white' : ''}>
+                  <Button variant={verifiedSubTab === 'completed' ? 'default' : 'outline'} size="sm" onClick={() => setVerifiedSubTab('completed')} className={verifiedSubTab === 'completed' ? 'bg-blue-100 hover:bg-blue-200 text-blue-800 border border-blue-300' : ''}>
                     Completed
                     <Badge variant="secondary" className="ml-2">{verifiedSubcategories.completed.length}</Badge>
                   </Button>
