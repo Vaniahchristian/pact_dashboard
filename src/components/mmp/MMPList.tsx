@@ -48,7 +48,14 @@ export const MMPList = ({ mmpFiles, showActions = true }: MMPListProps) => {
   // Check permissions (case-insensitive fallback for possible lowercase stored roles)
   const isAdmin = hasAnyRole(['Admin', 'admin']);
   const isICT = hasAnyRole(['ICT', 'ict']);
-  const isFOM = hasAnyRole(['Field Operation Manager (FOM)']);
+  const isFOM = hasAnyRole([
+    'Field Operation Manager (FOM)',
+    'FOM',
+    'fom',
+    'field operation manager',
+    'Field Ops Manager',
+    'field ops manager'
+  ]);
   const canDeleteMMP = checkPermission('mmp', 'delete') || isAdmin || isICT;
   const canEditMMP = checkPermission('mmp', 'update') || isAdmin || isICT;
   // Allow forwarding if user can update OR has admin/ict role
@@ -159,7 +166,7 @@ export const MMPList = ({ mmpFiles, showActions = true }: MMPListProps) => {
                         View Details
                       </DropdownMenuItem>
                       
-                      {canEditMMP && !isForwarded && (
+                      {((canEditMMP && !isForwarded) || (isFOM && isForwarded)) && (
                         <DropdownMenuItem onClick={() => navigate(`/mmp/${mmp.id}/edit?tab=sites`)}>
                           Edit Site Entries
                         </DropdownMenuItem>

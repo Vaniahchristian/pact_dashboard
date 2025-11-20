@@ -27,9 +27,9 @@ const EditMMP: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('details');
 
   const isAdmin = hasAnyRole(['admin']);
-  const isFOM = hasAnyRole(['fom']);
+  const isFOM = hasAnyRole(['fom', 'Field Operation Manager (FOM)']);
   const isCoordinator = hasAnyRole(['coordinator']);
-  const canEdit = checkPermission('mmp', 'update') || isAdmin || isCoordinator;
+  const canEdit = checkPermission('mmp', 'update') || isAdmin || isCoordinator || isFOM;
 
   if (!canEdit) {
     return (
@@ -106,7 +106,7 @@ const EditMMP: React.FC = () => {
     }
   };
 
-  const handleUpdateSites = async (sites: any[]) => {
+  const handleUpdateSites = async (sites: any[]): Promise<boolean> => {
     if (mmpFile && updateMMP) {
       const updatedMMP = { ...mmpFile, siteEntries: sites };
       const ok = await updateMMP(id!, { siteEntries: sites });
@@ -116,14 +116,17 @@ const EditMMP: React.FC = () => {
           title: 'Site Entries Updated',
           description: 'Your changes have been saved.',
         });
+        return true;
       } else {
         toast({
           title: 'Save Failed',
           description: 'We could not persist your changes. Please check your permissions or try again.',
           variant: 'destructive',
         });
+        return false;
       }
     }
+    return false;
   };
 
   if (loading) {
