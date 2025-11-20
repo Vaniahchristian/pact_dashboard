@@ -1,5 +1,5 @@
 import { MMPFile } from '@/types/mmp';
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -28,7 +28,7 @@ import {
 import { useToast } from "@/components/ui/use-toast";
 import { useAppContext } from "@/context/AppContext";
 import { ArrowUpCircle, CheckCircle, Info, Upload, HelpCircle, AlertTriangle, 
-         Eye, Save, X, RefreshCw, FileCheck, MessageSquare, ArrowRight, ListChecks, Download } from "lucide-react";
+         Eye, Save, X, RefreshCw, FileCheck, MessageSquare, ArrowRight, ListChecks, Download, Pencil, Check } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
@@ -48,6 +48,8 @@ import MMPFileManagement from '@/components/mmp/MMPFileManagement';
 import { useMMP } from '@/context/mmp/MMPContext';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { validateCSV, CSVValidationError } from "@/utils/csvValidator";
+import { validateSiteCode } from "@/utils/mmpIdGenerator";
+import { format, parse, isValid } from "date-fns";
 
 const uploadSchema = z.object({
   name: z.string({
@@ -103,6 +105,9 @@ const MMPUpload = () => {
   const [previewHeaders, setPreviewHeaders] = useState<string[]>([]);
   const [previewErrors, setPreviewErrors] = useState<CSVValidationError[]>([]);
   const [previewWarnings, setPreviewWarnings] = useState<CSVValidationError[]>([]);
+  const [isEditingEntries, setIsEditingEntries] = useState(false);
+  const [editingRows, setEditingRows] = useState<Set<number>>(new Set());
+  const [rowBackups, setRowBackups] = useState<Record<number, Record<string, string>>>({});
   const IMPORTANT_COLS = [
     'Hub Office','State','Locality','Site Name','Site Code','CP Name','Activity at Site','Activity Details','Monitoring By','Survey Tool',
     'Use Market Diversion Monitoring','Use Warehouse Monitoring','Visit Date','Comments'
@@ -113,6 +118,289 @@ const MMPUpload = () => {
     const rest = Array.from(set).filter(h => !IMPORTANT_COLS.includes(h));
     return IMPORTANT_COLS.filter(h => set.has(h)).concat(rest);
   };
+
+  const rowNumberOf = (idx: number) => idx + 2;
+
+  const normalizeColumnLabelForHeader = (col?: string, row?: Record<string, string>): string | null => {
+    if (!col || !row) return null;
+    if (col in row) return col;
+    if (col === 'Site ID' && 'Site Code' in row) return 'Site Code';
+    if (col === 'Visit by' && 'Monitoring By' in row) return 'Monitoring By';
+    if (col === 'Tool to be used') {
+      if ('Survey Tool' in row) return 'Survey Tool';
+      if ('Survey under Master tool' in row) return 'Survey under Master tool';
+    }
+    return null;
+  };
+
+  const norm = (s: string) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+  const requiredFieldSynonyms: Record<string, string[]> = {
+    hubOffice: ['huboffice','hub','office','hubofficename','hub office'],
+    state: ['state','statename','region','stateprovince'],
+    locality: ['locality','localityname','district','county','lga'],
+    siteName: ['sitename','site','facilityname','distributionpoint','site name'],
+    siteCode: ['sitecode','siteid','code','site code','site id'],
+    cpName: ['cpname','cp','partner','partnername','implementingpartner','ipname','cp name'],
+    siteActivity: ['activityatsite','siteactivity','activitysite','activityatthesite','activity at site'],
+    mainActivity: ['mainactivity','activity','activitydetails','activity details'],
+    monitoringBy: ['monitoringby','monitoringby:','monitoring by','monitoredby','visitby','visit by'],
+    surveyTool: ['surveytool','surveyundermastertool','survey under master tool','tooltobeused','tool','survey tool']
+  };
+
+  const getValFromSynonyms = (row: Record<string, string>, key: keyof typeof requiredFieldSynonyms): string => {
+    const nrec: Record<string, string> = {};
+    Object.entries(row).forEach(([k, v]) => { nrec[norm(k)] = String(v ?? ''); });
+    for (const syn of requiredFieldSynonyms[key]) {
+      const v = nrec[syn];
+      if (v && v.trim() !== '') return v;
+    }
+    return '';
+  };
+
+  const validateRowLocal = (
+    row: Record<string, string>,
+    rowNumber: number
+  ): { errors: CSVValidationError[]; warnings: CSVValidationError[] } => {
+    const errors: CSVValidationError[] = [];
+    const warnings: CSVValidationError[] = [];
+
+    const nrec: Record<string, string> = {};
+    Object.entries(row).forEach(([k, v]) => { nrec[norm(k)] = String(v ?? ''); });
+
+    const requiredChecks: Array<{label: string; key: keyof typeof requiredFieldSynonyms}> = [
+      { label: 'Hub Office', key: 'hubOffice' },
+      { label: 'State', key: 'state' },
+      { label: 'Locality', key: 'locality' },
+      { label: 'Site Name', key: 'siteName' },
+      { label: 'Site ID', key: 'siteCode' },
+      { label: 'CP Name', key: 'cpName' },
+      { label: 'Activity at Site', key: 'siteActivity' },
+      { label: 'Activity Details', key: 'mainActivity' },
+      { label: 'Visit by', key: 'monitoringBy' },
+      { label: 'Tool to be used', key: 'surveyTool' },
+    ];
+
+    requiredChecks.forEach(chk => {
+      const v = getValFromSynonyms(row, chk.key);
+      if (!v) {
+        errors.push({
+          type: 'error',
+          message: `Missing ${chk.label}`,
+          row: rowNumber,
+          column: chk.label,
+          category: 'missing_field'
+        });
+      }
+    });
+
+    // Visit Date handling
+    if (row['Visit Date'] === undefined || String(row['Visit Date']).trim() === '') {
+      const today = new Date();
+      row['OriginalDate'] = format(today, 'yyyy-MM-dd');
+      row['Visit Date'] = format(today, 'dd-MM-yyyy');
+      warnings.push({
+        type: 'warning',
+        message: "No visit date provided, using today's date",
+        row: rowNumber,
+        column: 'Visit Date',
+        category: 'missing_date'
+      });
+    } else {
+      let parsed: Date | null = parse(String(row['Visit Date']), 'dd-MM-yyyy', new Date());
+      if (!isValid(parsed)) parsed = parse(String(row['Visit Date']), 'yyyy-MM-dd', new Date());
+      if (!isValid(parsed)) {
+        const today = new Date();
+        row['OriginalDate'] = format(today, 'yyyy-MM-dd');
+        row['Visit Date'] = format(today, 'dd-MM-yyyy');
+        warnings.push({
+          type: 'warning',
+          message: 'Invalid Visit Date format, using today\'s date',
+          row: rowNumber,
+          column: 'Visit Date',
+          category: 'invalid_date_format'
+        });
+      } else {
+        row['OriginalDate'] = format(parsed, 'yyyy-MM-dd');
+        row['Visit Date'] = format(parsed, 'dd-MM-yyyy');
+      }
+    }
+
+    // Site Code format check
+    if (row['Site Code']) {
+      const sc = String(row['Site Code']);
+      if (!validateSiteCode(sc)) {
+        warnings.push({
+          type: 'warning',
+          message: 'Site Code must follow pattern [HH][SS][YYMMDD]-[0001] (e.g., KOKH230524-0001)',
+          row: rowNumber,
+          column: 'Site Code',
+          category: 'invalid_site_code'
+        });
+      }
+    }
+
+    // Boolean fields check
+    const boolVals = ['yes','no','true','false','1','0',''];
+    if (row['Use Market Diversion Monitoring'] !== undefined) {
+      const v = String(row['Use Market Diversion Monitoring']).toLowerCase().trim();
+      if (!boolVals.includes(v)) {
+        warnings.push({
+          type: 'warning',
+          message: 'Use Market Diversion Monitoring should be Yes/No',
+          row: rowNumber,
+          column: 'Use Market Diversion Monitoring',
+          category: 'invalid_boolean'
+        });
+      }
+    }
+    if (row['Use Warehouse Monitoring'] !== undefined) {
+      const v = String(row['Use Warehouse Monitoring']).toLowerCase().trim();
+      if (!boolVals.includes(v)) {
+        warnings.push({
+          type: 'warning',
+          message: 'Use Warehouse Monitoring should be Yes/No',
+          row: rowNumber,
+          column: 'Use Warehouse Monitoring',
+          category: 'invalid_boolean'
+        });
+      }
+    }
+
+    return { errors, warnings };
+  };
+
+  const recomputeDuplicateErrors = (rows: Record<string, string>[]): CSVValidationError[] => {
+    const seenKeys = new Map<string, number>();
+    const errors: CSVValidationError[] = [];
+
+    const getVal = (row: Record<string, string>, key: keyof typeof requiredFieldSynonyms): string => {
+      const nrec: Record<string, string> = {};
+      Object.entries(row).forEach(([k, v]) => { nrec[norm(k)] = String(v ?? ''); });
+      for (const syn of requiredFieldSynonyms[key]) {
+        const v = nrec[syn];
+        if (v && v.trim() !== '') return v;
+      }
+      return '';
+    };
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const rowNumber = rowNumberOf(i);
+      const sc = getVal(row, 'siteCode');
+      const siteKey = sc || [getVal(row, 'hubOffice'), getVal(row, 'state'), getVal(row, 'locality'), getVal(row, 'siteName'), getVal(row, 'cpName')]
+        .map(v => v.trim().toLowerCase())
+        .join('|');
+      if (siteKey.trim() === '') continue;
+      if (seenKeys.has(siteKey)) {
+        const firstRow = seenKeys.get(siteKey)!;
+        errors.push({
+          type: 'error',
+          message: `Duplicate site found (matches row ${firstRow})`,
+          row: rowNumber,
+          column: sc ? 'Site ID' : 'Composite Site Fields',
+          category: 'duplicate_site'
+        });
+      } else {
+        seenKeys.set(siteKey, rowNumber);
+      }
+    }
+    return errors;
+  };
+
+  const handleCellChange = (rIdx: number, header: string, value: string) => {
+    setPreviewData(prev => {
+      const next = [...prev];
+      const row = { ...(next[rIdx] || {}) } as Record<string, string>;
+      row[header] = value;
+      next[rIdx] = row;
+      return next;
+    });
+  };
+
+  const handleRowEdit = (rIdx: number) => {
+    setRowBackups(prev => ({ ...prev, [rIdx]: { ...(previewData[rIdx] || {}) } }));
+    setEditingRows(prev => {
+      const ns = new Set(prev);
+      ns.add(rIdx);
+      return ns;
+    });
+  };
+
+  const handleRowCancel = (rIdx: number) => {
+    const backup = rowBackups[rIdx];
+    if (!backup) {
+      setEditingRows(prev => { const ns = new Set(prev); ns.delete(rIdx); return ns; });
+      return;
+    }
+    setPreviewData(prev => {
+      const next = [...prev];
+      next[rIdx] = { ...backup };
+      const rowNumber = rowNumberOf(rIdx);
+      const { errors: rowErrors, warnings: rowWarnings } = validateRowLocal(next[rIdx], rowNumber);
+      setPreviewErrors(prevErrs => {
+        const filtered = prevErrs.filter(e => e.row !== rowNumber && e.category !== 'duplicate_site');
+        const dupErrors = recomputeDuplicateErrors(next);
+        return [...filtered, ...rowErrors, ...dupErrors];
+      });
+      setPreviewWarnings(prevWarns => {
+        const filtered = prevWarns.filter(w => w.row !== rowNumber);
+        return [...filtered, ...rowWarnings];
+      });
+      return next;
+    });
+    setEditingRows(prev => { const ns = new Set(prev); ns.delete(rIdx); return ns; });
+    setRowBackups(prev => { const { [rIdx]: _, ...rest } = prev; return rest; });
+  };
+
+  const handleRowSave = (rIdx: number) => {
+    handleCellBlur(rIdx);
+    setEditingRows(prev => { const ns = new Set(prev); ns.delete(rIdx); return ns; });
+    setRowBackups(prev => { const { [rIdx]: _, ...rest } = prev; return rest; });
+  };
+
+  const handleCellBlur = (rIdx: number) => {
+    setPreviewData(prev => {
+      const next = [...prev];
+      const row = next[rIdx];
+      const rowNumber = rowNumberOf(rIdx);
+      const { errors: rowErrors, warnings: rowWarnings } = validateRowLocal(row, rowNumber);
+
+      setPreviewErrors(prevErrs => {
+        const filtered = prevErrs.filter(e => e.row !== rowNumber && e.category !== 'duplicate_site');
+        const dupErrors = recomputeDuplicateErrors(next);
+        return [...filtered, ...rowErrors, ...dupErrors];
+      });
+
+      setPreviewWarnings(prevWarns => {
+        const filtered = prevWarns.filter(w => w.row !== rowNumber);
+        return [...filtered, ...rowWarnings];
+      });
+
+      return next;
+    });
+  };
+
+  const cellIssueMaps = useMemo(() => {
+    const errorSet = new Set<string>();
+    const warningSet = new Set<string>();
+
+    previewErrors.forEach(e => {
+      if (!e.row || !e.column) return;
+      const rIdx = e.row - 2;
+      const row = previewData[rIdx];
+      const mapped = normalizeColumnLabelForHeader(e.column, row);
+      if (mapped) errorSet.add(`${rIdx}:${mapped}`);
+    });
+    previewWarnings.forEach(w => {
+      if (!w.row || !w.column) return;
+      const rIdx = w.row - 2;
+      const row = previewData[rIdx];
+      const mapped = normalizeColumnLabelForHeader(w.column, row);
+      if (mapped) warningSet.add(`${rIdx}:${mapped}`);
+    });
+
+    return { errorSet, warningSet };
+  }, [previewErrors, previewWarnings, previewData]);
 
   if (!canCreate) {
     return (
@@ -239,8 +527,18 @@ const MMPUpload = () => {
   };
 
   
+  const buildCsvFromPreview = (): File => {
+    const headers = (previewHeaders.length > 0 ? previewHeaders : buildHeaders(previewData)).filter(h => h !== 'OriginalDate');
+    const sanitize = (v: string) => String(v ?? '').replace(/\r?\n/g, ' ').replace(/,/g, ';');
+    const headerLine = headers.join(',');
+    const lines = previewData.map(row => headers.map(h => sanitize(row[h] as string)).join(','));
+    const csv = [headerLine, ...lines].join('\r\n');
+    const fileName = `${(form.getValues().name || 'edited_mmp').toString().trim() || 'edited_mmp'}.csv`;
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    return new File([blob], fileName, { type: 'text/csv' });
+  };
+
   const onSubmit = async (data: UploadFormValues) => {
-    // Skip validation step - go straight to upload with progress feedback
     setIsUploading(true);
     
     // Set up a timeout to prevent infinite loading
@@ -257,6 +555,7 @@ const MMPUpload = () => {
     setUploadTimeout(timeout);
     
     try {
+      const fileToUpload: File = previewData.length > 0 ? buildCsvFromPreview() : data.file;
       console.log('Starting MMP upload process...');
       const result: {
         success: boolean;
@@ -266,7 +565,7 @@ const MMPUpload = () => {
         validationReport?: string;
         validationErrors?: import("@/utils/csvValidator").CSVValidationError[];
         validationWarnings?: import("@/utils/csvValidator").CSVValidationError[];
-      } = await uploadMMP(data.file, {
+      } = await uploadMMP(fileToUpload, {
         name: data.name,
         month: data.month,
         projectId: data.project,
@@ -711,8 +1010,30 @@ const MMPUpload = () => {
                       <div className="space-y-4 mt-4">
                         <div className="flex items-center justify-between">
                           <h3 className="text-sm font-medium">Preview & Validation</h3>
-                          <div className="text-xs text-muted-foreground">
-                            {isParsing ? 'Parsing file…' : `${previewData.length} row(s)`}
+                          <div className="flex items-center gap-2">
+                            <div className="text-xs text-muted-foreground">
+                              {isParsing ? 'Parsing file…' : `${previewData.length} row(s)`}
+                            </div>
+                            {previewData.length > 0 && (
+                              <Button
+                                type="button"
+                                variant={isEditingEntries ? 'secondary' : 'outline'}
+                                size="sm"
+                                onClick={() => setIsEditingEntries(v => !v)}
+                              >
+                                {isEditingEntries ? (
+                                  <>
+                                    <CheckCircle className="mr-2 h-4 w-4" />
+                                    Done
+                                  </>
+                                ) : (
+                                  <>
+                                    <Pencil className="mr-2 h-4 w-4" />
+                                    Edit Entries
+                                  </>
+                                )}
+                              </Button>
+                            )}
                           </div>
                         </div>
                         {(previewErrors.length > 0 || previewWarnings.length > 0) && (
@@ -743,16 +1064,50 @@ const MMPUpload = () => {
                                   {previewHeaders.map((h) => (
                                     <TableHead key={h}>{h}</TableHead>
                                   ))}
+                                  <TableHead className="w-[160px]">Actions</TableHead>
                                 </TableRow>
                               </TableHeader>
                               <TableBody>
                                 {previewData.map((row, rIdx) => (
                                   <TableRow key={rIdx} className="hover:bg-muted/30">
-                                    {previewHeaders.map((h) => (
-                                      <TableCell key={`${rIdx}-${h}`} className="text-xs">
-                                        {row[h] ?? ''}
-                                      </TableCell>
-                                    ))}
+                                    {previewHeaders.map((h) => {
+                                      const hasError = cellIssueMaps.errorSet.has(`${rIdx}:${h}`);
+                                      const hasWarning = cellIssueMaps.warningSet.has(`${rIdx}:${h}`);
+                                      const rowIsEditing = isEditingEntries || editingRows.has(rIdx);
+                                      const viewBg = !rowIsEditing ? (hasError ? 'bg-red-50' : (hasWarning ? 'bg-amber-50' : '')) : '';
+                                      return (
+                                        <TableCell key={`${rIdx}-${h}`} className={`text-xs align-top ${viewBg}`}>
+                                          {rowIsEditing ? (
+                                            <Input
+                                              value={(row[h] ?? '') as string}
+                                              onChange={(e) => handleCellChange(rIdx, h, e.target.value)}
+                                              onBlur={() => handleCellBlur(rIdx)}
+                                              className={`h-7 px-2 py-1 text-xs ${hasError ? 'bg-red-50 border-red-300 focus-visible:ring-red-300' : hasWarning ? 'bg-amber-50 border-amber-300 focus-visible:ring-amber-300' : ''}`}
+                                            />
+                                          ) : (
+                                            <div className="min-h-[28px] leading-6 px-1">
+                                              {row[h] ?? ''}
+                                            </div>
+                                          )}
+                                        </TableCell>
+                                      );
+                                    })}
+                                    <TableCell className="text-xs align-top">
+                                      {editingRows.has(rIdx) ? (
+                                        <div className="flex gap-2">
+                                          <Button size="sm" onClick={() => handleRowSave(rIdx)}>
+                                            <Check className="h-4 w-4 mr-1" /> Save
+                                          </Button>
+                                          <Button size="sm" variant="outline" onClick={() => handleRowCancel(rIdx)}>
+                                            <X className="h-4 w-4 mr-1" /> Cancel
+                                          </Button>
+                                        </div>
+                                      ) : (
+                                        <Button size="sm" variant="outline" onClick={() => handleRowEdit(rIdx)}>
+                                          <Pencil className="h-4 w-4 mr-1" /> Edit
+                                        </Button>
+                                      )}
+                                    </TableCell>
                                   </TableRow>
                                 ))}
                               </TableBody>
